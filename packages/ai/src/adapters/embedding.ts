@@ -1,4 +1,4 @@
-import type { EmbedFn } from '../index.js';
+import type { EmbedFn } from '../index';
 
 /**
  * Safely embeds an array of texts.

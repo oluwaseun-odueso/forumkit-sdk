@@ -1,4 +1,4 @@
-import type { LLMFn } from '../index.js';
+import type { LLMFn } from '../index';
 import type { AISummary, AISuggestion } from '@forumkit/types';
 
 /**

@@ -1,5 +1,5 @@
 import postgres from 'postgres';
-import type { Config } from './config.js';
+import type { Config } from './config';
 
 export type DB = ReturnType<typeof postgres>;
 

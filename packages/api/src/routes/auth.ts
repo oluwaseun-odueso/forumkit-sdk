@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate } from '../middleware/auth';
 
 const sessionBodySchema = z.object({
   token: z.string().min(1),

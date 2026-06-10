@@ -1,4 +1,4 @@
-import type { EmbedFn } from '../index.js';
+import type { EmbedFn } from '../index';
 
 export function openaiEmbed(apiKey: string): EmbedFn {
   return async (texts: string[]): Promise<number[][]> => {

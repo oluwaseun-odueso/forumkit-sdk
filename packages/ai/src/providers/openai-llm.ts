@@ -1,4 +1,4 @@
-import type { LLMFn } from '../index.js';
+import type { LLMFn } from '../index';
 
 export function openaiLLM(apiKey: string): LLMFn {
   return async (systemPrompt: string, userPrompt: string): Promise<string> => {

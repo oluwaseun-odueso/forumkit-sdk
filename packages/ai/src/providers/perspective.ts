@@ -1,4 +1,4 @@
-import type { ModerateFn } from '../index.js';
+import type { ModerateFn } from '../index';
 
 export function perspectiveModerate(apiKey: string): ModerateFn {
   return async (text: string) => {

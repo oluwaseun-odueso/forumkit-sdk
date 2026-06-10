@@ -3,17 +3,17 @@ import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { createRequire } from 'module';
-import type { Config } from './config.js';
-import type { DB } from './db.js';
+import type { Config } from './config';
+import type { DB } from './db';
 
 const require = createRequire(import.meta.url);
-import { authRoutes } from './routes/auth.js';
-import { forumsRoutes } from './routes/forums.js';
-import { threadsRoutes } from './routes/threads.js';
-import { postsRoutes } from './routes/posts.js';
-import { searchRoutes } from './routes/search.js';
-import { aiRoutes } from './routes/ai.js';
-import { moderationRoutes } from './routes/moderation.js';
+import { authRoutes } from './routes/auth';
+import { forumsRoutes } from './routes/forums';
+import { threadsRoutes } from './routes/threads';
+import { postsRoutes } from './routes/posts';
+import { searchRoutes } from './routes/search';
+import { aiRoutes } from './routes/ai';
+import { moderationRoutes } from './routes/moderation';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
   const app = Fastify({

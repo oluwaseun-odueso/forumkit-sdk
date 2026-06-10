@@ -3,21 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
   "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./react": {
-      "import": "./dist/wrappers/react.js",
-      "types": "./dist/wrappers/react.d.ts"
-    }
+    ".": "./src/index.ts",
+    "./react": "./src/wrappers/react.tsx"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --noEmit --watch"
   },
   "dependencies": {
     "@forumkit/types": "*"

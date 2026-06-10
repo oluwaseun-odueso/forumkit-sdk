@@ -1,6 +1,6 @@
-import { loadConfig } from './config.js';
-import { getDb, closeDb } from './db.js';
-import { buildApp } from './app.js';
+import { loadConfig } from './config';
+import { getDb, closeDb } from './db';
+import { buildApp } from './app';
 
 const config = loadConfig();
 const db = getDb(config);

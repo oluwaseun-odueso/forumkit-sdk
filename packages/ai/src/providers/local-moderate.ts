@@ -1,4 +1,4 @@
-import type { ModerateFn } from '../index.js';
+import type { ModerateFn } from '../index';
 
 /**
  * Local moderation provider using unitary/toxic-bert.

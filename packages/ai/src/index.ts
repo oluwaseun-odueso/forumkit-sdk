@@ -75,6 +75,6 @@ async function buildLLMAdapter(config: AdapterConfig): Promise<LLMFn> {
   return async (_system, _user) => '[AI assistant is not configured for this deployment]';
 }
 
-export * from './adapters/embedding.js';
-export * from './adapters/moderation.js';
-export * from './adapters/llm.js';
+export * from './adapters/embedding';
+export * from './adapters/moderation';
+export * from './adapters/llm';

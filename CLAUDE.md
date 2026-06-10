@@ -51,6 +51,21 @@ forumkit/
 
 ---
 
+## Build System
+
+**No `dist` folders.** `tsconfig.base.json` uses `moduleResolution: Bundler`,
+`module: ESNext`, and `noEmit: true`. TypeScript is type-check-only; `tsx`
+handles execution for both development and production.
+
+- **Dev**: `npm run dev --workspace=packages/api` → `tsx watch src/server.ts`
+- **Production**: `npm start --workspace=packages/api` → `tsx src/server.ts`
+- **Type-check**: `npm run typecheck` from root (runs `tsc --noEmit` across all packages)
+- **Imports**: no `.js` extensions anywhere — plain bare or `.ts` extensions only
+- **npm publishing**: a build step (esbuild) will be added before any package
+  is published. For now all packages are private and run from source.
+
+---
+
 ## Engineering Principles
 
 **Correctness before cleverness.** Write the obvious solution first.

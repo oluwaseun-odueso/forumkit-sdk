@@ -1,4 +1,4 @@
-import type { EmbedFn } from '../index.js';
+import type { EmbedFn } from '../index';
 
 /**
  * Local embedding provider using all-MiniLM-L6-v2 (384 dimensions).

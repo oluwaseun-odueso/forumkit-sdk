@@ -1,4 +1,4 @@
-import type { ModerateFn, ModerateResult } from '../index.js';
+import type { ModerateFn, ModerateResult } from '../index';
 
 const NEUTRAL_RESULT: ModerateResult = {
   score: 0,
