@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.local
+*.js.map
+*.d.ts.map
+coverage/
+.nyc_output/
+.turbo/
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# OS
+.DS_Store
+Thumbs.db

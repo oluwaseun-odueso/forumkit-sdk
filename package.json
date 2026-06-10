@@ -1,0 +1,31 @@
+{
+  "name": "forumkit",
+  "version": "0.1.0",
+  "description": "Open-source embeddable discussion system with AI-augmented content intelligence",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint packages/*/src/**/*.ts",
+    "typecheck": "tsc --build packages/*/tsconfig.json",
+    "db:migrate": "node --env-file=.env ./node_modules/.bin/node-pg-migrate up --migrations-dir packages/db/src/migrations",
+    "db:seed": "node --env-file=.env ./node_modules/.bin/tsx packages/db/src/seeds/index.ts",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "license": "MIT"
+}
