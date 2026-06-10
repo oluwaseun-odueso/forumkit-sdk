@@ -1,0 +1,42 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://forumkit:forumkit@db:5432/forumkit
+      DATABASE_POOL_URL: postgresql://forumkit:forumkit@db:5432/forumkit
+      FORUM_SECRET_KEY: dev-secret-change-in-production
+      AI_PROVIDER: local
+      MODERATION_PROVIDER: local
+      EMBEDDING_PROVIDER: local
+      EMBEDDING_DIMENSION: 384
+      PORT: 3000
+      LOG_LEVEL: debug
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../packages/api/src:/app/packages/api/src   # hot reload in dev
+
+  db:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: forumkit
+      POSTGRES_USER: forumkit
+      POSTGRES_PASSWORD: forumkit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forumkit -d forumkit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
