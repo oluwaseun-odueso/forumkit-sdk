@@ -133,10 +133,10 @@ export type UpdatePostBody = {
 };
 
 export type ThreadListQuery = {
-  tagId?: string;
-  sort?: 'latest' | 'oldest' | 'most_posts' | 'most_reactions';
-  page?: number;
-  limit?: number;
+  tagId?: string | undefined;
+  sort?: 'latest' | 'oldest' | 'most_posts' | 'most_reactions' | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
 };
 
 export type SearchQuery = {

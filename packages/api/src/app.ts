@@ -5,6 +5,7 @@ import websocket from '@fastify/websocket';
 import { createRequire } from 'module';
 import type { Config } from './config';
 import type { DB } from './db';
+import { buildAdapters } from '@forumkit/ai';
 
 const require = createRequire(import.meta.url);
 import { authRoutes } from './routes/auth';
@@ -36,9 +37,10 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
 
   await app.register(websocket);
 
-  // ── Decorators — make db and config available on every request ───
+  // ── Decorators — make db, config, and AI adapters available on every request ───
   app.decorate('db', db);
   app.decorate('config', config);
+  app.decorate('ai', await buildAdapters(config));
 
   // ── Routes ───────────────────────────────────────────────────────
   await app.register(authRoutes, { prefix: '/auth' });
