@@ -4,7 +4,9 @@ const DIMENSION = parseInt(process.env['EMBEDDING_DIMENSION'] ?? '384', 10);
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── Extensions ────────────────────────────────────────────────────
-  pgm.sql(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+  // uuid-ossp is intentionally omitted — gen_random_uuid() is built into
+  // PostgreSQL 13+ and works without any extension. On Supabase, uuid-ossp
+  // lives in the extensions schema and is not on the default search path.
   pgm.sql(`CREATE EXTENSION IF NOT EXISTS vector`);
 
   // ── Enums ─────────────────────────────────────────────────────────
@@ -17,7 +19,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── forums ────────────────────────────────────────────────────────
   pgm.sql(`
     CREATE TABLE forums (
-      id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       name       TEXT NOT NULL,
       owner_id   UUID,
       config     JSONB NOT NULL DEFAULT '{
@@ -34,7 +36,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── users ─────────────────────────────────────────────────────────
   pgm.sql(`
     CREATE TABLE users (
-      id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       external_id   TEXT NOT NULL,
       forum_id      UUID NOT NULL REFERENCES forums(id) ON DELETE CASCADE,
       display_name  TEXT NOT NULL,
@@ -52,7 +54,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── tags ──────────────────────────────────────────────────────────
   pgm.sql(`
     CREATE TABLE tags (
-      id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       forum_id    UUID NOT NULL REFERENCES forums(id) ON DELETE CASCADE,
       name        TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
@@ -68,7 +70,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // Do NOT change this value after table creation without re-embedding all content.
   pgm.sql(`
     CREATE TABLE threads (
-      id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       forum_id    UUID NOT NULL REFERENCES forums(id) ON DELETE CASCADE,
       author_id   UUID NOT NULL REFERENCES users(id),
       title       TEXT NOT NULL,
@@ -108,7 +110,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── posts ─────────────────────────────────────────────────────────
   pgm.sql(`
     CREATE TABLE posts (
-      id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       thread_id          UUID NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
       author_id          UUID NOT NULL REFERENCES users(id),
       parent_post_id     UUID REFERENCES posts(id),
@@ -135,7 +137,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── reactions ─────────────────────────────────────────────────────
   pgm.sql(`
     CREATE TABLE reactions (
-      id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       post_id    UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
       user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       type       reaction_type NOT NULL,
@@ -148,7 +150,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── moderation_queue ──────────────────────────────────────────────
   pgm.sql(`
     CREATE TABLE moderation_queue (
-      id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       post_id     UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
       reporter_id UUID REFERENCES users(id),
       reason      TEXT NOT NULL DEFAULT '',
@@ -166,7 +168,7 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   // ── api_keys ──────────────────────────────────────────────────────
   pgm.sql(`
     CREATE TABLE api_keys (
-      id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       forum_id     UUID NOT NULL REFERENCES forums(id) ON DELETE CASCADE,
       key_hash     TEXT NOT NULL,
       created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
