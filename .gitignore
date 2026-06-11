@@ -12,8 +12,14 @@ coverage/
 supabase/.branches
 supabase/.temp
 
+# Build artefacts
+*.tsbuildinfo
+
 # OS
 .DS_Store
 Thumbs.db
+*.png
+*.jpg
+*.jpeg
 CHECKLIST.md
 CLAUDE.md
