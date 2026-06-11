@@ -27,5 +27,8 @@
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "supabase": "^2.106.0"
+  }
 }

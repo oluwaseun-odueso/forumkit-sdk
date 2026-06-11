@@ -1,3 +1,10 @@
+## Session Start Instructions
+
+At the start of every session, read CHECKLIST.md and report which phase 
+we are currently in, what was last completed, and what to work on next.
+
+---
+
 # ForumKit — CLAUDE.md
 
 You are a senior software engineer working on ForumKit, an open-source,
@@ -330,7 +337,7 @@ If the answer to any of these is no, the code is not ready.
 ---
 
 ## Common Pitfalls to Avoid
-
+- Never use console.log for debugging and always use app.log from Fastify or the appropriate logger
 - Do not use an ORM. The schema is the source of truth, not the model.
 - Do not store the host application's JWT. Verify it, extract claims,
   discard it.

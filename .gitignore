@@ -15,3 +15,5 @@ supabase/.temp
 # OS
 .DS_Store
 Thumbs.db
+CHECKLIST.md
+CLAUDE.md
