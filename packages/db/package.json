@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "migrate": "node-pg-migrate up",
-    "migrate:down": "node-pg-migrate down",
-    "migrate:create": "node-pg-migrate create",
-    "seed": "tsx src/seeds/index.ts"
+    "migrate": "node-pg-migrate up --migrations-dir src/migrations --tsx",
+    "migrate:down": "node-pg-migrate down --migrations-dir src/migrations --tsx",
+    "migrate:create": "node-pg-migrate create --migrations-dir src/migrations --migration-file-language ts",
+    "seed": "tsx --env-file=../../.env src/seeds/index.ts"
   },
   "dependencies": {
     "node-pg-migrate": "^7.0.0",
