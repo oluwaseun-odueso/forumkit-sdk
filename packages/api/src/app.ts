@@ -54,5 +54,30 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   // ── Health check ─────────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
+  // ── Global error handlers ────────────────────────────────────────
+  // Ensures every error response — Fastify-generated or unhandled — uses
+  // the standard ErrorResponse shape: { error, message, statusCode }.
+  app.setNotFoundHandler((_request, reply) => {
+    void reply.status(404).send({
+      error: 'not_found',
+      message: 'The requested route does not exist',
+      statusCode: 404,
+    });
+  });
+
+  app.setErrorHandler((err, request, reply) => {
+    const statusCode = err.statusCode ?? 500;
+
+    if (statusCode >= 500) {
+      request.log.error({ err }, 'Unhandled server error');
+    }
+
+    void reply.status(statusCode).send({
+      error: err.code ?? 'internal_error',
+      message: statusCode >= 500 ? 'An unexpected error occurred' : err.message,
+      statusCode,
+    });
+  });
+
   return app;
 }
