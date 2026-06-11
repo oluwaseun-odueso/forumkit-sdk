@@ -23,7 +23,3 @@ export function anthropicLLM(apiKey: string): LLMFn {
     return text;
   };
 }
-
-function fetch(arg0: string, arg1: { method: string; headers: { 'x-api-key': string; 'anthropic-version': string; 'Content-Type': string; }; body: string; }) {
-  throw new Error('Function not implemented.');
-}

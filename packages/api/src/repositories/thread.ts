@@ -27,7 +27,7 @@ type CreateThreadInput = {
 };
 
 type ListThreadsOptions = {
-  tagId?: string;
+  tagId?: string | undefined;
   sort: NonNullable<ThreadListQuery['sort']>;
   page: number;
   limit: number;
