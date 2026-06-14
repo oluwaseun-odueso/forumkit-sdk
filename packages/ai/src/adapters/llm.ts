@@ -20,6 +20,52 @@ async function safeLLMCall(
 }
 
 /**
+ * Suggests 1–3 tags for a thread. Prefers existing tag names; invents new
+ * ones only when nothing fits. Returns [] on failure (graceful degradation).
+ */
+export async function suggestTags(
+  title: string,
+  body: string,
+  existingTagNames: string[],
+  llmFn: LLMFn,
+): Promise<string[]> {
+  const systemPrompt = [
+    'You are a helpful assistant that categorises forum threads with short, relevant tags.',
+    'Respond ONLY with a JSON array of 1 to 3 tag name strings — no markdown, no explanation.',
+    'Example: ["javascript","performance"]',
+    'Prefer names from the existing tags list when they fit.',
+    'Only invent a new tag name if none of the existing tags are appropriate.',
+    'Tag names must be lowercase, max 30 characters, use hyphens instead of spaces.',
+  ].join(' ');
+
+  const existingSection =
+    existingTagNames.length > 0
+      ? `Existing tags: ${existingTagNames.join(', ')}`
+      : 'No existing tags — create appropriate ones.';
+
+  const userPrompt = [
+    `Thread title: ${title}`,
+    `Thread body: ${body.slice(0, 500)}`,
+    existingSection,
+    'Return 1-3 tag names as a JSON array.',
+  ].join('\n');
+
+  const raw = await safeLLMCall(systemPrompt, userPrompt, llmFn);
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is string => typeof t === 'string' && t.length > 0)
+      .slice(0, 3);
+  } catch {
+    console.error('[ai/llm] Failed to parse suggestTags JSON:', raw);
+    return [];
+  }
+}
+
+/**
  * Summarises a forum thread.
  * Returns null if the LLM is unavailable.
  */
