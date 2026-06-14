@@ -209,6 +209,21 @@ export async function insertModerationQueueItem(
   `;
 }
 
+export async function listPostsByThread(db: DB, threadId: string): Promise<Post[]> {
+  const rows = await db<PostRow[]>`
+    SELECT
+      p.id, p.thread_id, p.author_id, p.parent_post_id, p.body,
+      p.status, p.toxicity_score, p.is_accepted_answer,
+      p.created_at, p.updated_at,
+      ${db.unsafe(REACTION_COUNTS_SUBQUERY)}
+    FROM posts p
+    WHERE p.thread_id = ${threadId}
+      AND p.status != 'deleted'
+    ORDER BY p.created_at ASC
+  `;
+  return rows.map(toPost);
+}
+
 export async function getForumConfigByThreadId(
   db: DB,
   threadId: string,

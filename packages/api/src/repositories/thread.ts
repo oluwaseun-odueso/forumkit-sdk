@@ -1,5 +1,5 @@
 import type { DB } from '../db';
-import type { Tag, Thread, ThreadListQuery } from '@forumkit/types';
+import type { Tag, Thread, ThreadListQuery, SimilarThread } from '@forumkit/types';
 
 export type ThreadWithMetaData = Thread & { postCount: number };
 
@@ -198,6 +198,96 @@ export async function createThread(
 
   if (!thread) throw new Error('Thread not found after create');
   return thread;
+}
+
+type UpdateThreadPatch = {
+  title?: string | undefined;
+  body?: string | undefined;
+  tagIds?: string[] | undefined;
+};
+
+export async function updateThread(
+  db: DB,
+  threadId: string,
+  patch: UpdateThreadPatch,
+): Promise<ThreadWithMetaData | null> {
+  await db.begin(async (sql) => {
+    await sql`
+      UPDATE threads
+      SET
+        title = ${patch.title !== undefined ? patch.title : sql`title`},
+        body  = ${patch.body  !== undefined ? patch.body  : sql`body`}
+      WHERE id = ${threadId}
+    `;
+
+    if (patch.tagIds !== undefined) {
+      await sql`DELETE FROM thread_tags WHERE thread_id = ${threadId}`;
+      if (patch.tagIds.length > 0) {
+        await sql`
+          INSERT INTO thread_tags (thread_id, tag_id)
+          SELECT ${threadId}, UNNEST(${patch.tagIds}::uuid[])
+        `;
+      }
+    }
+  });
+
+  return getThreadById(db, threadId);
+}
+
+export async function softDeleteThread(db: DB, threadId: string): Promise<void> {
+  await db`UPDATE threads SET status = 'deleted' WHERE id = ${threadId}`;
+}
+
+export async function setThreadLocked(
+  db: DB,
+  threadId: string,
+  locked: boolean,
+): Promise<ThreadWithMetaData | null> {
+  await db`
+    UPDATE threads
+    SET status = ${locked ? 'locked' : 'open'}
+    WHERE id = ${threadId}
+  `;
+  return getThreadById(db, threadId);
+}
+
+export async function setThreadPinned(
+  db: DB,
+  threadId: string,
+  pinned: boolean,
+): Promise<ThreadWithMetaData | null> {
+  await db`UPDATE threads SET pinned = ${pinned} WHERE id = ${threadId}`;
+  return getThreadById(db, threadId);
+}
+
+export async function findSimilarThreads(
+  db: DB,
+  forumId: string,
+  embedding: number[],
+  excludeId?: string | undefined,
+): Promise<SimilarThread[]> {
+  const vec = '[' + embedding.join(',') + ']';
+  const excludeFilter = excludeId ? db`AND id != ${excludeId}` : db``;
+
+  const rows = await db<{ id: string; title: string; similarity: number }[]>`
+    SELECT
+      id,
+      title,
+      (1 - (embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
+    FROM threads
+    WHERE forum_id = ${forumId}
+      AND status != 'deleted'
+      AND embedding IS NOT NULL
+      ${excludeFilter}
+    ORDER BY embedding <=> ${db.unsafe(vec)}::vector
+    LIMIT 3
+  `;
+
+  return rows.map((r) => ({ id: r.id, title: r.title, similarity: r.similarity }));
+}
+
+export async function incrementViewCount(db: DB, threadId: string): Promise<void> {
+  await db`UPDATE threads SET view_count = view_count + 1 WHERE id = ${threadId}`;
 }
 
 export async function updateThreadEmbedding(
