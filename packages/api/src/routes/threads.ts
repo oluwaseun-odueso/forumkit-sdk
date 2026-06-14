@@ -91,6 +91,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
         const thread = await threadService.createThread(
           request.server.db,
           request.server.ai.embed,
+          request.server.ai.llm,
           forumId,
           user.id,
           parsed.data,
