@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Open-source embeddable discussion system with AI-augmented content intelligence",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],
