@@ -79,6 +79,14 @@ export async function postsRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    if (parsed.data.body.length > request.server.config.maxPostLength) {
+      return reply.status(422).send({
+        error: 'body_too_long',
+        message: `Post body must not exceed ${request.server.config.maxPostLength} characters`,
+        statusCode: 422,
+      });
+    }
+
     const result = await postService.createPost(
       request.server.db,
       request.server.ai.embed,
@@ -110,7 +118,13 @@ export async function postsRoutes(app: FastifyInstance): Promise<void> {
     const user = await resolveUser(request);
     if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
 
-    const result = await postService.updatePost(request.server.db, pid, user.id, parsed.data.body);
+    const result = await postService.updatePost(
+      request.server.db,
+      pid,
+      user.id,
+      user.role as Parameters<typeof postService.updatePost>[3],
+      parsed.data.body,
+    );
     if (!result.ok) return sendPostError(result.code, reply);
 
     broadcast(tid, { type: 'post.updated', payload: result.value });

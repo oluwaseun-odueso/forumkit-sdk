@@ -37,12 +37,19 @@ export async function createPost(
 export async function updatePost(
   db: DB,
   postId: string,
-  authorId: string,
+  requesterId: string,
+  requesterRole: UserRole,
   body: string,
 ): Promise<Result<Post, PostError>> {
   const existing = await repo.getPostById(db, postId);
   if (!existing) return err('post_not_found');
-  if (existing.authorId !== authorId) return err('forbidden');
+
+  const canEdit =
+    existing.authorId === requesterId ||
+    requesterRole === 'moderator' ||
+    requesterRole === 'admin';
+
+  if (!canEdit) return err('forbidden');
 
   const post = await repo.updatePost(db, postId, body);
   if (!post) return err('post_not_found');
@@ -125,6 +132,7 @@ export async function acceptAnswer(
 
   if (!post) return err('post_not_found');
   if (!thread) return err('thread_not_found');
+  if (post.threadId !== opts.threadId) return err('post_not_found');
 
   const canAccept =
     thread.authorId === opts.requesterId ||
