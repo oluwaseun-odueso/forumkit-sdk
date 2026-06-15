@@ -75,7 +75,6 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // @ts-expect-error — extended via declaration merging
       const payload = request.jwtPayload as HostJWTPayload;
       const forum = await forumService.createForum(request.server.db, parsed.data.name, payload.sub);
       return reply.status(201).send(forum);

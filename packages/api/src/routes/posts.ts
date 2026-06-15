@@ -31,7 +31,6 @@ const reportBodySchema = z.object({
 type UserRow = { id: string; role: string };
 
 async function resolveUser(request: FastifyRequest): Promise<UserRow | null> {
-  // @ts-expect-error — extended via declaration merging
   const payload = request.jwtPayload;
   const rows = await request.server.db<UserRow[]>`
     SELECT id, role FROM users

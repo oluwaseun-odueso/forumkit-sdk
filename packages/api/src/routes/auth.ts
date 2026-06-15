@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import type { HostJWTPayload, UserRole } from '@forumkit/types';
 import { authenticate } from '../middleware/auth';
+import { signSessionToken } from '../lib/session';
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -21,8 +23,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      // @ts-expect-error — extended via declaration merging
-      const payload = request.jwtPayload;
+      // This endpoint only accepts host JWTs — session tokens cannot be exchanged
+      // for new session tokens (that would be circular). Guard against misuse.
+      const rawPayload = request.jwtPayload as unknown;
+      if (!('name' in (rawPayload as object))) {
+        return reply.status(400).send({
+          error: 'host_jwt_required',
+          message: 'This endpoint requires a host application JWT, not a session token',
+          statusCode: 400,
+        });
+      }
+      const payload = rawPayload as HostJWTPayload;
 
       type UserRow = { id: string; role: string; banned_at: Date | null };
 
@@ -60,16 +71,15 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // Issue a short-lived session token
-      // In production, sign with FORUM_SECRET_KEY + user ID + expiry
-      const sessionToken = Buffer.from(
-        JSON.stringify({
-          userId: user.id,
+      const sessionToken = signSessionToken(
+        {
+          sub: payload.sub,
           forumId: payload.forumId,
-          role: user.role,
+          role: user.role as UserRole,
           exp: Math.floor(Date.now() / 1000) + request.server.config.sessionTtlMinutes * 60,
-        }),
-      ).toString('base64url');
+        },
+        request.server.config.forumSecretKey,
+      );
 
       return reply.status(200).send({
         sessionToken,
@@ -82,7 +92,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * DELETE /auth/session
-   * Invalidate current session (client-side operation for now).
+   * Invalidate current session (client-side operation — tokens are stateless).
    */
   app.delete('/session', async (_request, reply) => {
     return reply.status(204).send();

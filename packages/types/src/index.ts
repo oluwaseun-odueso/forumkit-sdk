@@ -109,6 +109,22 @@ export type HostJWTPayload = {
   exp: number;
 };
 
+export type SessionTokenPayload = {
+  sub: string;                       // external_id (host app user ID)
+  forumId: string;
+  role: UserRole;
+  iss: 'forumkit';
+  iat: number;
+  exp: number;
+};
+
+// Minimal shape available on request.jwtPayload for both host JWT and session token
+export type AuthPayload = {
+  sub: string;
+  forumId: string;
+  role: UserRole;
+};
+
 // ── API request / response shapes ─────────────────────────────────
 
 export type CreateThreadBody = {

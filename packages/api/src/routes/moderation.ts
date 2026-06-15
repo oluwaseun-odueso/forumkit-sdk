@@ -77,7 +77,6 @@ export async function moderationRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // @ts-expect-error — extended via declaration merging
       const payload = request.jwtPayload as HostJWTPayload;
 
       type UserRow = { id: string };

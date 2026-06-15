@@ -93,7 +93,6 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // @ts-expect-error — extended via declaration merging
       const payload = request.jwtPayload;
 
       type UserRow = { id: string };
@@ -214,7 +213,6 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // @ts-expect-error — extended via declaration merging
       const payload = request.jwtPayload as HostJWTPayload;
 
       type UserRow = { id: string };
@@ -256,7 +254,6 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { forumId, threadId } = request.params as { forumId: string; threadId: string };
 
-      // @ts-expect-error — extended via declaration merging
       const payload = request.jwtPayload as HostJWTPayload;
 
       type UserRow = { id: string };
