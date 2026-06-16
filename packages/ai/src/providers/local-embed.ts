@@ -1,13 +1,31 @@
 import type { EmbedFn } from '../index';
 
-/**
- * Local embedding provider using all-MiniLM-L6-v2 (384 dimensions).
- * TODO: integrate @xenova/transformers for in-process inference.
- * For now returns zero vectors so the rest of the system can be tested.
- */
+type ExtractorPipeline = (
+  text: string,
+  opts: { pooling: string; normalize: boolean },
+) => Promise<{ data: Float32Array }>;
+
+let extractor: ExtractorPipeline | null = null;
+
+async function getExtractor(): Promise<ExtractorPipeline> {
+  if (!extractor) {
+    const { pipeline } = await import('@xenova/transformers');
+    extractor = (await pipeline(
+      'feature-extraction',
+      'Xenova/all-MiniLM-L6-v2',
+    )) as ExtractorPipeline;
+  }
+  return extractor;
+}
+
 export function localEmbed(): EmbedFn {
   return async (texts: string[]): Promise<number[][]> => {
-    // Stub: returns zero vectors of the correct dimension
-    return texts.map(() => new Array(384).fill(0) as number[]);
+    const pipe = await getExtractor();
+    return Promise.all(
+      texts.map(async (text) => {
+        const output = await pipe(text, { pooling: 'mean', normalize: true });
+        return Array.from(output.data) as number[];
+      }),
+    );
   };
 }
