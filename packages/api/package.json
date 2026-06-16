@@ -6,8 +6,8 @@
   "main": "./src/app.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
+    "dev": "tsx --env-file=../../.env watch src/server.ts",
+    "start": "tsx --env-file=../../.env src/server.ts",
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
