@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "migrate": "node-pg-migrate up --migrations-dir src/migrations --tsx",
-    "migrate:down": "node-pg-migrate down --migrations-dir src/migrations --tsx",
+    "migrate": "node --env-file=../../.env ../../node_modules/.bin/node-pg-migrate up --migrations-dir src/migrations --tsx",
+    "migrate:down": "node --env-file=../../.env ../../node_modules/.bin/node-pg-migrate down --migrations-dir src/migrations --tsx",
     "migrate:create": "node-pg-migrate create --migrations-dir src/migrations --migration-file-language ts",
     "seed": "tsx --env-file=../../.env src/seeds/index.ts"
   },

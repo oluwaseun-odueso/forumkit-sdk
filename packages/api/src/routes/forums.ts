@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { authenticate, requireRole } from '../middleware/auth';
 import * as forumService from '../services/forum';
 import type { ForumError, TagError } from '../services/forum';
-import type { HostJWTPayload, ForumConfig } from '@forumkit/types';
+import type { ForumConfig } from '@forumkit/types';
 
 const HEX_COLOR = z.string().regex(
   /^#[0-9A-Fa-f]{6}$/,
@@ -12,9 +12,11 @@ const HEX_COLOR = z.string().regex(
 
 const createForumBodySchema = z.object({
   name: z.string().min(1).max(200),
+  isPublic: z.boolean().optional().default(false),
 });
 
 const updateForumConfigSchema = z.object({
+  isPublic: z.boolean().optional(),
   moderationThreshold: z.number().min(0).max(1).optional(),
   moderationReviewThreshold: z.number().min(0).max(1).optional(),
   aiEnabled: z.boolean().optional(),
@@ -75,15 +77,15 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const payload = request.jwtPayload as HostJWTPayload;
-      const forum = await forumService.createForum(request.server.db, parsed.data.name, payload.sub);
+      const forum = await forumService.createForum(request.server.db, parsed.data.name, parsed.data.isPublic);
       return reply.status(201).send(forum);
     },
   );
 
   /**
    * GET /forums/:fid
-   * Public.
+   * Public if the forum's config.isPublic is true.
+   * Private forums require a valid token scoped to that forum.
    */
   app.get('/:fid', async (request, reply) => {
     const { fid } = request.params as { fid: string };
@@ -91,6 +93,17 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
     if (!result.ok) {
       sendForumError(result.code, reply);
       return;
+    }
+    if (!result.value.config.isPublic) {
+      await authenticate(request, reply);
+      if (reply.sent) return;
+      if (request.jwtPayload.forumId !== fid) {
+        return reply.status(403).send({
+          error: 'forbidden',
+          message: 'You do not have access to this forum',
+          statusCode: 403,
+        });
+      }
     }
     return reply.status(200).send(result.value);
   });
@@ -105,7 +118,7 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { fid } = request.params as { fid: string };
 
-      const parsed = updateForumConfigSchema.safeParse(request.body);
+      const parsed = updateForumConfigSchema.safeParse(request.body ?? {});
       if (!parsed.success) {
         return reply.status(400).send({
           error: 'invalid_body',

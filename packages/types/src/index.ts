@@ -20,6 +20,7 @@ export type Forum = {
 };
 
 export type ForumConfig = {
+  isPublic: boolean;                 // false by default — true = anyone can read without a token
   moderationThreshold: number;       // 0-1, posts above this are auto-hidden
   moderationReviewThreshold: number; // 0-1, posts above this are flagged for review
   aiEnabled: boolean;

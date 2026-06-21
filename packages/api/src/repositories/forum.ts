@@ -31,11 +31,11 @@ export async function getForumById(db: DB, forumId: string): Promise<Forum | nul
 
 export async function createForum(
   db: DB,
-  input: { name: string; ownerId: string },
+  input: { name: string; isPublic: boolean },
 ): Promise<Forum> {
   const rows = await db<ForumRow[]>`
-    INSERT INTO forums (name, owner_id)
-    VALUES (${input.name}, ${input.ownerId})
+    INSERT INTO forums (name, config)
+    VALUES (${input.name}, ${db.json({ isPublic: input.isPublic })}::jsonb)
     RETURNING id, name, owner_id, config, created_at
   `;
   const row = rows[0];
