@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ForumKitConfig } from '@forumkit/types';
-import '../components/forum-kit.js';
+import '../components/forum-kit';
 
 type ForumKitProps = ForumKitConfig & {
   className?: string;
