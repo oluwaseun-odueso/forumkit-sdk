@@ -6,7 +6,8 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./react": "./src/wrappers/react.tsx"
+    "./react": "./src/wrappers/react.tsx",
+    "./vue": "./src/wrappers/vue.ts"
   },
   "scripts": {
     "build": "tsc",
@@ -17,14 +18,17 @@
   },
   "peerDependencies": {
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react-dom": ">=18.0.0",
+    "vue": ">=3.0.0"
   },
   "peerDependenciesMeta": {
     "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react-dom": { "optional": true },
+    "vue": { "optional": true }
   },
   "devDependencies": {
     "@types/react": "^18.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vue": "^3.0.0"
   }
 }
