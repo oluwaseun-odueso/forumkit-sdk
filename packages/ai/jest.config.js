@@ -17,13 +17,12 @@ export default {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@forumkit/types$': '<rootDir>/../../packages/types/src/index.ts',
   },
-  testMatch: ['<rootDir>/src/**/*.test.ts'],
+  testMatch: ['<rootDir>/tests/**/*.test.ts'],
   coverageThreshold: {
     global: { lines: 80 },
   },
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!src/**/*.test.ts',
     '!src/providers/**',
   ],
 };
