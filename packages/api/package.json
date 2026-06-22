@@ -8,7 +8,7 @@
     "build": "tsc",
     "dev": "node --env-file=../../.env --import tsx/esm src/server.ts",
     "start": "node --env-file=../../.env --import tsx/esm src/server.ts",
-    "test": "jest --passWithNoTests"
+    "test": "node --env-file=../../.env --experimental-vm-modules ../../node_modules/.bin/jest"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",
