@@ -266,20 +266,20 @@ export async function findSimilarThreads(
   embedding: number[],
   excludeId?: string | undefined,
 ): Promise<SimilarThread[]> {
-  const vec = '[' + embedding.join(',') + ']';
+  const vecStr = '[' + embedding.join(',') + ']';
   const excludeFilter = excludeId ? db`AND id != ${excludeId}` : db``;
 
   const rows = await db<{ id: string; title: string; similarity: number }[]>`
     SELECT
       id,
       title,
-      (1 - (embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
+      (1 - (embedding <=> ${vecStr}::vector))::float AS similarity
     FROM threads
     WHERE forum_id = ${forumId}
       AND status != 'deleted'
       AND embedding IS NOT NULL
       ${excludeFilter}
-    ORDER BY embedding <=> ${db.unsafe(vec)}::vector
+    ORDER BY embedding <=> ${vecStr}::vector
     LIMIT 3
   `;
 

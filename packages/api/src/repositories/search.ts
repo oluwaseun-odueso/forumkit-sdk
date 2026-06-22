@@ -70,21 +70,21 @@ export async function semanticSearch(
   opts: SearchOpts,
 ): Promise<{ results: SearchResult[]; total: number }> {
   const offset = (opts.page - 1) * opts.limit;
-  const vec = '[' + embedding.join(',') + ']';
+  const vecStr = '[' + embedding.join(',') + ']';
 
   const rows = await db<SearchRow[]>`
     SELECT
       t.id                                                              AS thread_id,
       t.title,
       LEFT(t.body, 200)                                                 AS body_snippet,
-      (1 - (t.embedding <=> ${db.unsafe(vec)}::vector))::float          AS rank,
+      (1 - (t.embedding <=> ${vecStr}::vector))::float                  AS rank,
       t.created_at,
       COUNT(*) OVER()                                                   AS total_count
     FROM threads t
     WHERE t.forum_id = ${forumId}
       AND t.status != 'deleted'
       AND t.embedding IS NOT NULL
-    ORDER BY t.embedding <=> ${db.unsafe(vec)}::vector
+    ORDER BY t.embedding <=> ${vecStr}::vector
     LIMIT ${opts.limit} OFFSET ${offset}
   `;
 
