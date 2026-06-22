@@ -1,7 +1,7 @@
 import type { DB } from '../db';
 import type { Tag, Thread, ThreadListQuery, SimilarThread } from '@forumkit/types';
 
-export type ThreadWithMetaData = Thread & { postCount: number };
+export type ThreadWithMetaData = Thread & { postCount: number; reactionCount: number };
 
 type ThreadRow = {
   id: string;
@@ -15,6 +15,7 @@ type ThreadRow = {
   created_at: Date;
   updated_at: Date;
   post_count: string;
+  reaction_count: string;
   tags: (Tag & { forum_id: string })[] | null;
 };
 
@@ -54,6 +55,7 @@ function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
     pinned: row.pinned,
     viewCount: row.view_count,
     postCount: Number(row.post_count),
+    reactionCount: Number(row.reaction_count),
     tags: (row.tags ?? []).map((t) => ({
       id: t.id,
       forumId: t.forum_id,
@@ -85,6 +87,7 @@ export async function listThreads(
         t.id, t.forum_id, t.author_id, t.title, t.body,
         t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
         COALESCE(pc.post_count, 0) AS post_count,
+        COALESCE(rc.reaction_count, 0) AS reaction_count,
         COALESCE(
           JSON_AGG(
             JSONB_BUILD_OBJECT(
@@ -143,6 +146,7 @@ export async function getThreadById(
       t.id, t.forum_id, t.author_id, t.title, t.body,
       t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
       COALESCE(pc.post_count, 0) AS post_count,
+      0 AS reaction_count,
       COALESCE(
         JSON_AGG(
           JSONB_BUILD_OBJECT(
