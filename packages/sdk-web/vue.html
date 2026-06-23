@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ForumKit Demo — Vue 3</title>
+  <script type="module" src="/demo-vue.ts"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; min-height: 100vh; }
+
+    nav {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 12px 24px;
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+    nav strong { font-size: 0.9rem; color: #6200ee; }
+    nav a { font-size: 0.85rem; color: #555; text-decoration: none; }
+    nav a:hover { color: #6200ee; }
+    nav .active { color: #6200ee; font-weight: 600; }
+
+    #setup {
+      max-width: 600px;
+      margin: 60px auto;
+      background: #fff;
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    #setup h1 { font-size: 1.4rem; margin-bottom: 8px; }
+    #setup p  { color: #666; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.5; }
+    #setup code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.85em; }
+    #setup textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      resize: vertical;
+      min-height: 90px;
+      margin-bottom: 12px;
+      display: block;
+    }
+    #setup button {
+      background: #6200ee;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 24px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      width: 100%;
+    }
+    #setup button:hover { background: #5000cc; }
+
+    #app > forum-kit { display: block; height: calc(100vh - 49px); }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <strong>ForumKit Demo</strong>
+    <a href="/">Plain HTML</a>
+    <a href="/react.html">React</a>
+    <a href="/vue.html" class="active">Vue 3</a>
+  </nav>
+
+  <div id="app"></div>
+
+</body>
+</html>
