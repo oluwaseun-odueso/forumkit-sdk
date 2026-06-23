@@ -93,7 +93,7 @@ export class ForumKitClient {
         'content-type': 'application/json',
         ...(this._sessionToken ? { authorization: `Bearer ${this._sessionToken}` } : {}),
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
 
     if (res.status === 401) {
