@@ -11,7 +11,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --noEmit --watch"
+    "typecheck": "tsc --noEmit --watch",
+    "dev": "vite"
   },
   "dependencies": {
     "@forumkit/types": "*"
