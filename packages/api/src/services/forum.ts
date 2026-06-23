@@ -16,9 +16,9 @@ export async function getForum(db: DB, forumId: string): Promise<Result<Forum, F
 export async function createForum(
   db: DB,
   name: string,
-  ownerId: string,
+  isPublic: boolean,
 ): Promise<Forum> {
-  return forumRepo.createForum(db, { name, ownerId });
+  return forumRepo.createForum(db, { name, isPublic });
 }
 
 export async function updateForumConfig(

@@ -6,9 +6,9 @@
   "main": "./src/app.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
-    "test": "jest --passWithNoTests"
+    "dev": "node --env-file=../../.env --import tsx/esm src/server.ts",
+    "start": "node --env-file=../../.env --import tsx/esm src/server.ts",
+    "test": "sh -c 'if [ -f ../../.env ]; then node --env-file=../../.env --experimental-vm-modules ../../node_modules/.bin/jest; else node --experimental-vm-modules ../../node_modules/.bin/jest; fi'"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",

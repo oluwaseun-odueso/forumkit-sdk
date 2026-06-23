@@ -1,7 +1,7 @@
 import type { DB } from '../db';
 import type { Tag, Thread, ThreadListQuery, SimilarThread } from '@forumkit/types';
 
-export type ThreadWithMetaData = Thread & { postCount: number };
+export type ThreadWithMetaData = Thread & { postCount: number; reactionCount: number };
 
 type ThreadRow = {
   id: string;
@@ -15,6 +15,7 @@ type ThreadRow = {
   created_at: Date;
   updated_at: Date;
   post_count: string;
+  reaction_count: string;
   tags: (Tag & { forum_id: string })[] | null;
 };
 
@@ -54,6 +55,7 @@ function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
     pinned: row.pinned,
     viewCount: row.view_count,
     postCount: Number(row.post_count),
+    reactionCount: Number(row.reaction_count),
     tags: (row.tags ?? []).map((t) => ({
       id: t.id,
       forumId: t.forum_id,
@@ -85,6 +87,7 @@ export async function listThreads(
         t.id, t.forum_id, t.author_id, t.title, t.body,
         t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
         COALESCE(pc.post_count, 0) AS post_count,
+        COALESCE(rc.reaction_count, 0) AS reaction_count,
         COALESCE(
           JSON_AGG(
             JSONB_BUILD_OBJECT(
@@ -143,6 +146,7 @@ export async function getThreadById(
       t.id, t.forum_id, t.author_id, t.title, t.body,
       t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
       COALESCE(pc.post_count, 0) AS post_count,
+      0 AS reaction_count,
       COALESCE(
         JSON_AGG(
           JSONB_BUILD_OBJECT(
@@ -266,20 +270,20 @@ export async function findSimilarThreads(
   embedding: number[],
   excludeId?: string | undefined,
 ): Promise<SimilarThread[]> {
-  const vec = '[' + embedding.join(',') + ']';
+  const vecStr = '[' + embedding.join(',') + ']';
   const excludeFilter = excludeId ? db`AND id != ${excludeId}` : db``;
 
   const rows = await db<{ id: string; title: string; similarity: number }[]>`
     SELECT
       id,
       title,
-      (1 - (embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
+      (1 - (embedding <=> ${vecStr}::vector))::float AS similarity
     FROM threads
     WHERE forum_id = ${forumId}
       AND status != 'deleted'
       AND embedding IS NOT NULL
       ${excludeFilter}
-    ORDER BY embedding <=> ${db.unsafe(vec)}::vector
+    ORDER BY embedding <=> ${vecStr}::vector
     LIMIT 3
   `;
 

@@ -10,18 +10,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/session',
-    {
-      preHandler: authenticate,
-      schema: {
-        body: {
-          type: 'object',
-          required: ['token'],
-          properties: {
-            token: { type: 'string' },
-          },
-        },
-      },
-    },
+    { preHandler: authenticate },
     async (request, reply) => {
       // This endpoint only accepts host JWTs — session tokens cannot be exchanged
       // for new session tokens (that would be circular). Guard against misuse.

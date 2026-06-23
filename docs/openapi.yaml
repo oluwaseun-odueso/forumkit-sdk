@@ -1,0 +1,1446 @@
+openapi: '3.1.0'
+
+info:
+  title: ForumKit API
+  version: '0.1.0'
+  description: >
+    REST API for the ForumKit embeddable discussion system.
+    All mutating endpoints require a Bearer token — either a host application
+    JWT or a ForumKit session token obtained from POST /auth/session.
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+# ── Security ────────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Either a host application JWT (signed with FORUM_SECRET_KEY) or a
+        ForumKit session token obtained from POST /auth/session.
+
+  # ── Reusable schemas ──────────────────────────────────────────────────────
+
+  schemas:
+
+    Error:
+      type: object
+      required: [error, message, statusCode]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code.
+          example: thread_not_found
+        message:
+          type: string
+          description: Human-readable explanation.
+          example: Thread not found
+        statusCode:
+          type: integer
+          example: 404
+
+    Tag:
+      type: object
+      required: [id, forumId, name, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        forumId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: javascript
+        description:
+          type: string
+          nullable: true
+        color:
+          type: string
+          nullable: true
+          example: '#6200ee'
+        createdAt:
+          type: string
+          format: date-time
+
+    Forum:
+      type: object
+      required: [id, name, config, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: My Community
+        config:
+          $ref: '#/components/schemas/ForumConfig'
+        createdAt:
+          type: string
+          format: date-time
+
+    ForumConfig:
+      type: object
+      properties:
+        isPublic:
+          type: boolean
+          default: false
+        moderationThreshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.8
+          description: Toxicity score at or above which a post is automatically hidden.
+        moderationReviewThreshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.5
+          description: Toxicity score at or above which a post is added to the moderation queue.
+        aiEnabled:
+          type: boolean
+          default: true
+        maxPostLength:
+          type: integer
+          default: 10000
+        requireApproval:
+          type: boolean
+          default: false
+
+    Thread:
+      type: object
+      required: [id, forumId, authorId, title, body, status, pinned, viewCount, postCount, reactionCount, tags, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        forumId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+          enum: [open, locked, deleted]
+        pinned:
+          type: boolean
+        viewCount:
+          type: integer
+        postCount:
+          type: integer
+        reactionCount:
+          type: integer
+          description: Total reactions across all posts in the thread.
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Post:
+      type: object
+      required: [id, threadId, authorId, body, status, isAcceptedAnswer, reactionCounts, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        threadId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+        parentPostId:
+          type: string
+          format: uuid
+          nullable: true
+        body:
+          type: string
+        status:
+          type: string
+          enum: [visible, hidden, deleted]
+        isAcceptedAnswer:
+          type: boolean
+        toxicityScore:
+          type: number
+          nullable: true
+        reactionCounts:
+          type: object
+          properties:
+            like:
+              type: integer
+            helpful:
+              type: integer
+            insightful:
+              type: integer
+            funny:
+              type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SimilarThread:
+      type: object
+      required: [id, title, similarity]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        similarity:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    AISummary:
+      type: object
+      required: [keyPoints, conclusion, openQuestions]
+      properties:
+        keyPoints:
+          type: array
+          items:
+            type: string
+        conclusion:
+          type: string
+        openQuestions:
+          type: array
+          items:
+            type: string
+
+    AISuggestion:
+      type: object
+      required: [suggestion, confidence, caveats]
+      properties:
+        suggestion:
+          type: string
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        caveats:
+          type: array
+          items:
+            type: string
+
+    ModerationItem:
+      type: object
+      required: [id, postId, score, flags, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        postId:
+          type: string
+          format: uuid
+        score:
+          type: number
+        flags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+# ── Paths ───────────────────────────────────────────────────────────────────
+
+paths:
+
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags: [System]
+      responses:
+        '200':
+          description: API is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # ── Auth ──────────────────────────────────────────────────────────────────
+
+  /auth/session:
+    post:
+      summary: Exchange host JWT for a ForumKit session token
+      operationId: createSession
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      description: >
+        Accepts a host application JWT. Upserts the user record and returns a
+        short-lived ForumKit session token for subsequent authenticated requests.
+      responses:
+        '200':
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessionToken, userId, role, expiresIn]
+                properties:
+                  sessionToken:
+                    type: string
+                  userId:
+                    type: string
+                    format: uuid
+                  role:
+                    type: string
+                    enum: [member, moderator, admin]
+                  expiresIn:
+                    type: integer
+                    description: Seconds until the session token expires.
+        '400':
+          description: A session token was presented instead of a host JWT.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: User is banned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Invalidate session (client-side logout)
+      operationId: deleteSession
+      tags: [Auth]
+      description: >
+        Tokens are stateless — this endpoint exists as a semantic hook. The
+        client should discard its session token after calling this.
+      responses:
+        '204':
+          description: Session invalidated.
+
+  # ── Forums ────────────────────────────────────────────────────────────────
+
+  /forums:
+    post:
+      summary: Create a forum
+      operationId: createForum
+      tags: [Forums]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 200
+                isPublic:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Forum created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forum'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /forums/{forumId}:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: Get forum details
+      operationId: getForum
+      tags: [Forums]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Forum found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forum'
+        '404':
+          description: Forum not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update forum config
+      operationId: updateForum
+      tags: [Forums]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForumConfig'
+      responses:
+        '200':
+          description: Forum updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Forum'
+        '403':
+          description: Admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Forum not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /forums/{forumId}/tags:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: List all tags in a forum
+      operationId: listTags
+      tags: [Tags]
+      responses:
+        '200':
+          description: Tag list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+
+    post:
+      summary: Create a tag
+      operationId: createTag
+      tags: [Tags]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 300
+                color:
+                  type: string
+                  pattern: '^#[0-9A-Fa-f]{6}$'
+                  example: '#6200ee'
+      responses:
+        '201':
+          description: Tag created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '409':
+          description: A tag with that name already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /forums/{forumId}/tags/{tagId}:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: tagId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    patch:
+      summary: Update a tag
+      operationId: updateTag
+      tags: [Tags]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 300
+                color:
+                  type: string
+                  pattern: '^#[0-9A-Fa-f]{6}$'
+      responses:
+        '200':
+          description: Tag updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '404':
+          description: Tag not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a tag
+      operationId: deleteTag
+      tags: [Tags]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Tag deleted.
+        '404':
+          description: Tag not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Threads ───────────────────────────────────────────────────────────────
+
+  /forums/{forumId}/threads:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: List threads
+      operationId: listThreads
+      tags: [Threads]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [latest, oldest, most_posts, most_reactions]
+            default: latest
+        - name: tagId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter threads to those with this tag.
+      responses:
+        '200':
+          description: Paginated thread list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [threads, total, page, limit]
+                properties:
+                  threads:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Thread'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+    post:
+      summary: Create a thread
+      operationId: createThread
+      tags: [Threads]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, body]
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+                body:
+                  type: string
+                  minLength: 1
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 5
+                  default: []
+      responses:
+        '201':
+          description: Thread created. Embedding and AI tagging run asynchronously.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /forums/{forumId}/threads/duplicates:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: Find similar threads (duplicate detection)
+      operationId: findDuplicates
+      tags: [Threads]
+      parameters:
+        - name: title
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 300
+        - name: body
+          in: query
+          schema:
+            type: string
+            maxLength: 2000
+      responses:
+        '200':
+          description: Up to 3 similar threads ordered by similarity score.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SimilarThread'
+
+  /forums/{forumId}/threads/{threadId}:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: Get a thread with its posts
+      operationId: getThread
+      tags: [Threads]
+      responses:
+        '200':
+          description: Thread and posts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [thread, posts]
+                properties:
+                  thread:
+                    $ref: '#/components/schemas/Thread'
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Post'
+        '404':
+          description: Thread not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Edit a thread
+      operationId: updateThread
+      tags: [Threads]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 300
+                body:
+                  type: string
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 5
+      responses:
+        '200':
+          description: Thread updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '403':
+          description: Forbidden — not the author or a moderator.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Thread not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Soft-delete a thread
+      operationId: deleteThread
+      tags: [Threads]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Thread deleted.
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Thread not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /forums/{forumId}/threads/{threadId}/lock:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Lock or unlock a thread
+      operationId: lockThread
+      tags: [Threads]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [locked]
+              properties:
+                locked:
+                  type: boolean
+      responses:
+        '200':
+          description: Thread lock state updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '403':
+          description: Moderator or admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /forums/{forumId}/threads/{threadId}/pin:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Pin or unpin a thread
+      operationId: pinThread
+      tags: [Threads]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pinned]
+              properties:
+                pinned:
+                  type: boolean
+      responses:
+        '200':
+          description: Thread pin state updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thread'
+        '403':
+          description: Moderator or admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Search ────────────────────────────────────────────────────────────────
+
+  /forums/{forumId}/search:
+    parameters:
+      - name: forumId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: Search threads
+      operationId: searchThreads
+      tags: [Search]
+      description: >
+        Uses semantic (vector) search when an embedding provider is configured,
+        otherwise falls back to PostgreSQL full-text search.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results, total, page, limit, mode]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Thread'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  mode:
+                    type: string
+                    enum: [semantic, keyword]
+
+  # ── Posts ─────────────────────────────────────────────────────────────────
+
+  /threads/{threadId}/posts:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Create a post (reply)
+      operationId: createPost
+      tags: [Posts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                parentPostId:
+                  type: string
+                  format: uuid
+                  description: Omit for a top-level reply; supply to nest under an existing post.
+      responses:
+        '201':
+          description: Post created. Moderation and embedding run asynchronously.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '403':
+          description: Thread is locked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Thread not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /threads/{threadId}/posts/{postId}:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    patch:
+      summary: Edit a post
+      operationId: updatePost
+      tags: [Posts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Post updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Soft-delete a post
+      operationId: deletePost
+      tags: [Posts]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Post deleted.
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /threads/{threadId}/posts/{postId}/react:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Add a reaction
+      operationId: addReaction
+      tags: [Posts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [like, helpful, insightful, funny]
+      responses:
+        '200':
+          description: Updated reaction counts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Remove a reaction
+      operationId: removeReaction
+      tags: [Posts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [like, helpful, insightful, funny]
+      responses:
+        '200':
+          description: Updated reaction counts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /threads/{threadId}/posts/{postId}/report:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Report a post
+      operationId: reportPost
+      tags: [Posts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        '204':
+          description: Report submitted.
+        '404':
+          description: Post not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /threads/{threadId}/posts/{postId}/accept:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Mark a post as the accepted answer
+      operationId: acceptAnswer
+      tags: [Posts]
+      security:
+        - bearerAuth: []
+      description: >
+        Only the thread author, a moderator, or an admin can accept an answer.
+        Accepting a new post automatically un-accepts any previously accepted post.
+      responses:
+        '200':
+          description: Post marked as accepted answer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Post or thread not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── AI ────────────────────────────────────────────────────────────────────
+
+  /threads/{threadId}/ai/summarise:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Summarise a thread with AI
+      operationId: summariseThread
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      description: >
+        Rate-limited to 50 AI commands per user per forum per hour.
+        Returns 503 if no LLM provider is configured.
+      responses:
+        '200':
+          description: Thread summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [summary]
+                properties:
+                  summary:
+                    $ref: '#/components/schemas/AISummary'
+        '404':
+          description: Thread not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: AI provider not configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /threads/{threadId}/ai/suggest:
+    parameters:
+      - name: threadId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    post:
+      summary: Get an AI-suggested answer for a thread
+      operationId: suggestAnswer
+      tags: [AI]
+      security:
+        - bearerAuth: []
+      description: >
+        Rate-limited to 50 AI commands per user per forum per hour.
+        Returns 503 if no LLM provider is configured.
+      responses:
+        '200':
+          description: Suggested answer.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [suggestion]
+                properties:
+                  suggestion:
+                    $ref: '#/components/schemas/AISuggestion'
+        '404':
+          description: Thread not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: AI provider not configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── Moderation ────────────────────────────────────────────────────────────
+
+  /moderation/queue:
+    get:
+      summary: List moderation queue items
+      operationId: listModerationQueue
+      tags: [Moderation]
+      security:
+        - bearerAuth: []
+      description: Requires moderator or admin role.
+      responses:
+        '200':
+          description: Moderation queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModerationItem'
+                  total:
+                    type: integer
+        '403':
+          description: Moderator or admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /moderation/queue/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    patch:
+      summary: Action a moderation queue item
+      operationId: actionModerationItem
+      tags: [Moderation]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [approve, remove]
+                  description: >
+                    approve — make the post visible; remove — keep it hidden.
+      responses:
+        '200':
+          description: Queue item actioned.
+        '403':
+          description: Moderator or admin role required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Queue item not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+# ── Tags ─────────────────────────────────────────────────────────────────────
+
+tags:
+  - name: System
+  - name: Auth
+  - name: Forums
+  - name: Tags
+  - name: Threads
+  - name: Posts
+  - name: Search
+  - name: AI
+  - name: Moderation

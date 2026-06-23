@@ -23,3 +23,6 @@ Thumbs.db
 *.jpeg
 CHECKLIST.md
 CLAUDE.md
+gen-tokens.mjs
+docs/backend-test-plan.md
+CLAUDE.md
