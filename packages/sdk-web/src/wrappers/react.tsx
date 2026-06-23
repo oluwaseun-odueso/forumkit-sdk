@@ -26,9 +26,11 @@ export function ForumKit({ forumId, token, theme, apiUrl, className }: ForumKitP
     if (!el) return;
 
     el.setAttribute('forum-id', forumId);
-    el.setAttribute('token', token);
-    if (theme) el.setAttribute('theme', JSON.stringify(theme));
     if (apiUrl) el.setAttribute('api-url', apiUrl);
+    else el.removeAttribute('api-url');
+    if (theme) el.setAttribute('theme', JSON.stringify(theme));
+    else el.removeAttribute('theme');
+    el.setAttribute('token', token); // token last — triggers _initClient with all attrs present
   }, [forumId, token, theme, apiUrl]);
 
   return (

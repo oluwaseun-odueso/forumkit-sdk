@@ -58,18 +58,24 @@ export class ForumKitElement extends HTMLElement {
   }
 
   connectedCallback(): void {
-    this._config = this._readConfig();
-    this._applyTheme(this._config.theme ?? {});
-    this._render();
+    // Attach listeners unconditionally — they must be present even when
+    // React/Vue set attributes after mount (before that, the element is empty).
     this._shadow.addEventListener('click', this._onClick);
     this._shadow.addEventListener('input', this._onInput);
     this._shadow.addEventListener('keydown', this._onKeyDown);
+    const config = this._readConfig();
+    if (!config) return; // attributes not yet set; attributeChangedCallback will init
+    this._config = config;
+    this._applyTheme(this._config.theme ?? {});
+    this._render();
     this._initClient();
   }
 
   attributeChangedCallback(): void {
     if (!this._shadow) return;
-    this._config = this._readConfig();
+    const config = this._readConfig();
+    if (!config) return; // required attributes not fully set yet
+    this._config = config;
     this._applyTheme(this._config.theme ?? {});
     if (this._config.token !== this._lastInitToken) {
       this._initClient();
@@ -87,11 +93,10 @@ export class ForumKitElement extends HTMLElement {
     if (this._duplicateDebounceTimer !== null) clearTimeout(this._duplicateDebounceTimer);
   }
 
-  private _readConfig(): ForumKitConfig {
+  private _readConfig(): ForumKitConfig | null {
     const forumId = this.getAttribute('forum-id');
     const token = this.getAttribute('token');
-    if (!forumId) throw new Error('<forum-kit>: forum-id attribute is required');
-    if (!token) throw new Error('<forum-kit>: token attribute is required');
+    if (!forumId || !token) return null;
 
     const themeRaw = this.getAttribute('theme');
     const theme = themeRaw ? (JSON.parse(themeRaw) as ThemeTokens) : {};

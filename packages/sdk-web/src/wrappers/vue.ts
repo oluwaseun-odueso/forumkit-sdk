@@ -18,17 +18,17 @@ export const ForumKit = defineComponent({
       const el = elRef.value;
       if (!el) return;
       el.setAttribute('forum-id', props.forumId);
-      el.setAttribute('token', props.token);
-      if (props.theme !== undefined) {
-        el.setAttribute('theme', JSON.stringify(props.theme));
-      } else {
-        el.removeAttribute('theme');
-      }
       if (props.apiUrl !== undefined) {
         el.setAttribute('api-url', props.apiUrl);
       } else {
         el.removeAttribute('api-url');
       }
+      if (props.theme !== undefined) {
+        el.setAttribute('theme', JSON.stringify(props.theme));
+      } else {
+        el.removeAttribute('theme');
+      }
+      el.setAttribute('token', props.token); // token last — triggers _initClient with all attrs present
     }
 
     onMounted(applyProps);
