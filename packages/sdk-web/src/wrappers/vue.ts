@@ -34,6 +34,6 @@ export const ForumKit = defineComponent({
     onMounted(applyProps);
     watchEffect(applyProps);
 
-    return () => h('forum-kit', { ref: elRef, class: props.class });
+    return (): ReturnType<typeof h> => h('forum-kit', { ref: elRef, class: props.class });
   },
 });

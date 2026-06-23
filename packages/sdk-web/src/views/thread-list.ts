@@ -2,12 +2,6 @@ import type { Tag } from '@forumkit/types';
 import { escapeHtml } from '../lib/html';
 import type { ThreadWithMetaData } from '../api/client';
 
-const REACTION_LABELS: Record<string, string> = {
-  like: 'like',
-  helpful: 'helpful',
-  insightful: 'insightful',
-  funny: 'funny',
-};
 
 export function renderThreadList(
   state: { page: number; search: string; activeTagId: string | null },

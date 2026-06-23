@@ -199,7 +199,7 @@ export class ForumKitClient {
     const url = this._buildWsUrl(`/threads/${threadId}/ws`);
     const ws = new WebSocket(url);
 
-    ws.onmessage = (event: MessageEvent) => {
+    ws.onmessage = (event: MessageEvent): void => {
       try {
         const msg = JSON.parse(event.data as string) as WSMessage;
         onMessage(msg);
