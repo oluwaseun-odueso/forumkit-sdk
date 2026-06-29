@@ -3,7 +3,7 @@ import {
   SEED_THREAD, REACTION_TYPES, DIRECTORY,
   type ThreadData, type ReplyData, type DirectoryEntry,
 } from '../data/seed';
-import { callSummarise, callSuggest } from '../api/ai';
+import { callSummarise, callSuggest, callSuggestMetadata } from '../api/ai';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -400,6 +400,22 @@ function useForumStateInternal() {
     dispatch({ type: 'ASST_SUGGEST', text });
   }, []);
 
+  const suggestComposeMeta = useCallback(async () => {
+    dispatch({ type: 'SET_COMPOSE_GEN', field: 'genTitle', value: true });
+    dispatch({ type: 'SET_COMPOSE_GEN', field: 'genTags', value: true });
+    const { compose } = state;
+    const result = await callSuggestMetadata(
+      'demo',
+      compose.title,
+      compose.body,
+      compose.tags.split(',').map(t => t.trim()).filter(Boolean),
+    );
+    if (result.title) dispatch({ type: 'SET_COMPOSE_FIELD', field: 'title', value: result.title });
+    if (result.tags.length > 0) dispatch({ type: 'SET_COMPOSE_FIELD', field: 'tags', value: result.tags.join(', ') });
+    dispatch({ type: 'SET_COMPOSE_GEN', field: 'genTitle', value: false });
+    dispatch({ type: 'SET_COMPOSE_GEN', field: 'genTags', value: false });
+  }, [state]);
+
   // ─── Derived data ──────────────────────────────────────────────────────────
 
   const sortedReplies = state.thread.replies.slice();
@@ -473,6 +489,7 @@ function useForumStateInternal() {
     setSort,
     summarize,
     suggest,
+    suggestComposeMeta,
   };
 }
 
