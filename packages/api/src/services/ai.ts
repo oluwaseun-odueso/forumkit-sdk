@@ -1,7 +1,7 @@
 import type { DB } from '../db';
 import type { LLMFn } from '@forumkit/ai';
 import type { AISummary, AISuggestion } from '@forumkit/types';
-import { summariseThread, suggestAnswer } from '@forumkit/ai';
+import { summariseThread, suggestAnswer, suggestTitle, suggestTags } from '@forumkit/ai';
 import { getThread } from './thread';
 import { ok, err, type Result } from '../lib/result';
 
@@ -47,4 +47,26 @@ export async function suggest(
   const suggestion = await suggestAnswer(thread.title, postBodies, llmFn);
   if (!suggestion) return err('ai_unavailable');
   return ok(suggestion);
+}
+
+export type SuggestMetadataInput = {
+  title: string;
+  body: string;
+  existingTagNames: string[];
+};
+
+export type SuggestMetadataResult = {
+  title: string | null;
+  tags: string[];
+};
+
+export async function suggestMetadata(
+  input: SuggestMetadataInput,
+  llmFn: LLMFn,
+): Promise<SuggestMetadataResult> {
+  const [title, tags] = await Promise.all([
+    suggestTitle(input.body, llmFn),
+    suggestTags(input.title, input.body, input.existingTagNames, llmFn),
+  ]);
+  return { title, tags };
 }
