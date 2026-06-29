@@ -307,12 +307,14 @@ function reducer(state: State, action: Action): State {
         .map(t => t.trim().replace(/^#/, ''))
         .filter(Boolean);
       const entry: DirectoryEntry = {
+        id: `u${Date.now()}`,
         title,
         author: 'You',
         tags: tags.length > 0 ? tags : ['general'],
         votes: 0,
         replies: 0,
         time: 'now',
+        preview: state.compose.body.trim().slice(0, 120) || title,
       };
       return {
         ...state,

@@ -5,11 +5,12 @@ import type { PostData } from '../data/seed';
 
 type Props = {
   post: PostData;
-  replyCountLabel: string;
+  replyCount: number;
   onUpvote: () => void;
 };
 
-export function PostCard({ post, replyCountLabel, onUpvote }: Props) {
+export function PostCard({ post, replyCount, onUpvote }: Props) {
+  const replyCountLabel = `${replyCount} repl${replyCount !== 1 ? 'ies' : 'y'}`;
   return (
     <div style={{
       padding: '28px 30px', borderRadius: 20,

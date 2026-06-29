@@ -22,7 +22,7 @@ type Props = {
 };
 
 const SAMPLE_TITLES = [
-  'What's the ideal length for onboarding copy?',
+  "What's the ideal length for onboarding copy?",
   'How do you balance tone consistency with personality?',
   'Should errors be apologetic or matter-of-fact?',
 ];

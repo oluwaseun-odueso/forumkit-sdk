@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { ForumKitConfig } from '@forumkit/types';
 import '../components/forum-kit.js';
 
@@ -18,7 +18,7 @@ type ForumKitProps = ForumKitConfig & {
  *     theme={{ primaryColor: '#6200EE' }}
  *   />
  */
-export function ForumKit({ forumId, token, theme, apiUrl, className }: ForumKitProps): JSX.Element {
+export function ForumKit({ forumId, token, theme, apiUrl, className }: ForumKitProps): React.JSX.Element {
   const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
