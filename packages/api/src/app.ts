@@ -13,7 +13,7 @@ import { forumsRoutes } from './routes/forums';
 import { threadsRoutes } from './routes/threads';
 import { postsRoutes } from './routes/posts';
 import { searchRoutes } from './routes/search';
-import { aiRoutes } from './routes/ai';
+import { aiRoutes, composeAiRoutes } from './routes/ai';
 import { moderationRoutes } from './routes/moderation';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
@@ -49,6 +49,7 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   await app.register(postsRoutes, { prefix: '/threads' });
   await app.register(searchRoutes, { prefix: '/forums' });
   await app.register(aiRoutes, { prefix: '/threads' });
+  await app.register(composeAiRoutes, { prefix: '/forums' });
   await app.register(moderationRoutes, { prefix: '/moderation' });
 
   // ── Health check ─────────────────────────────────────────────────
