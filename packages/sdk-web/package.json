@@ -11,11 +11,14 @@
   },
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit --watch",
-    "dev": "vite"
+    "dev": "vite --port 5174",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@forumkit/types": "*"
+    "@forumkit/types": "*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
