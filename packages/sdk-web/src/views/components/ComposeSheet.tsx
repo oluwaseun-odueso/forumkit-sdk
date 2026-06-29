@@ -19,30 +19,23 @@ type Props = {
   onAddFiles: (files: FileList) => void;
   onRemoveFile: (id: number) => void;
   onSubmit: () => void;
+  onSuggestMetadata?: () => void;
 };
 
-const SAMPLE_TITLES = [
-  "What's the ideal length for onboarding copy?",
-  'How do you balance tone consistency with personality?',
-  'Should errors be apologetic or matter-of-fact?',
-];
-
-const SAMPLE_TAGS = 'writing, voice, ux-copy';
-
-export function ComposeSheet({ compose, onClose, onSetField, onAddFiles, onRemoveFile, onSubmit }: Props) {
+export function ComposeSheet({ compose, onClose, onSetField, onAddFiles, onRemoveFile, onSubmit, onSuggestMetadata }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!compose.open) return null;
 
   const canSubmit = compose.title.trim().length > 0;
+  const genLoading = compose.genTitle || compose.genTags;
 
   function handleGenTitle() {
-    const t = SAMPLE_TITLES[Math.floor(Math.random() * SAMPLE_TITLES.length)];
-    if (t !== undefined) onSetField('title', t);
+    if (onSuggestMetadata) { onSuggestMetadata(); return; }
   }
 
   function handleGenTags() {
-    onSetField('tags', SAMPLE_TAGS);
+    if (onSuggestMetadata) { onSuggestMetadata(); return; }
   }
 
   return (
@@ -106,17 +99,19 @@ export function ComposeSheet({ compose, onClose, onSetField, onAddFiles, onRemov
             <button
               type="button"
               aria-label="Generate title with AI"
+              disabled={genLoading}
               onClick={handleGenTitle}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '3px 10px', borderRadius: 18, cursor: 'pointer',
+                padding: '3px 10px', borderRadius: 18, cursor: genLoading ? 'wait' : 'pointer',
                 fontFamily: 'Sora,sans-serif', fontSize: 11,
                 color: 'var(--t23, #acb7cc)',
                 background: 'var(--t57, rgba(218,229,247,.04))',
                 border: '1px solid rgba(108,170,245,.22)',
+                opacity: genLoading ? 0.5 : 1,
               }}
             >
-              ✦ Suggest title
+              ✦ {compose.genTitle ? '…' : 'Suggest title'}
             </button>
           </div>
           <input
@@ -144,17 +139,19 @@ export function ComposeSheet({ compose, onClose, onSetField, onAddFiles, onRemov
             <button
               type="button"
               aria-label="Generate tags with AI"
+              disabled={genLoading}
               onClick={handleGenTags}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '3px 10px', borderRadius: 18, cursor: 'pointer',
+                padding: '3px 10px', borderRadius: 18, cursor: genLoading ? 'wait' : 'pointer',
                 fontFamily: 'Sora,sans-serif', fontSize: 11,
                 color: 'var(--t23, #acb7cc)',
                 background: 'var(--t57, rgba(218,229,247,.04))',
                 border: '1px solid rgba(108,170,245,.22)',
+                opacity: genLoading ? 0.5 : 1,
               }}
             >
-              ✦ Suggest tags
+              ✦ {compose.genTags ? '…' : 'Suggest tags'}
             </button>
           </div>
           <input
