@@ -42,7 +42,7 @@ export function Studio() {
   return (
     <div style={{
       position: 'relative', width: '100%', height: '100%', overflow: 'hidden',
-      background: 'radial-gradient(120% 90% at 70% -12%, #16203a 0%, #0a0e18 48%, #07090f 100%)',
+      background: 'radial-gradient(120% 90% at 70% -12%, #16203a 0%, var(--t3, #0a0e18) 48%, var(--t1, #07090f) 100%)',
     }}>
       <AuroraLayer variant="studio" />
       <GrainLayer />

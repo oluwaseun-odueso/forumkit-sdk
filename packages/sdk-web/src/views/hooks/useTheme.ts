@@ -16,11 +16,15 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void } {
       root.style.setProperty('--fk-accent', '#2f6fe0');
       root.style.setProperty('--fk-glow', '0.3');
       root.style.setProperty('--fk-grain', '0');
+      root.style.background = '#f0f3fa';
+      document.body.style.background = '#f0f3fa';
     } else {
       for (const k of Object.keys(LIGHT_VARS)) root.style.removeProperty(k);
       root.style.setProperty('--fk-accent', '#5cc8f5');
       root.style.setProperty('--fk-glow', '1');
       root.style.setProperty('--fk-grain', '0.05');
+      root.style.background = '#070a12';
+      document.body.style.background = '#070a12';
     }
   }, []);
 

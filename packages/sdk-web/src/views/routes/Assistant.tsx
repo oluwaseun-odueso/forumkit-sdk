@@ -58,7 +58,7 @@ export function Assistant() {
   return (
     <div style={{
       position: 'relative', width: '100%', height: '100%', overflow: 'hidden',
-      background: 'radial-gradient(120% 90% at 70% -12%, #16203a 0%, #0a0e18 48%, #07090f 100%)',
+      background: 'radial-gradient(120% 90% at 78% -10%, var(--t7, #192036) 0%, var(--t4, #0c1019) 50%, var(--t1, #07090f) 100%)',
       display: 'flex',
     }}>
       <AuroraLayer variant="assistant" />

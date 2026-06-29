@@ -17,7 +17,7 @@ export function AuroraRoute() {
     openReply, setReplyText, cancelReply, submitReply,
     setInput, postReply, acceptReply,
     setSidebar, openSearch, openTag, closeNav, setNavQuery,
-    openCompose, closeCompose, setComposeField, addFiles, removeFile, submitCompose,
+    closeCompose, setComposeField, addFiles, removeFile, submitCompose,
   } = useForum();
   const { theme, toggleTheme } = useTheme();
 
@@ -39,7 +39,7 @@ export function AuroraRoute() {
   return (
     <div style={{
       position: 'relative', width: '100%', height: '100%', overflow: 'hidden',
-      background: 'radial-gradient(110% 70% at 50% 6%, #222a48 0%, #0d1226 44%, #07090f 100%)',
+      background: 'radial-gradient(110% 70% at 50% 6%, var(--t9, #222a48) 0%, var(--t5, #0d1226) 44%, var(--t1, #07090f) 100%)',
     }}>
       <AuroraLayer variant="aurora" />
       <GrainLayer />
