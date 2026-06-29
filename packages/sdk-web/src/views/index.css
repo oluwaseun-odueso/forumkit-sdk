@@ -1,0 +1,93 @@
+:root {
+  --fk-accent: #5cc8f5;
+  --fk-glow: 1;
+  --fk-grain: 0.05;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #070a12;
+  overflow: hidden;
+}
+
+@keyframes fkfloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+@keyframes fkbob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-4px) rotate(3deg); }
+}
+
+@keyframes fkdance {
+  0% { transform: translateY(0) rotateY(0deg); }
+  10% { transform: translateY(-5px) rotateY(0deg); }
+  22% { transform: translateY(0) rotateY(0deg); }
+  34% { transform: translateY(-5px) rotateY(0deg); }
+  46% { transform: translateY(0) rotateY(0deg); }
+  68%, 100% { transform: translateY(0) rotateY(360deg); }
+}
+
+@keyframes fkdotpop {
+  0%, 76%, 100% { transform: scale(.45); opacity: .45; }
+  36% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fkbadge {
+  0%, 62% { transform: scale(0); }
+  78% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fkaurora {
+  0% { transform: translateX(-4%) translateY(0) scale(1); opacity: .85; }
+  50% { transform: translateX(3%) translateY(-3%) scale(1.1); opacity: 1; }
+  100% { transform: translateX(-2%) translateY(-1%) scale(1.04); opacity: .9; }
+}
+
+@keyframes fkhue34 {
+  0%, 100% { filter: blur(34px) hue-rotate(-20deg) saturate(1); }
+  50% { filter: blur(34px) hue-rotate(42deg) saturate(1.18); }
+}
+
+@keyframes fkhue30 {
+  0%, 100% { filter: blur(30px) hue-rotate(-20deg) saturate(1); }
+  50% { filter: blur(30px) hue-rotate(42deg) saturate(1.18); }
+}
+
+@keyframes fkbreathe {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+
+@keyframes fkspin {
+  to { transform: rotate(360deg); }
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--t15, #757f95);
+  opacity: .85;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fk-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(108,170,245,.18); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
