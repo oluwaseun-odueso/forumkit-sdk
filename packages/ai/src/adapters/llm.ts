@@ -66,6 +66,25 @@ export async function suggestTags(
 }
 
 /**
+ * Suggests a concise title for a new thread based on its body text.
+ * Returns null on failure (graceful degradation).
+ */
+export async function suggestTitle(
+  body: string,
+  llmFn: LLMFn,
+): Promise<string | null> {
+  const systemPrompt = [
+    'You are a helpful assistant that writes concise, engaging forum thread titles.',
+    'Respond ONLY with the title string — no quotes, no markdown, no explanation.',
+    'The title must be under 120 characters and be a complete sentence or noun phrase.',
+  ].join(' ');
+
+  const userPrompt = `Write a clear, engaging title for a forum thread with this description:\n${body.slice(0, 500)}`;
+
+  return safeLLMCall(systemPrompt, userPrompt, llmFn);
+}
+
+/**
  * Summarises a forum thread.
  * Returns null if the LLM is unavailable.
  */
