@@ -82,15 +82,16 @@ export const reactPillInactive: CSSProperties = {
 };
 
 export const segActive: CSSProperties = {
-  padding: '5px 13px', borderRadius: 8, cursor: 'pointer',
+  padding: '4px 12px', borderRadius: 8, cursor: 'pointer',
   fontFamily: 'Sora,sans-serif', fontSize: 12, color: '#16203a',
   background: 'linear-gradient(155deg,#e3ebf8,#adbbd7)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)',
 };
 
 export const segInactive: CSSProperties = {
-  padding: '5px 13px', borderRadius: 8, cursor: 'pointer',
+  padding: '4px 8px', cursor: 'pointer',
   fontFamily: 'Sora,sans-serif', fontSize: 12, color: 'var(--t20, #9aa5bb)',
+  background: 'none',
 };
 
 export const iconBtn: CSSProperties = {
