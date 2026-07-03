@@ -110,7 +110,7 @@ export function Thread() {
             onClick={openCompose}
             style={{
               ...chromeButton, display: 'inline-flex', alignItems: 'center', gap: 7,
-              height: 34, padding: '0 16px', borderRadius: 11,
+              height: 34, padding: '0 16px', borderRadius: 20,
               cursor: 'pointer', border: 'none',
               fontFamily: 'Sora,sans-serif', fontSize: 13, fontWeight: 500,
             }}
