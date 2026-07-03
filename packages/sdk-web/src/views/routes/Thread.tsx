@@ -42,118 +42,127 @@ export function Thread() {
   };
 
   return (
+    // Outer frame is a flex ROW — main pane (left) + AI rail (right) are siblings,
+    // so the rail reaches the full height of the frame including the header row.
     <div style={{
       position: 'relative', width: '100%', height: '100%', overflow: 'hidden',
       background: 'radial-gradient(120% 90% at 78% -10%, var(--t7, #192036) 0%, var(--t4, #0c1019) 50%, var(--t1, #07090f) 100%)',
-      display: 'flex', flexDirection: 'column',
+      display: 'flex',
     }}>
       <AuroraLayer variant="assistant" />
       <GrainLayer />
 
-      {/* Header */}
-      <header style={{
-        position: 'relative', zIndex: 3,
-        display: 'flex', alignItems: 'center', gap: 12, padding: '18px 24px 14px',
-        flexShrink: 0,
-      }}>
-        <button
-          type="button"
-          aria-label="Open sidebar"
-          onClick={() => setSidebar(true)}
-          style={{
-            width: 36, height: 36, borderRadius: 11, cursor: 'pointer',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
-            background: 'var(--t59, rgba(218,229,247,.06))',
-            border: '1px solid var(--t65, rgba(218,229,247,.13))',
-          }}
-        >
-          {[0, 1, 2].map(i => (
-            <span key={i} style={{ display: 'block', width: 14, height: 1.5, borderRadius: 2, background: 'var(--t23, #acb7cc)' }} />
-          ))}
-        </button>
+      {/* Main thread pane — flex column containing header + scroll area + composer */}
+      <div style={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
-        <Mascot size={28} />
+        {/* Header — border-bottom is the "thin title line" across the top of the thread pane */}
+        <header style={{
+          display: 'flex', alignItems: 'center', gap: 11, padding: '20px 30px',
+          borderBottom: '1px solid rgba(108,170,245,.1)',
+          flexShrink: 0,
+        }}>
+          <button
+            type="button"
+            aria-label="Open sidebar"
+            onClick={() => setSidebar(true)}
+            style={{
+              width: 36, height: 36, borderRadius: 11, cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+              background: 'var(--t59, rgba(218,229,247,.06))',
+              border: '1px solid var(--t66, rgba(218,229,247,.14))',
+            }}
+          >
+            {[0, 1, 2].map(i => (
+              <span key={i} style={{ display: 'block', width: 16, height: 1.6, borderRadius: 2, background: 'var(--t23, #acb7cc)' }} />
+            ))}
+          </button>
 
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: 'Sora,sans-serif', fontSize: 12, color: 'var(--t14, #6b7488)' }}>FORUM KIT</span>
-          <span style={{ color: 'var(--t12, #5b6376)', fontSize: 12 }}>/</span>
-          <span style={{ fontFamily: 'Sora,sans-serif', fontSize: 12, color: 'var(--t20, #9da9be)' }}>{thread.post.tags[0] ?? 'discussion'}</span>
-        </div>
+          <Mascot size={32} />
 
-        <button
-          type="button"
-          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          onClick={toggleTheme}
-          style={{
-            width: 34, height: 34, borderRadius: 10, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
-            background: 'var(--t59, rgba(218,229,247,.06))',
-            border: '1px solid var(--t65, rgba(218,229,247,.13))',
-            color: 'var(--t23, #acb7cc)',
-          }}
-        >
-          {theme === 'dark' ? '☀' : '☽'}
-        </button>
+          {/* Wordmark in Michroma per spec */}
+          <span style={{ fontFamily: 'Michroma,sans-serif', fontSize: 13, letterSpacing: '2px', color: 'var(--t30, #e9eff8)' }}>
+            FORUM KIT
+          </span>
+          <span style={{ fontFamily: 'Sora,sans-serif', fontSize: 12, color: 'var(--t12, #5b6376)', marginLeft: 6 }}>
+            / Writing
+          </span>
 
-        <button
-          type="button"
-          aria-label="New post"
-          onClick={openCompose}
-          style={{
-            ...chromeButton, display: 'inline-flex', alignItems: 'center', gap: 7,
-            height: 34, padding: '0 16px', borderRadius: 11,
-            cursor: 'pointer', border: 'none',
-            fontFamily: 'Sora,sans-serif', fontSize: 13, fontWeight: 500,
-          }}
-        >
-          + New post
-        </button>
-      </header>
+          <div style={{ flex: 1 }} />
 
-      {/* Content row: main thread + Lina rail */}
-      <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <button
+            type="button"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            onClick={toggleTheme}
+            style={{
+              width: 36, height: 36, borderRadius: 11, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
+              background: 'var(--t59, rgba(218,229,247,.06))',
+              border: '1px solid var(--t66, rgba(218,229,247,.14))',
+              color: 'var(--t23, #acb7cc)',
+            }}
+          >
+            {theme === 'dark' ? '☀' : '☽'}
+          </button>
 
-        {/* Main thread column */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Scrollable centered area */}
-          <div style={{
-            flex: 1, overflowY: 'auto',
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            padding: '40px 24px 0',
-          }}>
-            <div style={{ width: '100%', maxWidth: 720, display: 'flex', flexDirection: 'column' }}>
-              <PostNode post={thread.post} totalReplies={totalReplies} onUpvote={upvotePost} />
+          <button
+            type="button"
+            aria-label="New post"
+            onClick={openCompose}
+            style={{
+              ...chromeButton, display: 'inline-flex', alignItems: 'center', gap: 7,
+              height: 34, padding: '0 16px', borderRadius: 11,
+              cursor: 'pointer', border: 'none',
+              fontFamily: 'Sora,sans-serif', fontSize: 13, fontWeight: 500,
+            }}
+          >
+            + New post
+          </button>
+        </header>
 
-              <div style={{ margin: '0 0 14px' }}>
-                <SortBar
-                  sort={sort}
-                  repliesHeader={`${totalReplies} REPL${totalReplies !== 1 ? 'IES' : 'Y'}`}
-                  onSetSort={setSort}
-                />
-              </div>
+        {/* Scrollable centered thread body */}
+        <div style={{
+          flex: 1, overflowY: 'auto',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          padding: '40px 34px 0',
+        }}>
+          <div style={{ width: '100%', maxWidth: 720, display: 'flex', flexDirection: 'column' }}>
+            <PostNode post={thread.post} totalReplies={totalReplies} onUpvote={upvotePost} />
 
-              {sortedReplies.map((r, i) => (
-                <SpineNode key={r.id} isLast={i === sortedReplies.length - 1}>
-                  <ReplyCard reply={r} handlers={replyHandlers} variant="aurora" />
-                </SpineNode>
-              ))}
-
-              <div style={{ paddingBottom: 32, paddingTop: 4 }}>
-                <Composer
-                  value={input}
-                  placeholder="Add a node to the thread…"
-                  onChange={setInput}
-                  onPost={postReply}
-                  variant="aurora"
-                />
-              </div>
+            <div style={{ margin: '0 0 14px' }}>
+              <SortBar
+                sort={sort}
+                repliesHeader={`${totalReplies} REPL${totalReplies !== 1 ? 'IES' : 'Y'}`}
+                onSetSort={setSort}
+              />
             </div>
+
+            {sortedReplies.map((r, i) => (
+              <SpineNode key={r.id} isLast={i === sortedReplies.length - 1}>
+                <ReplyCard reply={r} handlers={replyHandlers} variant="aurora" />
+              </SpineNode>
+            ))}
+
+            {/* Bottom padding so last reply doesn't sit flush against composer */}
+            <div style={{ height: 32 }} />
           </div>
         </div>
 
-        {/* Lina AI rail */}
-        <AssistantRail asst={asst} onSummarize={summarize} onSuggest={suggest} />
+        {/* Composer — fixed to the bottom of the thread pane, not inside the scroll */}
+        <div style={{ padding: '14px 34px 26px', flexShrink: 0 }}>
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            <Composer
+              value={input}
+              placeholder="Add a node to the thread…"
+              onChange={setInput}
+              onPost={postReply}
+              variant="aurora"
+            />
+          </div>
+        </div>
       </div>
+
+      {/* Lina AI rail — sibling to main pane, spans full height */}
+      <AssistantRail asst={asst} onSummarize={summarize} onSuggest={suggest} />
 
       {/* Overlays */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: sidebar || nav.mode !== null || compose.open ? 'auto' : 'none' }}>
