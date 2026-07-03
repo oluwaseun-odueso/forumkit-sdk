@@ -10,7 +10,7 @@ export function anthropicLLM(apiKey: string): LLMFn {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
