@@ -1,4 +1,3 @@
-import { Mascot } from './Mascot';
 
 type AsstState = {
   summarizing: boolean;
@@ -39,16 +38,11 @@ export function AssistantRail({ asst, onSummarize, onSuggest, onSurfaceRelated }
 
       {/* Lina identity */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-        <div style={{ animation: 'fkfloat 6.5s ease-in-out infinite', marginBottom: 6 }}>
-          <div style={{
-            width: 88, height: 88, borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 28%, rgba(200,225,255,.9) 0%, rgba(108,170,245,.7) 30%, rgba(56,100,180,.85) 60%, rgba(20,30,60,.95) 100%)',
-            boxShadow: '0 0 50px rgba(108,170,245,.5), 0 0 100px rgba(56,100,180,.3), inset 0 1px 3px rgba(255,255,255,.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Mascot size={44} />
-          </div>
-        </div>
+        <img
+          src="/lina-assistant.png"
+          alt="Lina"
+          style={{ width: 150, height: 150, objectFit: 'contain', animation: 'fkfloat 6.5s ease-in-out infinite' }}
+        />
         <div style={{ fontFamily: 'Sora,sans-serif', fontSize: 18, fontWeight: 500, color: 'var(--t32, #eef3fb)', marginTop: 6 }}>Lina</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'Sora,sans-serif', fontSize: 11, letterSpacing: '.6px', color: 'var(--t17, #8590a5)', marginTop: 5 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--fk-accent)', animation: 'fkbreathe 2.4s ease-in-out infinite', display: 'inline-block' }} />
