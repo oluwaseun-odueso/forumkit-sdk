@@ -3,7 +3,8 @@ import {
   SEED_THREAD, REACTION_TYPES, DIRECTORY,
   type ThreadData, type ReplyData, type DirectoryEntry,
 } from '../data/seed';
-import { callSummarise, callSuggest, callSuggestMetadata } from '../api/ai';
+import type { SimilarThread } from '@forumkit/types';
+import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,8 @@ type AsstState = {
   summarizing: boolean;
   summary: { points: string[]; note: string } | null;
   suggested: boolean;
+  surfacing: boolean;
+  related: SimilarThread[] | null;
 };
 
 type NavState = {
@@ -84,7 +87,9 @@ type Action =
   | { type: 'SET_SORT'; sort: Sort }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
-  | { type: 'ASST_SUGGEST'; text: string };
+  | { type: 'ASST_SUGGEST'; text: string }
+  | { type: 'ASST_SURFACING' }
+  | { type: 'ASST_RELATED'; threads: SimilarThread[] };
 
 // ─── Reducer helpers ─────────────────────────────────────────────────────────
 
@@ -141,7 +146,7 @@ const initialState: State = {
     open: false, title: '', tags: '', body: '',
     attachments: [], genTitle: false, genTags: false,
   },
-  asst: { summarizing: false, summary: null, suggested: false },
+  asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
   directory: DIRECTORY.slice(),
 };
 
@@ -330,6 +335,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, asst: { ...state.asst, summarizing: false, summary: { points: action.points, note: action.note } } };
     case 'ASST_SUGGEST':
       return { ...state, input: action.text, asst: { ...state.asst, suggested: true } };
+    case 'ASST_SURFACING':
+      return { ...state, asst: { ...state.asst, surfacing: true, related: null } };
+    case 'ASST_RELATED':
+      return { ...state, asst: { ...state.asst, surfacing: false, related: action.threads } };
     default:
       return state;
   }
@@ -389,19 +398,26 @@ function useForumStateInternal() {
     if (state.asst.summarizing) return;
     dispatch({ type: 'ASST_SUMMARIZING' });
     const [points] = await Promise.all([
-      callSummarise('demo'),
+      callSummarise(state.thread.post.id),
       new Promise<void>(resolve => setTimeout(resolve, 1400)),
     ]);
     const replyCount = state.thread.replies.length;
     const acceptedCount = state.thread.replies.filter(r => r.accepted).length;
     const note = `Synthesized from ${replyCount} repl${replyCount !== 1 ? 'ies' : 'y'}${acceptedCount > 0 ? ` · ${acceptedCount} accepted answer` : ''}`;
     dispatch({ type: 'ASST_SUMMARY', points, note });
-  }, [state.asst.summarizing]);
+  }, [state.asst.summarizing, state.thread.post.id, state.thread.replies]);
 
   const suggest = useCallback(async () => {
-    const text = await callSuggest('demo');
+    const text = await callSuggest(state.thread.post.id);
     dispatch({ type: 'ASST_SUGGEST', text });
-  }, []);
+  }, [state.thread.post.id]);
+
+  const surfaceRelated = useCallback(async () => {
+    if (state.asst.surfacing) return;
+    dispatch({ type: 'ASST_SURFACING' });
+    const threads = await callSurfaceRelated(state.thread.post.id);
+    dispatch({ type: 'ASST_RELATED', threads });
+  }, [state.asst.surfacing, state.thread.post.id]);
 
   const suggestComposeMeta = useCallback(async () => {
     dispatch({ type: 'SET_COMPOSE_GEN', field: 'genTitle', value: true });
@@ -492,6 +508,7 @@ function useForumStateInternal() {
     setSort,
     summarize,
     suggest,
+    surfaceRelated,
     suggestComposeMeta,
   };
 }
