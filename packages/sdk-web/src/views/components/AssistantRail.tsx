@@ -2,7 +2,7 @@ import { Mascot } from './Mascot';
 
 type AsstState = {
   summarizing: boolean;
-  summary: string[] | null;
+  summary: { points: string[]; note: string } | null;
   suggested: boolean;
 };
 
@@ -139,12 +139,15 @@ export function AssistantRail({ asst, onSummarize, onSuggest, onSurfaceRelated }
             ✦ THREAD SUMMARY
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-            {asst.summary.map((point, i) => (
+            {asst.summary.points.map((point, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, fontFamily: 'Sora,sans-serif', fontSize: 14.5, lineHeight: 1.5, color: 'var(--t28, #cfd8ea)' }}>
                 <span style={{ color: 'var(--fk-accent)', flex: '0 0 auto' }}>—</span>
                 <span>{point}</span>
               </div>
             ))}
+          </div>
+          <div style={{ fontFamily: 'Sora,sans-serif', fontSize: 10.5, color: 'var(--t13, #6b7387)', marginTop: 14, letterSpacing: '.3px' }}>
+            {asst.summary.note}
           </div>
         </div>
       )}

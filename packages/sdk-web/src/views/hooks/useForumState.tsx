@@ -29,7 +29,7 @@ type ComposeState = {
 
 type AsstState = {
   summarizing: boolean;
-  summary: string[] | null;
+  summary: { points: string[]; note: string } | null;
   suggested: boolean;
 };
 
@@ -83,7 +83,7 @@ type Action =
   | { type: 'SUBMIT_COMPOSE' }
   | { type: 'SET_SORT'; sort: Sort }
   | { type: 'ASST_SUMMARIZING' }
-  | { type: 'ASST_SUMMARY'; points: string[] }
+  | { type: 'ASST_SUMMARY'; points: string[]; note: string }
   | { type: 'ASST_SUGGEST'; text: string };
 
 // ─── Reducer helpers ─────────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ function reducer(state: State, action: Action): State {
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
     case 'ASST_SUMMARY':
-      return { ...state, asst: { ...state.asst, summarizing: false, summary: action.points } };
+      return { ...state, asst: { ...state.asst, summarizing: false, summary: { points: action.points, note: action.note } } };
     case 'ASST_SUGGEST':
       return { ...state, input: action.text, asst: { ...state.asst, suggested: true } };
     default:
@@ -392,7 +392,10 @@ function useForumStateInternal() {
       callSummarise('demo'),
       new Promise<void>(resolve => setTimeout(resolve, 1400)),
     ]);
-    dispatch({ type: 'ASST_SUMMARY', points });
+    const replyCount = state.thread.replies.length;
+    const acceptedCount = state.thread.replies.filter(r => r.accepted).length;
+    const note = `Synthesized from ${replyCount} repl${replyCount !== 1 ? 'ies' : 'y'}${acceptedCount > 0 ? ` · ${acceptedCount} accepted answer` : ''}`;
+    dispatch({ type: 'ASST_SUMMARY', points, note });
   }, [state.asst.summarizing]);
 
   const suggest = useCallback(async () => {
