@@ -76,6 +76,42 @@ function sendAIError(
 
 export async function aiRoutes(app: FastifyInstance): Promise<void> {
   /**
+   * POST /threads/:threadId/ai/surface-related
+   * Finds threads with similar embeddings using pgvector cosine similarity.
+   */
+  app.post(
+    '/:threadId/ai/surface-related',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { threadId } = request.params as { threadId: string };
+      const payload = request.jwtPayload;
+
+      type ThreadRow = { forum_id: string };
+      const row = await request.server.db<ThreadRow[]>`
+        SELECT forum_id FROM threads
+        WHERE id = ${threadId} AND status != 'deleted'
+        LIMIT 1
+      `.then((rows) => rows[0]);
+
+      if (!row) return sendAIError('thread_not_found', reply);
+
+      const rateLimitKey = `ai:${payload.sub}:${row.forum_id}`;
+      if (!tryConsumeAiLimit(rateLimitKey)) return sendAIError('rate_limit_exceeded', reply);
+
+      const result = await aiService.surfaceRelated(
+        request.server.db,
+        row.forum_id,
+        threadId,
+        request.server.ai.embed,
+      );
+
+      if (!result.ok) return sendAIError(result.code, reply);
+
+      return reply.status(200).send({ related: result.value });
+    },
+  );
+
+  /**
    * POST /threads/:threadId/ai/summarise
    * Summarises a thread discussion using the configured LLM.
    */

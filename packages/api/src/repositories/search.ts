@@ -1,4 +1,5 @@
 import type { DB } from '../db';
+import type { SimilarThread } from '@forumkit/types';
 
 export type SearchResult = {
   threadId: string;
@@ -61,6 +62,34 @@ export async function keywordSearch(
     results: rows.map(toSearchResult),
     total: Number(rows[0]?.total_count ?? 0),
   };
+}
+
+export async function findRelatedThreads(
+  db: DB,
+  forumId: string,
+  embedding: number[],
+  excludeThreadId: string,
+  limit: number,
+): Promise<SimilarThread[]> {
+  const vec = '[' + embedding.join(',') + ']';
+
+  type Row = { id: string; title: string; similarity: number };
+
+  const rows = await db<Row[]>`
+    SELECT
+      t.id,
+      t.title,
+      (1 - (t.embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
+    FROM threads t
+    WHERE t.forum_id = ${forumId}
+      AND t.status != 'deleted'
+      AND t.embedding IS NOT NULL
+      AND t.id != ${excludeThreadId}
+    ORDER BY t.embedding <=> ${db.unsafe(vec)}::vector
+    LIMIT ${limit}
+  `;
+
+  return rows.map(r => ({ id: r.id, title: r.title, similarity: Number(r.similarity) }));
 }
 
 export async function semanticSearch(
