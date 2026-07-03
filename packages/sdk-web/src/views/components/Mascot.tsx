@@ -1,6 +1,6 @@
 type Props = {
   size?: number;
-  badge?: number | string;
+  badge?: number | string | false;
 };
 
 const PEOPLE: Array<{ head: number; shoulderW: number; shoulderH: number; delay: string }> = [
@@ -9,7 +9,7 @@ const PEOPLE: Array<{ head: number; shoulderW: number; shoulderH: number; delay:
   { head: 4.14, shoulderW: 6.30, shoulderH: 4.27, delay: '0.36s' },
 ];
 
-export function Mascot({ size = 34, badge }: Props) {
+export function Mascot({ size = 34, badge = 1 }: Props) {
   const s = size / 34;
   return (
     <div style={{ width: size, height: size, perspective: 240 * s, flexShrink: 0 }}>
@@ -59,8 +59,8 @@ export function Mascot({ size = 34, badge }: Props) {
             </span>
           ))}
         </div>
-        {/* notification badge — only rendered when badge prop is provided */}
-        {badge !== undefined && (
+        {/* notification badge — hidden by passing badge={false} */}
+        {badge !== false && (
           <div style={{
             position: 'absolute', top: -3 * s, right: -3 * s,
             width: 14 * s, height: 14 * s, borderRadius: '50%',
