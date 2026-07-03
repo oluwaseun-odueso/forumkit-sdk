@@ -22,7 +22,7 @@ export function Thread() {
     setInput, postReply, acceptReply,
     setSidebar, openSearch, openTag, closeNav, setNavQuery,
     openCompose, closeCompose, setComposeField, addFiles, removeFile, submitCompose,
-    setSort, summarize, suggest, suggestComposeMeta,
+    setSort, summarize, suggest, surfaceRelated, suggestComposeMeta,
   } = useForum();
   const { theme, toggleTheme } = useTheme();
 
@@ -162,7 +162,7 @@ export function Thread() {
       </div>
 
       {/* Lina AI rail — sibling to main pane, spans full height */}
-      <AssistantRail asst={asst} onSummarize={summarize} onSuggest={suggest} />
+      <AssistantRail asst={asst} onSummarize={summarize} onSuggest={suggest} onSurfaceRelated={surfaceRelated} />
 
       {/* Overlays */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 6, pointerEvents: sidebar || nav.mode !== null || compose.open ? 'auto' : 'none' }}>

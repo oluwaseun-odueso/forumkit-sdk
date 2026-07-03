@@ -1,8 +1,11 @@
+import type { SimilarThread } from '@forumkit/types';
 
 type AsstState = {
   summarizing: boolean;
   summary: { points: string[]; note: string } | null;
   suggested: boolean;
+  surfacing: boolean;
+  related: SimilarThread[] | null;
 };
 
 type Props = {
@@ -22,6 +25,30 @@ function AiBtn({ style, onClick, children }: { style: React.CSSProperties; onCli
       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, cursor: 'pointer', fontFamily: 'Sora,sans-serif', fontSize: 14, ...style }}
     >
       {children}
+    </div>
+  );
+}
+
+function LoadingCard({ text }: { text: string }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      marginTop: 22, padding: '16px 18px', borderRadius: 16,
+      background: 'rgba(108,170,245,.08)', border: '1px solid rgba(108,170,245,.16)',
+    }}>
+      <div style={{ display: 'flex', gap: 5 }}>
+        {[0, 0.2, 0.4].map((delay, i) => (
+          <span key={i} style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: 'var(--fk-accent)',
+            animation: `fkbreathe 1.1s ${delay}s ease-in-out infinite`,
+            display: 'inline-block',
+          }} />
+        ))}
+      </div>
+      <span style={{ fontFamily: 'Sora,sans-serif', fontStyle: 'italic', fontSize: 14, color: 'var(--t23, #acb7cc)' }}>
+        {text}
+      </span>
     </div>
   );
 }
@@ -98,28 +125,11 @@ export function AssistantRail({ asst, onSummarize, onSuggest, onSurfaceRelated }
         </AiBtn>
       </div>
 
-      {/* Loading state */}
-      {asst.summarizing && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          marginTop: 22, padding: '16px 18px', borderRadius: 16,
-          background: 'rgba(108,170,245,.08)', border: '1px solid rgba(108,170,245,.16)',
-        }}>
-          <div style={{ display: 'flex', gap: 5 }}>
-            {[0, 0.2, 0.4].map((delay, i) => (
-              <span key={i} style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: 'var(--fk-accent)',
-                animation: `fkbreathe 1.1s ${delay}s ease-in-out infinite`,
-                display: 'inline-block',
-              }} />
-            ))}
-          </div>
-          <span style={{ fontFamily: 'Sora,sans-serif', fontStyle: 'italic', fontSize: 14, color: 'var(--t23, #acb7cc)' }}>
-            Lina is reading the thread…
-          </span>
-        </div>
-      )}
+      {/* Summarizing loader */}
+      {asst.summarizing && <LoadingCard text="Lina is reading the thread…" />}
+
+      {/* Surfacing loader */}
+      {asst.surfacing && <LoadingCard text="Lina is finding related threads…" />}
 
       {/* Summary card */}
       {asst.summary && (
@@ -143,6 +153,41 @@ export function AssistantRail({ asst, onSummarize, onSuggest, onSurfaceRelated }
           <div style={{ fontFamily: 'Sora,sans-serif', fontSize: 10.5, color: 'var(--t13, #6b7387)', marginTop: 14, letterSpacing: '.3px' }}>
             {asst.summary.note}
           </div>
+        </div>
+      )}
+
+      {/* Related threads card */}
+      {asst.related && asst.related.length > 0 && (
+        <div style={{
+          marginTop: 22, padding: '20px 20px', borderRadius: 16,
+          background: 'linear-gradient(165deg, rgba(108,170,245,.15), var(--t70, rgba(32,44,68,.12)))',
+          border: '1px solid rgba(108,170,245,.26)',
+          boxShadow: '0 18px 44px -24px var(--t37, rgba(0,0,0,.6))',
+        }}>
+          <div style={{ fontFamily: 'Sora,sans-serif', fontSize: 10, letterSpacing: '1.4px', color: 'var(--fk-accent)', marginBottom: 12 }}>
+            ◑ RELATED THREADS
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+            {asst.related.map(t => (
+              <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontFamily: 'Sora,sans-serif', fontSize: 13.5, lineHeight: 1.45, color: 'var(--t28, #cfd8ea)', flex: 1 }}>{t.title}</span>
+                <span style={{ fontFamily: 'Sora,sans-serif', fontSize: 11, color: 'var(--t17, #8590a5)', flexShrink: 0, marginTop: 2 }}>
+                  {Math.round(t.similarity * 100)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty related state */}
+      {asst.related && asst.related.length === 0 && (
+        <div style={{
+          marginTop: 22, padding: '16px 18px', borderRadius: 16,
+          background: 'rgba(108,170,245,.04)', border: '1px solid rgba(108,170,245,.1)',
+          fontFamily: 'Sora,sans-serif', fontStyle: 'italic', fontSize: 13, color: 'var(--t17, #8590a5)',
+        }}>
+          No closely related threads found yet.
         </div>
       )}
 
