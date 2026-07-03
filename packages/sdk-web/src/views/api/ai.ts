@@ -1,3 +1,4 @@
+import type { AISuggestion, SimilarThread } from '@forumkit/types';
 import { SUMMARY_POINTS, SUGGESTED_REPLY } from '../data/seed';
 
 const API_BASE = typeof window !== 'undefined'
@@ -15,8 +16,9 @@ export async function callSummarise(threadId: string, token?: string): Promise<s
       headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { keyPoints?: string[] };
-    if (Array.isArray(data.keyPoints) && data.keyPoints.length > 0) return data.keyPoints;
+    const data = (await res.json()) as { summary?: { keyPoints?: string[] } };
+    const points = data.summary?.keyPoints;
+    if (Array.isArray(points) && points.length > 0) return points;
     throw new Error('empty response');
   } catch {
     return SUMMARY_POINTS;
@@ -30,11 +32,26 @@ export async function callSuggest(threadId: string, token?: string): Promise<str
       headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { suggestion?: string };
-    if (data.suggestion) return data.suggestion;
+    const data = (await res.json()) as { suggestion?: AISuggestion };
+    if (data.suggestion?.suggestion) return data.suggestion.suggestion;
     throw new Error('empty response');
   } catch {
     return SUGGESTED_REPLY;
+  }
+}
+
+export async function callSurfaceRelated(threadId: string, token?: string): Promise<SimilarThread[]> {
+  try {
+    const res = await fetch(`${API_BASE}/threads/${threadId}/ai/surface-related`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { related?: SimilarThread[] };
+    if (Array.isArray(data.related)) return data.related;
+    throw new Error('empty response');
+  } catch {
+    return [];
   }
 }
 
