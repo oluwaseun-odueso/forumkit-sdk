@@ -127,6 +127,7 @@ export async function suggestAnswer(
 ): Promise<AISuggestion | null> {
   const systemPrompt = [
     'You are a helpful assistant that suggests answers in forum threads.',
+    'Do not use em dashes (—) in your writing; use commas, conjunctions, or separate sentences instead.',
     'Respond ONLY with a JSON object matching this exact shape, no markdown:',
     '{"suggestion":"...","confidence":"high"|"medium"|"low","caveats":["..."]}',
   ].join(' ');
