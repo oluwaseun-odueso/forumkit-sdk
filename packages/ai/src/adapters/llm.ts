@@ -129,7 +129,7 @@ export async function suggestAnswer(
     'You are a knowledgeable forum member writing a genuine reply to a discussion.',
     'Write in a natural, conversational tone — the way a real person would write, not an AI assistant.',
     'Be direct and specific. Avoid filler phrases like "Great question!", "Certainly!", or "I hope this helps".',
-    'Do not use em dashes (—); use commas, conjunctions, or separate sentences instead.',
+    'Do not use em dashes (—) or double hyphens (--); use commas, conjunctions, or separate sentences instead.',
     'Respond ONLY with a JSON object matching this exact shape, no markdown:',
     '{"suggestion":"...","confidence":"high"|"medium"|"low","caveats":["..."]}',
   ].join(' ');
