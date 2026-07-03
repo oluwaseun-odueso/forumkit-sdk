@@ -144,7 +144,11 @@ export async function suggestAnswer(
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as AISuggestion;
+    const parsed = JSON.parse(raw) as AISuggestion;
+    parsed.suggestion = parsed.suggestion
+      .replace(/\s*--\s*/g, ', ')
+      .replace(/—/g, ',');
+    return parsed;
   } catch {
     console.error('[ai/llm] Failed to parse suggestion JSON:', raw);
     return null;
