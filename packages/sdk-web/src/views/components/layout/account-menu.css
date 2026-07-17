@@ -1,0 +1,33 @@
+.fk-account-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.fk-account-header:hover {
+  background: var(--hover);
+}
+
+.fk-account-header-labels {
+  display: flex;
+  flex-direction: column;
+}
+
+.fk-account-header-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-account-header-handle {
+  font-size: 13px;
+  color: var(--muted);
+}

@@ -1,0 +1,88 @@
+.fk-dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+
+.fk-dropdown-panel {
+  position: absolute;
+  z-index: 60;
+  background: var(--elev);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 20px 50px -16px rgba(0, 0, 0, 0.55);
+}
+
+.fk-dropdown-title {
+  padding: 8px 10px 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-dropdown-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.fk-dropdown-row:hover {
+  background: var(--hover);
+}
+
+.fk-dropdown-row--active {
+  background: var(--hover-2);
+}
+
+.fk-dropdown-row-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+}
+
+.fk-dropdown-row-labels {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fk-dropdown-row-label {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.fk-dropdown-row-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.fk-dropdown-row-beta {
+  color: var(--up);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.fk-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}

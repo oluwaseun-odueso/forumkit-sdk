@@ -1,0 +1,22 @@
+.fk-icon-btn {
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.fk-icon-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.fk-icon-btn--active {
+  background: var(--hover-2);
+  color: var(--text);
+}

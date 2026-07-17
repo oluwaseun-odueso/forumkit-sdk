@@ -1,5 +1,5 @@
 import type { AISuggestion, SimilarThread } from '@forumkit/types';
-import { SUMMARY_POINTS, SUGGESTED_REPLY } from '../data/seed';
+import { SUMMARY_POINTS, SUGGESTED_REPLY } from '../data/fixtures';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''

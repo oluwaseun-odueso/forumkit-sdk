@@ -1,0 +1,74 @@
+.fk-mascot {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.fk-mascot-bubble {
+  position: absolute;
+  inset: 0;
+  border-radius: 50% 50% 52% 16% / 52% 52% 50% 50%;
+  background: linear-gradient(155deg, #cfe8ff 0%, #86bdf6 40%, #3f7ee2 66%, #aed6ff 100%);
+  box-shadow:
+    0 4px 10px rgba(63, 126, 226, 0.35),
+    inset 0 1px 2px rgba(255, 255, 255, 0.6);
+  animation: fkdance 4.8s ease-in-out infinite;
+  overflow: hidden;
+}
+
+.fk-mascot-highlight {
+  position: absolute;
+  top: 8%;
+  left: 12%;
+  width: 55%;
+  height: 45%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85), transparent 70%);
+}
+
+.fk-mascot-dots {
+  position: absolute;
+  bottom: 26%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+}
+
+.fk-mascot-dot {
+  width: 12%;
+  aspect-ratio: 1 / 1.6;
+  background: #21314e;
+  border-radius: 30% 30% 40% 40%;
+  animation: fkdotpop 1.4s ease-in-out infinite;
+}
+
+.fk-mascot-dot:nth-child(2) { animation-delay: 0.15s; }
+.fk-mascot-dot:nth-child(3) { animation-delay: 0.3s; }
+
+.fk-mascot-tail {
+  position: absolute;
+  left: -8%;
+  bottom: -6%;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: linear-gradient(155deg, #8cc0f7, #3f7ee2);
+  transform: rotate(11deg);
+}
+
+.fk-mascot-badge {
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 42%;
+  height: 42%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff9384, #e0432f);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fkbadge 3.2s ease-in-out infinite;
+}
