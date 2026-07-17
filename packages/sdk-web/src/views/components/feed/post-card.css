@@ -1,0 +1,138 @@
+.fk-post-card {
+  padding: 14px 8px 6px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.fk-post-card:hover {
+  background: var(--hover);
+}
+
+.fk-post-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.fk-post-card-community {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-post-card-time {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.fk-post-card-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.fk-post-card-title--card {
+  font-size: 19px;
+  margin-bottom: 10px;
+}
+
+.fk-post-card-cardimg {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.fk-post-card-cardimg-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Michroma, sans-serif;
+  font-size: 34px;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.fk-post-card-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.fk-post-card-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.fk-post-card-snippet {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.fk-post-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.fk-post-card-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 8px 13px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  font-family: inherit;
+}
+
+.fk-post-card-chip:hover {
+  background: var(--hover-2);
+}
+
+.fk-post-card-spacer {
+  flex: 1;
+}
+
+.fk-post-card-menu-anchor {
+  position: relative;
+}
+
+.fk-post-card-ellipsis {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+}
+
+.fk-post-card-ellipsis:hover,
+.fk-post-card-ellipsis--open {
+  background: var(--hover-2);
+}
+
+.fk-post-card-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 0 0;
+}
