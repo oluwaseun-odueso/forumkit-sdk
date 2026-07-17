@@ -1,0 +1,23 @@
+.fk-shell {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fk-shell-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.fk-shell-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
