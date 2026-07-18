@@ -1,0 +1,249 @@
+.fk-composer-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 44px 20px;
+  overflow-y: auto;
+}
+
+.fk-composer-modal {
+  width: 100%;
+  max-width: 760px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px 32px 26px;
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.7);
+}
+
+.fk-composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.fk-composer-heading {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.fk-composer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.fk-composer-drafts {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.fk-composer-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: none;
+}
+
+.fk-composer-close:hover {
+  background: var(--hover-2);
+}
+
+.fk-composer-community-anchor {
+  position: relative;
+  margin-bottom: 22px;
+}
+
+.fk-composer-community-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  font-family: inherit;
+}
+
+.fk-composer-community-btn:hover {
+  background: var(--hover);
+}
+
+.fk-composer-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.fk-composer-tab {
+  padding-bottom: 12px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-2);
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  font-family: inherit;
+}
+
+.fk-composer-tab--active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.fk-composer-title-wrap {
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.fk-composer-title-input {
+  width: 100%;
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+  font-family: inherit;
+}
+
+.fk-composer-required {
+  position: absolute;
+  left: 54px;
+  top: 19px;
+  color: var(--up);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.fk-composer-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.fk-composer-suggest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.fk-composer-suggest:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.fk-composer-counter {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.fk-composer-tags {
+  display: inline-flex;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  width: 220px;
+}
+
+.fk-composer-tags::placeholder {
+  color: var(--muted);
+}
+
+.fk-composer-textbox {
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.fk-composer-textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 16px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.fk-composer-dropzone {
+  position: relative;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 16px;
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--text-2);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 20px;
+}
+
+.fk-composer-upload-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+.fk-composer-file-input {
+  display: none;
+}
+
+.fk-composer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+}

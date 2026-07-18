@@ -369,6 +369,15 @@ export function ChartIcon({ size = 21 }: IconProps) {
   );
 }
 
+export function UploadIcon({ size = 22 }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base} strokeWidth={1.7}>
+      <path d="M6 16a4 4 0 01-.8-7.9 5.5 5.5 0 0110.6-1.6A4.5 4.5 0 0117 16" />
+      <path d="M12 12v7M9 15l3-3 3 3" />
+    </svg>
+  );
+}
+
 export function GearIcon({ size = 21 }: IconProps) {
   return (
     <svg width={size} height={size} {...base} strokeWidth={1.7}>
