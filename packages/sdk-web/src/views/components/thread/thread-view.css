@@ -1,0 +1,92 @@
+.fk-thread {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 20px 60px;
+}
+
+.fk-thread-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 16px 0 12px;
+}
+
+.fk-thread-community {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-thread-time {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.fk-thread-title {
+  margin: 0 0 14px;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.fk-thread-body {
+  margin: 0 0 16px;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-2);
+}
+
+.fk-thread-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.fk-thread-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 9px 15px;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.fk-thread-chip:hover {
+  background: var(--hover-2);
+}
+
+.fk-thread-chip--static {
+  cursor: default;
+}
+
+.fk-thread-chip--static:hover {
+  background: var(--surface-2);
+}
+
+.fk-thread-composer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 6px 6px 6px 18px;
+  margin-bottom: 24px;
+}
+
+.fk-thread-composer-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 14.5px;
+  font-family: inherit;
+}
