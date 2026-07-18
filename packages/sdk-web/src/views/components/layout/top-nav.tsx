@@ -13,8 +13,8 @@ type TopNavProps = {
   onHome: () => void;
   onOpenComposer: () => void;
   onViewProfile: () => void;
-  onAsk?: () => void;
-  compact?: boolean;
+  onAsk?: (() => void) | undefined;
+  compact?: boolean | undefined;
 };
 
 /** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */

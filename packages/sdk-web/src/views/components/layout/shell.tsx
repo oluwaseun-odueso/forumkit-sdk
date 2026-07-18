@@ -9,6 +9,7 @@ type ShellProps = {
   rail?: ReactNode;
   onAsk?: () => void;
   compactSearch?: boolean;
+  scrollMain?: boolean;
 };
 
 /**
@@ -16,7 +17,7 @@ type ShellProps = {
  * persistent collapsible sidebar, a scrollable main column, and an optional
  * right rail. Routes only supply their own center content (and rail).
  */
-export default function Shell({ children, rail, onAsk, compactSearch }: ShellProps) {
+export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true }: ShellProps) {
   const { state, setView, openComposer, toggleSidebarPin } = useForum();
 
   return (
@@ -30,7 +31,7 @@ export default function Shell({ children, rail, onAsk, compactSearch }: ShellPro
       />
       <div className="fk-shell-body">
         <Sidebar pinned={state.sidebar.pinned} onTogglePin={toggleSidebarPin} onHome={() => setView('feed')} />
-        <main className="fk-shell-main">{children}</main>
+        <main className="fk-shell-main" style={{ overflowY: scrollMain ? 'auto' : 'hidden' }}>{children}</main>
         {rail}
       </div>
     </div>

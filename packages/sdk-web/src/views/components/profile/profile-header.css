@@ -1,0 +1,55 @@
+.fk-profile-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 26px;
+}
+
+.fk-profile-avatar-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.fk-profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+}
+
+.fk-profile-avatar-edit {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 2px solid var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.fk-profile-avatar-edit:hover {
+  color: var(--text);
+}
+
+.fk-profile-header-labels {
+  padding-top: 8px;
+}
+
+.fk-profile-username {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+
+.fk-profile-handle {
+  font-size: 15px;
+  color: var(--muted);
+  margin-top: 2px;
+}

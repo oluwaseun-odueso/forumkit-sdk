@@ -1,0 +1,35 @@
+.fk-profile {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+
+.fk-profile-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  margin-bottom: 16px;
+}
+
+.fk-profile-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.fk-profile-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 4px;
+}
+
+.fk-profile-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 4px 0;
+}
