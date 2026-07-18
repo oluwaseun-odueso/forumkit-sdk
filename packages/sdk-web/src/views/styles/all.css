@@ -1,0 +1,44 @@
+/*
+ * Aggregate stylesheet for the shadow-DOM embed path (src/components/forum-kit.ts).
+ * Shadow roots don't see document-level <style>/<link> tags that bundlers normally
+ * inject for `import './x.css'` side effects, so this file is inlined as text
+ * (via a `?inline` import) and adopted directly into the shadow root instead.
+ * Every component-scoped stylesheet added under views/ must be @imported here too.
+ */
+
+@import '../index.css';
+@import './tokens.css';
+
+@import '../components/shared/dropdown-menu.css';
+@import '../components/shared/icon-button.css';
+@import '../components/shared/pill-button.css';
+@import '../components/shared/vote-pill.css';
+@import '../components/shared/avatar.css';
+@import '../components/shared/thumbnail.css';
+
+@import '../components/layout/mascot-icon.css';
+@import '../components/layout/account-menu.css';
+@import '../components/layout/top-nav.css';
+@import '../components/layout/sidebar.css';
+@import '../components/layout/right-rail.css';
+@import '../components/layout/shell.css';
+
+@import '../components/feed/feed-controls.css';
+@import '../components/feed/post-card.css';
+
+@import '../components/composer/rich-text-toolbar.css';
+@import '../components/composer/attachment-list.css';
+@import '../components/composer/composer-modal.css';
+
+@import '../components/thread/comment.css';
+@import '../components/thread/comment-sort.css';
+@import '../components/thread/assistant-panel.css';
+@import '../components/thread/thread-view.css';
+
+@import '../components/profile/profile-header.css';
+@import '../components/profile/profile-tabs.css';
+@import '../components/profile/profile-empty-state.css';
+@import '../components/profile/profile-right-rail.css';
+
+@import '../routes/feed.css';
+@import '../routes/profile.css';

@@ -1,5 +1,5 @@
 .fk-composer-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 60;
   background: rgba(0, 0, 0, 0.5);

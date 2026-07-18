@@ -34,12 +34,12 @@ export function DropdownMenuDivider() {
 }
 
 type DropdownMenuItemProps = {
-  icon?: ReactNode;
+  icon?: ReactNode | undefined;
   label: ReactNode;
-  sub?: ReactNode;
-  beta?: boolean;
-  active?: boolean;
-  onClick?: () => void;
+  sub?: ReactNode | undefined;
+  beta?: boolean | undefined;
+  active?: boolean | undefined;
+  onClick?: (() => void) | undefined;
 };
 
 /** A single hoverable icon+label(+sub/beta) row, used inside DropdownMenu. */
