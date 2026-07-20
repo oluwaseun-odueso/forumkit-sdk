@@ -1,6 +1,6 @@
 import PillButton from '../shared/pill-button';
 import IconButton from '../shared/icon-button';
-import { EllipsisIcon, TrophyIcon, UpvoteIcon, LockIcon, ChevronRightIcon } from '../shared/icons';
+import { EllipsisIcon, ChevronRightIcon } from '../shared/icons';
 import './profile-right-rail.css';
 
 type ProfileRightRailProps = {
@@ -27,34 +27,6 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
           <div className="fk-profile-card-actions">
             <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }}>Edit Profile</PillButton>
             <IconButton label="More options" size={42}><EllipsisIcon /></IconButton>
-          </div>
-        </div>
-      </div>
-
-      <div className="fk-profile-card">
-        <div className="fk-profile-card-head">
-          <span className="fk-profile-card-title">Achievements</span>
-          <span className="fk-profile-card-link">View All</span>
-        </div>
-        <div className="fk-profile-unlocked">2 unlocked</div>
-        <div className="fk-profile-badges">
-          <div className="fk-profile-badge">
-            <div className="fk-profile-badge-icon" style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#5a3d00' }}>
-              <TrophyIcon size={26} />
-            </div>
-            <span className="fk-profile-badge-label">One Year</span>
-          </div>
-          <div className="fk-profile-badge">
-            <div className="fk-profile-badge-icon" style={{ background: 'linear-gradient(135deg,#8360c3,#2ebf91)', color: '#fff' }}>
-              <UpvoteIcon size={24} />
-            </div>
-            <span className="fk-profile-badge-label">First Post</span>
-          </div>
-          <div className="fk-profile-badge">
-            <div className="fk-profile-badge-icon fk-profile-badge-icon--locked">
-              <LockIcon />
-            </div>
-            <span className="fk-profile-badge-label fk-profile-badge-label--faint">Locked</span>
           </div>
         </div>
       </div>
