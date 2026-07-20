@@ -53,7 +53,7 @@
   border-radius: 10px;
   cursor: pointer;
   font-size: 15px;
-  font-weight: 400;
+  font-weight: 300;
   color: var(--text-2);
   background: transparent;
   border: none;
@@ -67,7 +67,7 @@
 }
 
 .fk-sidebar-item--active {
-  font-weight: 600;
+  font-weight: 300;
   color: var(--text);
   background: var(--hover);
 }
