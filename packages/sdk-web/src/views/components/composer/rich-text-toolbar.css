@@ -28,6 +28,14 @@
   background: var(--hover);
 }
 
+.fk-rte-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-strong);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
 .fk-rte-spacer {
   flex: 1;
 }

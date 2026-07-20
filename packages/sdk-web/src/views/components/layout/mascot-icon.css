@@ -3,72 +3,130 @@
   flex-shrink: 0;
 }
 
+/*
+ * Everything (tail, bubble, dots, badge) lives inside one rigid "dancer"
+ * layer so the idle bob/flip animation moves them together — animating the
+ * bubble alone (leaving the tail/badge static) is what caused the mascot to
+ * look broken/disjointed before this rewrite.
+ */
+.fk-mascot-dancer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.fk-mascot--nav .fk-mascot-dancer {
+  animation: fkdance 4.8s ease-in-out infinite;
+}
+
+.fk-mascot--empty .fk-mascot-dancer {
+  opacity: 0.9;
+}
+
+.fk-mascot-tail {
+  position: absolute;
+  left: 8.8%;
+  bottom: 2.9%;
+  width: 35%;
+  height: 35%;
+  border-radius: 74% 74% 80% 2%;
+  background: linear-gradient(150deg, #8cc0f7, #3f7ee2);
+  box-shadow: inset 0 -2px 5px rgba(22, 52, 118, 0.35);
+  transform: rotate(11deg);
+}
+
+.fk-mascot--empty .fk-mascot-tail {
+  opacity: 0.55;
+}
+
 .fk-mascot-bubble {
   position: absolute;
-  inset: 0;
+  inset: 5.5%;
   border-radius: 50% 50% 52% 16% / 52% 52% 50% 50%;
   background: linear-gradient(155deg, #cfe8ff 0%, #86bdf6 40%, #3f7ee2 66%, #aed6ff 100%);
+}
+
+.fk-mascot--nav .fk-mascot-bubble {
   box-shadow:
-    0 4px 10px rgba(63, 126, 226, 0.35),
-    inset 0 1px 2px rgba(255, 255, 255, 0.6);
-  animation: fkdance 4.8s ease-in-out infinite;
-  overflow: hidden;
+    0 6px 14px -5px rgba(16, 38, 92, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -2px 5px rgba(22, 52, 118, 0.4);
+}
+
+.fk-mascot--empty .fk-mascot-bubble {
+  box-shadow:
+    0 16px 34px -12px rgba(16, 38, 92, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.85);
 }
 
 .fk-mascot-highlight {
   position: absolute;
-  top: 8%;
-  left: 12%;
-  width: 55%;
-  height: 45%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.85), transparent 70%);
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 95% at 32% 22%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 52%);
 }
 
 .fk-mascot-dots {
   position: absolute;
-  bottom: 26%;
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
   display: flex;
-  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  gap: 7.4%;
+  padding: 0 6.3% 9.5%;
 }
 
-.fk-mascot-dot {
-  width: 12%;
-  aspect-ratio: 1 / 1.6;
-  background: #21314e;
-  border-radius: 30% 30% 40% 40%;
+.fk-mascot-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: bottom center;
+}
+
+.fk-mascot--nav .fk-mascot-figure {
   animation: fkdotpop 1.4s ease-in-out infinite;
 }
 
-.fk-mascot-dot:nth-child(2) { animation-delay: 0.15s; }
-.fk-mascot-dot:nth-child(3) { animation-delay: 0.3s; }
-
-.fk-mascot-tail {
-  position: absolute;
-  left: -8%;
-  bottom: -6%;
-  width: 30%;
-  height: 30%;
+.fk-mascot-figure-head {
+  width: 65%;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
-  background: linear-gradient(155deg, #8cc0f7, #3f7ee2);
-  transform: rotate(11deg);
+  background: #21314e;
+}
+
+.fk-mascot-figure-body {
+  width: 100%;
+  aspect-ratio: 1.5 / 1;
+  margin-top: 8%;
+  border-radius: 45% 45% 15% 15%;
+  background: #21314e;
+}
+
+/* The middle figure is drawn slightly larger, matching the reference markup. */
+.fk-mascot-figure:nth-child(1),
+.fk-mascot-figure:nth-child(3) {
+  width: 12.3%;
+}
+
+.fk-mascot-figure:nth-child(2) {
+  width: 15%;
 }
 
 .fk-mascot-badge {
   position: absolute;
-  top: -10%;
-  right: -10%;
-  width: 42%;
-  height: 42%;
+  top: -8.8%;
+  right: -8.8%;
+  width: 41%;
+  height: 41%;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #ff9384, #e0432f);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
+  box-shadow: 0 2px 5px -1px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fkbadge 3.2s ease-in-out infinite;
+  color: #fff;
+  font-size: 24%;
+  font-weight: 600;
+  animation: fkbadge 4.8s ease-in-out infinite;
 }
