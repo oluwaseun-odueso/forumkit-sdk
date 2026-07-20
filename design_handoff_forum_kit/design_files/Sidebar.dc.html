@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;flex-direction:column;height:100%;width:100%;box-sizing:border-box;padding:22px 16px;background:linear-gradient(180deg, var(--t46, rgba(18,24,40,.97)), var(--t75, rgba(9,13,23,.97)));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-right:1px solid rgba(108,170,245,.14);overflow-y:auto;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:30px;height:30px;perspective:220px;flex:0 0 auto;"><div style="position:relative;width:100%;height:100%;transform-style:preserve-3d;animation:fkdance 4.8s ease-in-out infinite;"><div style="position:absolute;left:2px;bottom:1px;width:10px;height:10px;border-radius:74% 74% 80% 2px;background:linear-gradient(150deg,#8cc0f7,#3f7ee2);box-shadow:inset 0 -2px 4px rgba(22,52,118,.35);transform:rotate(11deg);"></div><div style="position:absolute;inset:2px;border-radius:50% 50% 52% 16% / 52% 52% 50% 50%;background:radial-gradient(120% 95% at 32% 22%, rgba(255,255,255,.92), rgba(255,255,255,0) 52%), linear-gradient(155deg,#cfe8ff 0%,#86bdf6 40%,#3f7ee2 66%,#aed6ff 100%);box-shadow:0 5px 12px -5px rgba(16,38,92,.5), inset 0 1px 0 rgba(255,255,255,.85), inset 0 -2px 5px rgba(22,52,118,.4);"></div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:2.5px;padding-bottom:2px;"><span style="width:4.5px;height:4.5px;border-radius:50%;background:#2a2410;animation:fkdotpop 1.4s ease-in-out infinite;"></span><span style="width:4.5px;height:4.5px;border-radius:50%;background:#2a2410;animation:fkdotpop 1.4s ease-in-out infinite .18s;"></span><span style="width:4.5px;height:4.5px;border-radius:50%;background:#2a2410;animation:fkdotpop 1.4s ease-in-out infinite .36s;"></span></div></div></div>
+      <span style="font-family:Michroma,sans-serif;font-size:12px;letter-spacing:1.5px;color:var(--t30, #e9eff8);">FORUM KIT</span>
+    </div>
+    <div onClick="{{ onClose }}" title="Close" style="width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;color:var(--t23, #acb7cc);font-size:14px;background:var(--t59, rgba(218,229,247,.06));border:1px solid var(--t66, rgba(218,229,247,.14));">✕</div>
+  </div>
+
+  <div onClick="{{ onSearch }}" style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;margin-bottom:24px;cursor:text;background:var(--t58, rgba(218,229,247,.05));border:1px solid var(--t65, rgba(218,229,247,.13));">
+    <span style="color:var(--t14, #6b7488);font-size:14px;line-height:1;">⌕</span>
+    <span style="flex:1;font-family:Sora,sans-serif;font-size:13px;color:var(--t14, #6b7488);">Search threads…</span>
+    <span style="font-family:Sora,sans-serif;font-size:10px;color:var(--t12, #5b6376);border:1px solid var(--t66, rgba(218,229,247,.14));border-radius:5px;padding:1px 6px;">/</span>
+  </div>
+
+  <div style="font-family:Sora,sans-serif;font-size:10px;letter-spacing:1.6px;color:var(--t12, #5b6376);margin:0 6px 12px;">TOPICS</div>
+  <div style="display:flex;flex-direction:column;gap:3px;">
+    <sc-for list="{{ topics }}" as="tp" hint-placeholder-count="4">
+      <div onClick="{{ tp.onClick }}" role="button" tabindex="0" aria-label="{{ tp.name }} topic" style="{{ tp.style }}"><span style="font-family:Sora,sans-serif;font-size:13.5px;color:{{ tp.color }};">{{ tp.name }}</span><span style="float:right;font-family:Sora,sans-serif;font-size:11px;color:var(--t17, #8590a5);">{{ tp.count }}</span></div>
+    </sc-for>
+  </div>
+
+  <div style="font-family:Sora,sans-serif;font-size:10px;letter-spacing:1.6px;color:var(--t12, #5b6376);margin:26px 6px 12px;">TAGS</div>
+  <div style="display:flex;flex-wrap:wrap;gap:7px;padding:0 2px;">
+    <sc-for list="{{ tags }}" as="tg" hint-placeholder-count="8"><div onClick="{{ tg.onClick }}" style="{{ tg.style }}"><span style="opacity:.55;">#</span>{{ tg.name }}</div></sc-for>
+  </div>
+
+  <div style="flex:1;min-height:24px;"></div>
+  <div style="display:flex;align-items:center;gap:12px;padding:13px;border-radius:14px;background:linear-gradient(165deg, var(--t59, rgba(218,229,247,.06)), var(--t33, rgba(0,0,0,.1)));border:1px solid rgba(108,170,245,.12);">
+    <div style="width:36px;height:36px;border-radius:50%;flex:0 0 auto;background:radial-gradient(circle at 33% 27%, #ffffff 0%, #d9e4f5 14%, #90a4c5 46%, #3a4862 78%, #a6b9d6 100%);box-shadow:0 8px 18px -6px var(--t37, rgba(0,0,0,.6)), inset 0 1px 2px rgba(255,255,255,.85);"></div>
+    <div><div style="font-family:Sora,sans-serif;font-size:13px;color:var(--t30, #e9eff8);font-weight:500;">You</div><div style="font-family:Sora,sans-serif;font-size:10.5px;color:var(--t17, #8590a5);margin-top:1px;">contributor</div></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:286,&quot;height&quot;:884},&quot;tags&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;any[]&quot;},&quot;topics&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;any[]&quot;},&quot;onSearch&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;() =&gt; void&quot;},&quot;onClose&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;() =&gt; void&quot;}}"></script>
+</body>
+</html>
