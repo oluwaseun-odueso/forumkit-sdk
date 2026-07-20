@@ -6,7 +6,7 @@
   "main": "./src/app.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "node --env-file=../../.env --import tsx/esm src/server.ts",
+    "dev": "node --env-file=../../.env --import tsx/esm --watch src/server.ts",
     "start": "node --env-file=../../.env --import tsx/esm src/server.ts",
     "test": "sh -c 'if [ -f ../../.env ]; then node --env-file=../../.env --experimental-vm-modules ../../node_modules/.bin/jest; else node --experimental-vm-modules ../../node_modules/.bin/jest; fi'"
   },
