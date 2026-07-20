@@ -1,9 +1,6 @@
 import DropdownMenu, { DropdownMenuDivider, DropdownMenuItem } from '../shared/dropdown-menu';
 import Avatar from '../shared/avatar';
-import {
-  ShirtIcon, DraftIcon, TrophyIcon, DollarIcon, ShieldIcon, ToggleIcon,
-  LogoutIcon, ClickIcon, ChartIcon, GearIcon,
-} from '../shared/icons';
+import { ShirtIcon, DraftIcon, ToggleIcon, LogoutIcon, GearIcon } from '../shared/icons';
 import './account-menu.css';
 
 const USER_GRADIENT = 'radial-gradient(120% 95% at 30% 25%, #f0c9a8, #b97d52 70%, #7a4f34)';
@@ -11,13 +8,8 @@ const USER_GRADIENT = 'radial-gradient(120% 95% at 30% 25%, #f0c9a8, #b97d52 70%
 const MENU_ITEMS = [
   { label: 'Edit Avatar', icon: <ShirtIcon /> },
   { label: 'Drafts', icon: <DraftIcon /> },
-  { label: 'Achievements', sub: '2 unlocked', icon: <TrophyIcon size={21} /> },
-  { label: 'Earn', sub: 'Earn cash on Forum Kit', icon: <DollarIcon /> },
-  { label: 'Premium', icon: <ShieldIcon /> },
   { label: 'Display Mode', icon: <ToggleIcon /> },
   { label: 'Log Out', icon: <LogoutIcon /> },
-  { label: 'Advertise on Forum Kit', icon: <ClickIcon />, dividerBefore: true },
-  { label: 'Forum Kit Pro', icon: <ChartIcon />, beta: true },
   { label: 'Settings', icon: <GearIcon />, dividerBefore: true },
 ];
 
@@ -44,7 +36,7 @@ export default function AccountMenu({ open, onClose, onViewProfile, showViewProf
       {MENU_ITEMS.map(item => (
         <div key={item.label}>
           {item.dividerBefore && <DropdownMenuDivider />}
-          <DropdownMenuItem icon={item.icon} label={item.label} sub={item.sub} beta={item.beta} />
+          <DropdownMenuItem icon={item.icon} label={item.label} />
         </div>
       ))}
     </DropdownMenu>
