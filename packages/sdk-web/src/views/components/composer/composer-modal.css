@@ -30,8 +30,8 @@
 .fk-composer-heading {
   margin: 0;
   font-size: 24px;
-  font-weight: 800;
-  color: var(--text);
+  font-weight: 400;
+  color: var(--text-2);
 }
 
 .fk-composer-header-actions {
@@ -120,7 +120,7 @@
 
 .fk-composer-title-input {
   width: 100%;
-  padding: 18px 20px;
+  padding: 26px 20px 10px;
   border-radius: 16px;
   border: 1px solid var(--border-strong);
   background: var(--surface-2);
@@ -130,14 +130,27 @@
   font-family: inherit;
 }
 
-.fk-composer-required {
+.fk-composer-title-label {
   position: absolute;
-  left: 54px;
-  top: 19px;
-  color: var(--up);
+  left: 20px;
+  top: 18px;
   font-size: 16px;
+  color: var(--faint);
   pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
 }
+
+.fk-composer-title-input:focus ~ .fk-composer-title-label,
+.fk-composer-title-input:not(:placeholder-shown) ~ .fk-composer-title-label {
+  top: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fk-composer-required-mark {
+  color: var(--up);
+}
+
 
 .fk-composer-title-row {
   display: flex;

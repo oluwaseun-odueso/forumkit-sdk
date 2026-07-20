@@ -1,9 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { ComposerTab, Community } from '../../hooks/use-forum-state';
 import type { useForum } from '../../hooks/use-forum-state';
-import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import PillButton from '../shared/pill-button';
-import { CloseIcon, ChevronDownIcon, SparkleIcon, UploadIcon } from '../shared/icons';
+import { CloseIcon, SparkleIcon, UploadIcon } from '../shared/icons';
 import RichTextToolbar from './rich-text-toolbar';
 import AttachmentList from './attachment-list';
 import './composer-modal.css';
@@ -31,9 +30,7 @@ export default function ComposerModal({
   composer, communities, onClose, onSetTab, onSetField, onSetCommunity,
   onAddFiles, onRemoveFile, onSuggestMeta, onSubmit,
 }: ComposerModalProps) {
-  const [communityMenuOpen, setCommunityMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const selectedCommunity = communities.find(c => c.id === composer.communityId);
 
   if (!composer.open) return null;
 
@@ -48,23 +45,6 @@ export default function ComposerModal({
               <CloseIcon />
             </button>
           </div>
-        </div>
-
-        <div className="fk-composer-community-anchor">
-          <button type="button" className="fk-composer-community-btn" onClick={() => setCommunityMenuOpen(o => !o)}>
-            {selectedCommunity?.name ?? 'Select Community'}
-            <ChevronDownIcon size={17} />
-          </button>
-          <DropdownMenu open={communityMenuOpen} onClose={() => setCommunityMenuOpen(false)} style={{ top: 46, left: 0, width: 220 }}>
-            {communities.map(c => (
-              <DropdownMenuItem
-                key={c.id}
-                label={c.name}
-                active={c.id === composer.communityId}
-                onClick={() => { onSetCommunity(c.id); setCommunityMenuOpen(false); }}
-              />
-            ))}
-          </DropdownMenu>
         </div>
 
         <div className="fk-composer-tabs">
@@ -82,13 +62,16 @@ export default function ComposerModal({
 
         <div className="fk-composer-title-wrap">
           <input
+            id="composer-title"
             className="fk-composer-title-input"
-            placeholder="Title"
+            placeholder=" "
             value={composer.title}
             onChange={e => onSetField('title', e.target.value)}
             maxLength={300}
           />
-          <span className="fk-composer-required">*</span>
+          <label className="fk-composer-title-label" htmlFor="composer-title">
+            Title <span className="fk-composer-required-mark">*</span>
+          </label>
         </div>
         <div className="fk-composer-title-row">
           <button type="button" className="fk-composer-suggest" onClick={onSuggestMeta} disabled={composer.genTitle || composer.genTags}>
@@ -138,12 +121,15 @@ export default function ComposerModal({
         {composer.activeTab === 'link' && (
           <div className="fk-composer-title-wrap">
             <input
+              id="composer-link"
               className="fk-composer-title-input"
-              placeholder="Link URL"
+              placeholder=" "
               value={composer.linkUrl}
               onChange={e => onSetField('linkUrl', e.target.value)}
             />
-            <span className="fk-composer-required" style={{ left: 92 }}>*</span>
+            <label className="fk-composer-title-label" htmlFor="composer-link">
+              Link URL <span className="fk-composer-required-mark">*</span>
+            </label>
           </div>
         )}
 
