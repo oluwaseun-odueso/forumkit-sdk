@@ -11,18 +11,14 @@ const NAV_ITEMS = [
 
 type SidebarProps = {
   pinned: boolean;
+  forceOpen?: boolean;
   onTogglePin: () => void;
   onHome: () => void;
 };
 
-/**
- * Persistent width-animated sidebar (230px expanded / 60px collapsed guard
- * rail) with a hamburger toggle that sits centered on the divider line.
- * `open = pinned || hoverPreview` per the design's stated interaction model.
- */
-export default function Sidebar({ pinned, onTogglePin, onHome }: SidebarProps) {
+export default function Sidebar({ pinned, forceOpen, onTogglePin, onHome }: SidebarProps) {
   const { hoverPreview, hamburgerRef, asideRef } = useSidebarHover();
-  const open = pinned || hoverPreview;
+  const open = forceOpen || pinned || hoverPreview;
 
   return (
     <>

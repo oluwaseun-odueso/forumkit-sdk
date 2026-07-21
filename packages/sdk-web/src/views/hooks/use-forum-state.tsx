@@ -8,7 +8,7 @@ import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } f
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type View = 'feed' | 'thread' | 'profile';
+export type View = 'feed' | 'thread' | 'profile' | 'compose';
 export type FeedView = 'card' | 'compact';
 export type FeedSort = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
 export type CommentSort = 'Best' | 'Top' | 'Controversial' | 'Old';
@@ -242,13 +242,15 @@ function reducer(state: State, action: Action): State {
     case 'OPEN_COMPOSER':
       return {
         ...state,
+        view: 'compose',
+        sidebar: { pinned: true },
         composer: {
           open: true, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
           communityId: state.composer.communityId, attachments: [], genTitle: false, genTags: false,
         },
       };
     case 'CLOSE_COMPOSER':
-      return { ...state, composer: { ...state.composer, open: false } };
+      return { ...state, view: 'feed', composer: { ...state.composer, open: false } };
     case 'SET_COMPOSER_TAB':
       return { ...state, composer: { ...state.composer, activeTab: action.tab } };
     case 'SET_COMPOSER_FIELD':
@@ -291,6 +293,7 @@ function reducer(state: State, action: Action): State {
       };
       return {
         ...state,
+        view: 'feed',
         posts: [newPost, ...state.posts],
         composer: { ...state.composer, open: false },
       };
