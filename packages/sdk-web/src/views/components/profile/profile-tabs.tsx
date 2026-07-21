@@ -1,6 +1,6 @@
 import './profile-tabs.css';
 
-const TABS = ['Overview', 'Posts', 'Comments', 'Saved', 'History', 'Hidden', 'Upvoted', 'Downvoted'];
+const TABS = ['Overview', 'Posts', 'Comments', 'Saved', 'Upvoted', 'Downvoted'];
 
 type ProfileTabsProps = {
   active: string;
