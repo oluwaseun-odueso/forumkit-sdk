@@ -6,7 +6,7 @@ import './compose.css';
 export function Compose() {
   const {
     state, closeComposer, setComposerTab, setComposerField,
-    addFiles, removeFile, suggestComposeMeta, submitComposer,
+    addFiles, removeFile, updateAttachmentMeta, suggestComposeMeta, submitComposer,
   } = useForum();
 
   return (
@@ -19,6 +19,7 @@ export function Compose() {
           onSetField={setComposerField}
           onAddFiles={addFiles}
           onRemoveFile={removeFile}
+          onUpdateMeta={updateAttachmentMeta}
           onSuggestMeta={suggestComposeMeta}
           onSubmit={submitComposer}
         />

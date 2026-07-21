@@ -21,6 +21,8 @@ export type AttachmentFile = {
   kind: 'image' | 'video' | 'file';
   sizeLabel: string;
   url: string | null;
+  caption: string;
+  attachmentUrl: string;
 };
 
 type ComposeState = {
@@ -103,6 +105,7 @@ type Action =
   | { type: 'SET_COMPOSER_GEN'; field: 'genTitle' | 'genTags'; value: boolean }
   | { type: 'ADD_FILE'; file: AttachmentFile }
   | { type: 'UPDATE_FILE_URL'; id: number; url: string }
+  | { type: 'UPDATE_ATTACHMENT_META'; id: number; caption: string; attachmentUrl: string }
   | { type: 'REMOVE_FILE'; id: number }
   | { type: 'SUBMIT_COMPOSER'; newId: string }
   | { type: 'SET_PROFILE_TAB'; tab: string }
@@ -269,6 +272,16 @@ function reducer(state: State, action: Action): State {
           attachments: state.composer.attachments.map(a => a.id === action.id ? { ...a, url: action.url } : a),
         },
       };
+    case 'UPDATE_ATTACHMENT_META':
+      return {
+        ...state,
+        composer: {
+          ...state.composer,
+          attachments: state.composer.attachments.map(a =>
+            a.id === action.id ? { ...a, caption: action.caption, attachmentUrl: action.attachmentUrl } : a
+          ),
+        },
+      };
     case 'REMOVE_FILE':
       return {
         ...state,
@@ -355,6 +368,8 @@ function useForumStateInternal() {
   );
   const setComposerCommunity = useCallback((communityId: string) => dispatch({ type: 'SET_COMPOSER_COMMUNITY', communityId }), []);
   const removeFile = useCallback((id: number) => dispatch({ type: 'REMOVE_FILE', id }), []);
+  const updateAttachmentMeta = useCallback((id: number, caption: string, attachmentUrl: string) =>
+    dispatch({ type: 'UPDATE_ATTACHMENT_META', id, caption, attachmentUrl }), []);
   const submitComposer = useCallback(() => dispatch({ type: 'SUBMIT_COMPOSER', newId: nextPostId() }), []);
   const setProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_PROFILE_TAB', tab }), []);
 
@@ -363,7 +378,7 @@ function useForumStateInternal() {
       const id = nextFileId();
       const kind: AttachmentFile['kind'] = file.type.startsWith('image/') ? 'image'
         : file.type.startsWith('video/') ? 'video' : 'file';
-      dispatch({ type: 'ADD_FILE', file: { id, name: file.name, kind, sizeLabel: fmtSize(file.size), url: null } });
+      dispatch({ type: 'ADD_FILE', file: { id, name: file.name, kind, sizeLabel: fmtSize(file.size), url: null, caption: '', attachmentUrl: '' } });
       if (kind !== 'file') {
         const reader = new FileReader();
         reader.onload = e => {
@@ -466,6 +481,7 @@ function useForumStateInternal() {
     setComposerCommunity,
     addFiles,
     removeFile,
+    updateAttachmentMeta,
     submitComposer,
     setProfileTab,
     summarize,

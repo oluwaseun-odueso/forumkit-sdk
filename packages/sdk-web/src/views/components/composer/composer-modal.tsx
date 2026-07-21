@@ -1,10 +1,9 @@
-import { useRef } from 'react';
 import type { ComposerTab } from '../../hooks/use-forum-state';
 import type { useForum } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
-import { CloseIcon, SparkleIcon, UploadIcon, PencilIcon } from '../shared/icons';
+import { CloseIcon, SparkleIcon, PencilIcon } from '../shared/icons';
 import RichTextToolbar from './rich-text-toolbar';
-import AttachmentList from './attachment-list';
+import MediaGallery from './media-gallery';
 import './composer-modal.css';
 
 const TABS: { id: ComposerTab; label: string }[] = [
@@ -20,16 +19,15 @@ type ComposerModalProps = {
   onSetField: (field: 'title' | 'tags' | 'body' | 'linkUrl', value: string) => void;
   onAddFiles: (files: FileList) => void;
   onRemoveFile: (id: number) => void;
+  onUpdateMeta: (id: number, caption: string, attachmentUrl: string) => void;
   onSuggestMeta: () => void;
   onSubmit: () => void;
 };
 
 export default function ComposerModal({
   composer, onClose, onSetTab, onSetField,
-  onAddFiles, onRemoveFile, onSuggestMeta, onSubmit,
+  onAddFiles, onRemoveFile, onUpdateMeta, onSuggestMeta, onSubmit,
 }: ComposerModalProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const hasTitle = composer.title.trim().length > 0;
   const canSaveDraft = hasTitle && composer.activeTab !== 'images';
   const canPost =
@@ -106,21 +104,12 @@ export default function ComposerModal({
       )}
 
       {composer.activeTab === 'images' && (
-        <div className="fk-composer-dropzone" onClick={() => fileInputRef.current?.click()}>
-          <div className="fk-composer-dropzone-label">
-            <span className="fk-composer-upload-btn"><UploadIcon size={18} /></span>
-            Drag and drop or upload media
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/*"
-            className="fk-composer-file-input"
-            onChange={e => { if (e.target.files) onAddFiles(e.target.files); e.target.value = ''; }}
-          />
-          <AttachmentList attachments={composer.attachments} onRemove={onRemoveFile} />
-        </div>
+        <MediaGallery
+          attachments={composer.attachments}
+          onAddFiles={onAddFiles}
+          onRemoveFile={onRemoveFile}
+          onUpdateMeta={onUpdateMeta}
+        />
       )}
 
       {composer.activeTab === 'link' && (
