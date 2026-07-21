@@ -31,7 +31,7 @@ export default function ComposerModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasTitle = composer.title.trim().length > 0;
-  const canSaveDraft = hasTitle;
+  const canSaveDraft = hasTitle && composer.activeTab !== 'images';
   const canPost =
     hasTitle &&
     (composer.activeTab !== 'images' || composer.attachments.length > 0) &&
