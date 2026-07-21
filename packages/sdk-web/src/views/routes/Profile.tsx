@@ -14,7 +14,7 @@ export function Profile() {
 
   return (
     <Shell
-      compactSearch
+      scopeTag="Cultural-Rope137"
       scrollMain={false}
       rail={
         <ProfileRightRail

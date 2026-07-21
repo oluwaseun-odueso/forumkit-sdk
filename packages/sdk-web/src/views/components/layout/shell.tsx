@@ -10,6 +10,7 @@ type ShellProps = {
   onAsk?: () => void;
   compactSearch?: boolean;
   scrollMain?: boolean;
+  scopeTag?: string;
 };
 
 /**
@@ -17,7 +18,7 @@ type ShellProps = {
  * persistent collapsible sidebar, a scrollable main column, and an optional
  * right rail. Routes only supply their own center content (and rail).
  */
-export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true }: ShellProps) {
+export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true, scopeTag }: ShellProps) {
   const { state, setView, openComposer, toggleSidebarPin } = useForum();
 
   return (
@@ -28,6 +29,7 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
         onViewProfile={() => setView('profile')}
         onAsk={onAsk}
         compact={compactSearch}
+        scopeTag={scopeTag}
       />
       <div className="fk-shell-body">
         <Sidebar pinned={state.sidebar.pinned} onTogglePin={toggleSidebarPin} onHome={() => setView('feed')} />

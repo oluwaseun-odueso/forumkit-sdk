@@ -3,7 +3,7 @@ import MascotIcon from './mascot-icon';
 import AccountMenu from './account-menu';
 import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
-import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, MessagesIcon, PlusIcon, BellIcon } from '../shared/icons';
+import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, MessagesIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
 import { useTheme } from '../../hooks/use-theme';
 import './top-nav.css';
 
@@ -15,12 +15,17 @@ type TopNavProps = {
   onViewProfile: () => void;
   onAsk?: (() => void) | undefined;
   compact?: boolean | undefined;
+  scopeTag?: string | undefined;
 };
 
 /** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */
-export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, compact }: TopNavProps) {
+export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, compact, scopeTag }: TopNavProps) {
   const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tagActive, setTagActive] = useState(true);
+
+  const showTag = !!(scopeTag && tagActive);
+  const placeholder = showTag ? `Search in u/${scopeTag}` : 'Find anything';
 
   return (
     <header className="fk-topnav">
@@ -32,8 +37,21 @@ export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, c
       <div className="fk-topnav-search-wrap">
         <div className={`fk-topnav-search${compact ? ' fk-topnav-search--compact' : ''}`}>
           <SearchIcon size={compact ? 18 : 20} />
-          <input className="fk-topnav-search-input" placeholder="Find anything" />
-          {!compact && (
+          {showTag && (
+            <span className="fk-topnav-scope-tag">
+              u/{scopeTag}
+              <button
+                type="button"
+                className="fk-topnav-scope-tag-clear"
+                aria-label="Clear scope"
+                onClick={() => setTagActive(false)}
+              >
+                <CloseIcon size={10} />
+              </button>
+            </span>
+          )}
+          <input className="fk-topnav-search-input" placeholder={placeholder} />
+          {!compact && !showTag && (
             <>
               <div className="fk-topnav-search-divider" />
               <button type="button" className="fk-topnav-ask" onClick={onAsk} disabled={!onAsk}>
