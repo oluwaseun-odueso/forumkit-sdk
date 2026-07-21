@@ -30,6 +30,13 @@ export default function ComposerModal({
 }: ComposerModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const hasTitle = composer.title.trim().length > 0;
+  const canSaveDraft = hasTitle;
+  const canPost =
+    hasTitle &&
+    (composer.activeTab !== 'images' || composer.attachments.length > 0) &&
+    (composer.activeTab !== 'link' || composer.linkUrl.trim().length > 0);
+
   return (
     <div className="fk-composer-modal">
       <div className="fk-composer-header">
@@ -132,8 +139,8 @@ export default function ComposerModal({
       )}
 
       <div className="fk-composer-footer">
-        <PillButton variant="surface">Save Draft</PillButton>
-        <PillButton variant="accent" onClick={onSubmit}>Post</PillButton>
+        <PillButton variant="surface" disabled={!canSaveDraft}>Save Draft</PillButton>
+        <PillButton variant="accent" onClick={onSubmit} disabled={!canPost}>Post</PillButton>
       </div>
     </div>
   );

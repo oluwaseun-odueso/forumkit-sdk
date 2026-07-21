@@ -49,3 +49,8 @@
 .fk-pill--active {
   background: var(--hover-2);
 }
+
+.fk-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

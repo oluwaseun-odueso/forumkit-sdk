@@ -8,6 +8,7 @@ type PillButtonProps = {
   onClick?: () => void;
   variant?: PillVariant;
   active?: boolean;
+  disabled?: boolean;
   icon?: ReactNode;
   style?: CSSProperties;
   type?: 'button' | 'submit';
@@ -21,11 +22,12 @@ type PillButtonProps = {
  * - accent: filled with --accent (primary actions like Post, Comment)
  * - outline: bordered, transparent fill (Select Community, Create Post)
  */
-export default function PillButton({ children, onClick, variant = 'surface', active, icon, style, type = 'button' }: PillButtonProps) {
+export default function PillButton({ children, onClick, variant = 'surface', active, disabled, icon, style, type = 'button' }: PillButtonProps) {
   return (
     <button
       type={type}
       onClick={onClick}
+      disabled={disabled}
       className={`fk-pill fk-pill--${variant}${active ? ' fk-pill--active' : ''}`}
       style={style}
     >
