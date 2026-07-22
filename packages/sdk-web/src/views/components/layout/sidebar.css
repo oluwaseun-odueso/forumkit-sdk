@@ -23,20 +23,18 @@
 }
 
 .fk-sidebar-hamburger--pinned {
-  background: var(--accent-soft);
   border-color: var(--accent);
   color: var(--accent);
 }
 
 .fk-sidebar-hamburger--pinned:hover {
-  background: var(--accent-soft);
+  background: var(--hover);
   color: var(--accent);
 }
 
 .fk-sidebar {
   flex: 0 0 auto;
   background: var(--nav);
-  border-right: 1px solid var(--border);
   overflow: hidden;
   transition: width 0.28s ease;
 }
