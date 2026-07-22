@@ -13,6 +13,9 @@ services:
       MODERATION_PROVIDER: local
       EMBEDDING_PROVIDER: local
       EMBEDDING_DIMENSION: 384
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_PATH: /app/data/uploads
+      STORAGE_LOCAL_PUBLIC_URL_BASE: http://localhost:3000
       PORT: 3000
       LOG_LEVEL: debug
       NODE_ENV: development
@@ -21,6 +24,31 @@ services:
         condition: service_healthy
     volumes:
       - ../packages/api/src:/app/packages/api/src   # hot reload in dev
+      - uploads:/app/data/uploads
+
+  # Local S3-compatible target for exercising STORAGE_PROVIDER=s3 without
+  # real cloud credentials. Not started by default:
+  #   docker compose --profile s3 up
+  # then override the api service's STORAGE_* env vars (see .env.example)
+  # to point at http://minio:9000, and create the bucket once via the
+  # MinIO console at http://localhost:9001 (or `mc mb`).
+  minio:
+    image: minio/minio
+    profiles: ["s3"]
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: forumkit
+      MINIO_ROOT_PASSWORD: forumkit-dev
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   db:
     image: pgvector/pgvector:pg16
@@ -40,3 +68,5 @@ services:
 
 volumes:
   pgdata:
+  uploads:
+  miniodata:
