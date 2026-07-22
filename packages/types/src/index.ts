@@ -8,6 +8,8 @@ export type ReactionType = 'like' | 'helpful' | 'insightful' | 'funny';
 export type EmbeddingProvider = 'local' | 'openai';
 export type ModerationProvider = 'local' | 'perspective';
 export type AIProvider = 'local' | 'openai' | 'anthropic';
+export type StorageProvider = 'local' | 's3';
+export type AttachmentStatus = 'pending' | 'confirmed' | 'deleted';
 
 // ── Core entities ──────────────────────────────────────────────────
 
@@ -77,6 +79,20 @@ export type Tag = {
   color: string;                     // hex colour e.g. "#6200EE"
 };
 
+export type Attachment = {
+  id: string;
+  forumId: string;
+  postId: string | null;             // null until attached to a post
+  uploaderId: string;
+  storageKey: string;
+  mimeType: string;
+  byteSize: number;
+  width: number | null;
+  height: number | null;
+  status: AttachmentStatus;
+  createdAt: Date;
+};
+
 export type Reaction = {
   id: string;
   postId: string;
@@ -143,6 +159,21 @@ export type UpdateThreadBody = {
 export type CreatePostBody = {
   body: string;
   parentPostId?: string;
+  attachmentIds?: string[];
+};
+
+export type UploadUrlRequest = {
+  filename: string;
+  mimeType: string;
+  byteSize: number;
+};
+
+export type UploadUrlResponse = {
+  attachmentId: string;
+  uploadUrl: string;
+  uploadMethod: 'PUT';
+  uploadHeaders: Record<string, string>;
+  expiresAt: string;                 // ISO timestamp
 };
 
 export type UpdatePostBody = {
