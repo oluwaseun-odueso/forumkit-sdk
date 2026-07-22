@@ -1,4 +1,4 @@
-import type { AIProvider, EmbeddingProvider, ModerationProvider } from '@forumkit/types';
+import type { AIProvider, EmbeddingProvider, ModerationProvider, StorageProvider } from '@forumkit/types';
 
 function required(key: string): string {
   const value = process.env[key];
@@ -36,6 +36,16 @@ export type Config = {
   perspectiveApiKey: string | null;
   embeddingProvider: EmbeddingProvider;
   embeddingDimension: number;
+  storageProvider: StorageProvider;
+  storageLocalPath: string;
+  storageLocalPublicUrlBase: string;
+  storageS3Endpoint: string | null;
+  storageS3Bucket: string | null;
+  storageS3Region: string | null;
+  storageS3AccessKeyId: string | null;
+  storageS3SecretAccessKey: string | null;
+  storageMaxFileSizeBytes: number;
+  storageAllowedMimeTypes: string[];
 };
 
 export function loadConfig(): Config {
@@ -55,5 +65,18 @@ export function loadConfig(): Config {
     perspectiveApiKey: process.env['PERSPECTIVE_API_KEY'] ?? null,
     embeddingProvider: optional('EMBEDDING_PROVIDER', 'local') as EmbeddingProvider,
     embeddingDimension: optionalNumber('EMBEDDING_DIMENSION', 384),
+    storageProvider: optional('STORAGE_PROVIDER', 'local') as StorageProvider,
+    storageLocalPath: optional('STORAGE_LOCAL_PATH', './data/uploads'),
+    storageLocalPublicUrlBase: optional('STORAGE_LOCAL_PUBLIC_URL_BASE', 'http://localhost:3000'),
+    storageS3Endpoint: process.env['STORAGE_S3_ENDPOINT'] ?? null,
+    storageS3Bucket: process.env['STORAGE_S3_BUCKET'] ?? null,
+    storageS3Region: process.env['STORAGE_S3_REGION'] ?? null,
+    storageS3AccessKeyId: process.env['STORAGE_S3_ACCESS_KEY_ID'] ?? null,
+    storageS3SecretAccessKey: process.env['STORAGE_S3_SECRET_ACCESS_KEY'] ?? null,
+    storageMaxFileSizeBytes: optionalNumber('STORAGE_MAX_FILE_SIZE_BYTES', 26_214_400),
+    storageAllowedMimeTypes: optional(
+      'STORAGE_ALLOWED_MIME_TYPES',
+      'image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm',
+    ).split(','),
   };
 }
