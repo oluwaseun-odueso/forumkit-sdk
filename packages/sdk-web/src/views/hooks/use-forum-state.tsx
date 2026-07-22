@@ -5,6 +5,7 @@ import {
 } from '../data/fixtures';
 import type { SimilarThread } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
+import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,8 @@ export type AttachmentFile = {
   url: string | null;
   caption: string;
   attachmentUrl: string;
+  attachmentId: string | null;
+  uploadStatus: 'uploading' | 'uploaded' | 'error';
 };
 
 type ComposeState = {
@@ -106,6 +109,7 @@ type Action =
   | { type: 'ADD_FILE'; file: AttachmentFile }
   | { type: 'UPDATE_FILE_URL'; id: number; url: string }
   | { type: 'UPDATE_ATTACHMENT_META'; id: number; caption: string; attachmentUrl: string }
+  | { type: 'SET_ATTACHMENT_UPLOAD'; id: number; status: AttachmentFile['uploadStatus']; attachmentId?: string | null }
   | { type: 'REMOVE_FILE'; id: number }
   | { type: 'SUBMIT_COMPOSER'; newId: string }
   | { type: 'SET_PROFILE_TAB'; tab: string }
@@ -282,6 +286,18 @@ function reducer(state: State, action: Action): State {
           ),
         },
       };
+    case 'SET_ATTACHMENT_UPLOAD':
+      return {
+        ...state,
+        composer: {
+          ...state.composer,
+          attachments: state.composer.attachments.map(a =>
+            a.id === action.id
+              ? { ...a, uploadStatus: action.status, attachmentId: action.attachmentId ?? a.attachmentId }
+              : a
+          ),
+        },
+      };
     case 'REMOVE_FILE':
       return {
         ...state,
@@ -373,12 +389,44 @@ function useForumStateInternal() {
   const submitComposer = useCallback(() => dispatch({ type: 'SUBMIT_COMPOSER', newId: nextPostId() }), []);
   const setProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_PROFILE_TAB', tab }), []);
 
+  const uploadAttachment = useCallback(async (id: number, file: File, kind: AttachmentFile['kind']) => {
+    dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploading' });
+    try {
+      const upload = await requestUploadUrl('demo', file.name, file.type, file.size);
+      await putFile(upload.uploadUrl, upload.uploadHeaders, file);
+
+      let width: number | null = null;
+      let height: number | null = null;
+      if (kind === 'image') {
+        try {
+          const bitmap = await createImageBitmap(file);
+          width = bitmap.width;
+          height = bitmap.height;
+          bitmap.close();
+        } catch {
+          // dimensions are a display hint only — safe to skip if unsupported
+        }
+      }
+
+      await confirmUpload('demo', upload.attachmentId, { width, height });
+      dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploaded', attachmentId: upload.attachmentId });
+    } catch {
+      dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'error' });
+    }
+  }, []);
+
   const addFiles = useCallback((fileList: FileList) => {
     Array.from(fileList).forEach(file => {
       const id = nextFileId();
       const kind: AttachmentFile['kind'] = file.type.startsWith('image/') ? 'image'
         : file.type.startsWith('video/') ? 'video' : 'file';
-      dispatch({ type: 'ADD_FILE', file: { id, name: file.name, kind, sizeLabel: fmtSize(file.size), url: null, caption: '', attachmentUrl: '' } });
+      dispatch({
+        type: 'ADD_FILE',
+        file: {
+          id, name: file.name, kind, sizeLabel: fmtSize(file.size), url: null, caption: '', attachmentUrl: '',
+          attachmentId: null, uploadStatus: kind === 'file' ? 'error' : 'uploading',
+        },
+      });
       if (kind !== 'file') {
         const reader = new FileReader();
         reader.onload = e => {
@@ -386,9 +434,10 @@ function useForumStateInternal() {
           if (typeof url === 'string') dispatch({ type: 'UPDATE_FILE_URL', id, url });
         };
         reader.readAsDataURL(file);
+        void uploadAttachment(id, file, kind);
       }
     });
-  }, []);
+  }, [uploadAttachment]);
 
   const summarize = useCallback(async () => {
     if (state.asst.summarizing || state.thread.activePostId === null) return;
