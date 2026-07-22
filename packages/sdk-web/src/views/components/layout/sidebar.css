@@ -23,7 +23,7 @@
 }
 
 .fk-sidebar-hamburger--pinned {
-  border-color: var(--accent);
+  border-color: transparent;
   color: var(--accent);
 }
 
@@ -35,6 +35,7 @@
 .fk-sidebar {
   flex: 0 0 auto;
   background: var(--nav);
+  border-right: 1px solid var(--border);
   overflow: hidden;
   transition: width 0.28s ease;
 }
