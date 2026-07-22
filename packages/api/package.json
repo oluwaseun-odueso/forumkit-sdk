@@ -16,6 +16,7 @@
     "@fastify/rate-limit": "^9.0.0",
     "@fastify/websocket": "^8.0.0",
     "@forumkit/ai": "*",
+    "@forumkit/storage": "*",
     "@forumkit/types": "*",
     "fastify": "^4.28.0",
     "postgres": "^3.4.0",
