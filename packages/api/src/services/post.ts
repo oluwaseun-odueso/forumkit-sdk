@@ -5,6 +5,7 @@ import { embedOne, safeModerate } from '@forumkit/ai';
 import { ok, err } from '../lib/result';
 import type { Result } from '../lib/result';
 import * as repo from '../repositories/post';
+import { attachToExistingPost } from './storage';
 
 export type PostError = 'post_not_found' | 'thread_not_found' | 'thread_locked' | 'forbidden';
 
@@ -13,6 +14,7 @@ type CreatePostOptions = {
   authorId: string;
   body: string;
   parentPostId?: string | undefined;
+  attachmentIds?: string[] | undefined;
 };
 
 export async function createPost(
@@ -27,6 +29,12 @@ export async function createPost(
   if (thread.status === 'deleted') return err('thread_not_found');
 
   const post = await repo.createPost(db, opts);
+
+  // Best-effort: a bad/foreign attachment id shouldn't fail the whole
+  // post creation, since the post itself was already created successfully.
+  for (const attachmentId of opts.attachmentIds ?? []) {
+    await attachToExistingPost(db, attachmentId, post.id, opts.authorId);
+  }
 
   void embedPost(db, embedFn, post.id, post.body);
   void moderatePost(db, moderateFn, post.id, opts.threadId, post.body);

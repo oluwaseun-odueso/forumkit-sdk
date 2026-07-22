@@ -12,6 +12,7 @@ import type { ReactionType } from '@forumkit/types';
 const createBodySchema = z.object({
   body: z.string().min(1),
   parentPostId: z.string().uuid().optional(),
+  attachmentIds: z.array(z.string().uuid()).max(10).optional(),
 });
 
 const editBodySchema = z.object({
@@ -90,7 +91,13 @@ export async function postsRoutes(app: FastifyInstance): Promise<void> {
       request.server.db,
       request.server.ai.embed,
       request.server.ai.moderate,
-      { threadId: tid, authorId: user.id, body: parsed.data.body, parentPostId: parsed.data.parentPostId },
+      {
+        threadId: tid,
+        authorId: user.id,
+        body: parsed.data.body,
+        parentPostId: parsed.data.parentPostId,
+        attachmentIds: parsed.data.attachmentIds,
+      },
     );
 
     if (!result.ok) return sendPostError(result.code, reply);

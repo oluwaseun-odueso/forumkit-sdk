@@ -1,11 +1,14 @@
+import { resolve } from 'path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
+import fastifyStatic from '@fastify/static';
 import { createRequire } from 'module';
 import type { Config } from './config';
 import type { DB } from './db';
 import { buildAdapters } from '@forumkit/ai';
+import { buildStorageAdapter } from '@forumkit/storage';
 
 const require = createRequire(import.meta.url);
 import { authRoutes } from './routes/auth';
@@ -15,6 +18,8 @@ import { postsRoutes } from './routes/posts';
 import { searchRoutes } from './routes/search';
 import { aiRoutes, composeAiRoutes } from './routes/ai';
 import { moderationRoutes } from './routes/moderation';
+import { attachmentsRoutes } from './routes/attachments';
+import { storageLocalRoutes } from './routes/storage-local';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
   const app = Fastify({
@@ -37,10 +42,11 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
 
   await app.register(websocket);
 
-  // ── Decorators — make db, config, and AI adapters available on every request ───
+  // ── Decorators — make db, config, AI adapters, and storage available on every request ───
   app.decorate('db', db);
   app.decorate('config', config);
   app.decorate('ai', await buildAdapters(config));
+  app.decorate('storage', await buildStorageAdapter(config));
 
   // ── Routes ───────────────────────────────────────────────────────
   await app.register(authRoutes, { prefix: '/auth' });
@@ -51,6 +57,16 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   await app.register(aiRoutes, { prefix: '/threads' });
   await app.register(composeAiRoutes, { prefix: '/forums' });
   await app.register(moderationRoutes, { prefix: '/moderation' });
+  await app.register(attachmentsRoutes, { prefix: '/forums' });
+
+  if (config.storageProvider === 'local') {
+    await app.register(storageLocalRoutes);
+    await app.register(fastifyStatic, {
+      root: resolve(config.storageLocalPath),
+      prefix: '/storage/local/download/',
+      decorateReply: false,
+    });
+  }
 
   // ── Health check ─────────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
