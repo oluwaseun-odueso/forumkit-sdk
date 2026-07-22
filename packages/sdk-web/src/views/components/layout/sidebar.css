@@ -23,7 +23,7 @@
 }
 
 .fk-sidebar-hamburger--pinned {
-  border-color: transparent;
+  border-color: var(--accent);
   color: var(--accent);
 }
 
