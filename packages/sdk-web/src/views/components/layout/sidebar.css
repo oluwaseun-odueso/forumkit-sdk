@@ -22,6 +22,17 @@
   color: var(--text);
 }
 
+.fk-sidebar-hamburger--pinned {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fk-sidebar-hamburger--pinned:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .fk-sidebar {
   flex: 0 0 auto;
   background: var(--nav);

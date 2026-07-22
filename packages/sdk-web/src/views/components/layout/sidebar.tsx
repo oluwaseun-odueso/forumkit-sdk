@@ -28,7 +28,7 @@ export default function Sidebar({ pinned, forceOpen, onTogglePin, onHome }: Side
         aria-label="Toggle menu"
         title="Toggle menu"
         onClick={onTogglePin}
-        className="fk-sidebar-hamburger"
+        className={`fk-sidebar-hamburger${pinned ? ' fk-sidebar-hamburger--pinned' : ''}`}
         style={{ left: open ? 230 : 60 }}
       >
         <HamburgerIcon />
