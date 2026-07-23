@@ -73,15 +73,17 @@ export default function EditProfileModal({ displayName, bio, socialLinks, onSave
       <div className="fk-edit-modal">
         <div
           className="fk-edit-modal-banner"
-          style={bannerPreview ? { backgroundImage: `url(${bannerPreview})` } : undefined}
-          onClick={() => bannerInputRef.current?.click()}
+          style={bannerPreview ? { backgroundImage: `url(${bannerPreview})`, cursor: 'zoom-in' } : undefined}
+          onClick={bannerPreview ? () => window.open(bannerPreview, '_blank') : undefined}
         >
-          <div className="fk-edit-modal-banner-overlay">
-            <div className="fk-edit-modal-banner-icon">
-              <CameraIcon size={22} />
-              <span>Change banner</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            className="fk-edit-modal-change-banner"
+            onClick={e => { e.stopPropagation(); bannerInputRef.current?.click(); }}
+          >
+            <CameraIcon size={13} />
+            Change Banner
+          </button>
           <input
             ref={bannerInputRef}
             type="file"

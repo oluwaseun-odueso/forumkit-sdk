@@ -27,39 +27,28 @@
   background-size: cover;
   background-position: center;
   flex-shrink: 0;
-  cursor: pointer;
 }
 
-.fk-edit-modal-banner-overlay {
+.fk-edit-modal-change-banner {
   position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0);
+  top: 12px;
+  right: 12px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.18s ease;
-}
-
-.fk-edit-modal-banner:hover .fk-edit-modal-banner-overlay {
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.fk-edit-modal-banner-icon {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-  pointer-events: none;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
-.fk-edit-modal-banner:hover .fk-edit-modal-banner-icon {
-  opacity: 1;
+.fk-edit-modal-change-banner:hover {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .fk-edit-modal-file-input {
@@ -292,6 +281,5 @@
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 24px;
-  border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
