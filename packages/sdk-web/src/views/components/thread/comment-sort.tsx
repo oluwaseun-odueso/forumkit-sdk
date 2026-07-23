@@ -1,5 +1,5 @@
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { RocketIcon, TopIcon, ControversialIcon, OldIcon, ChevronDownIcon } from '../shared/icons';
+import { RocketIcon, TopIcon, ControversialIcon, OldIcon, ChevronDownIcon, SearchIcon } from '../shared/icons';
 import type { CommentSort as CommentSortMode } from '../../hooks/use-forum-state';
 import './comment-sort.css';
 
@@ -16,9 +16,11 @@ type CommentSortProps = {
   onToggle: () => void;
   onClose: () => void;
   onSelect: (sort: CommentSortMode) => void;
+  commentSearch: string;
+  onCommentSearchChange: (q: string) => void;
 };
 
-export default function CommentSort({ sort, open, onToggle, onClose, onSelect }: CommentSortProps) {
+export default function CommentSort({ sort, open, onToggle, onClose, onSelect, commentSearch, onCommentSearchChange }: CommentSortProps) {
   return (
     <div className="fk-comment-sort">
       <span className="fk-comment-sort-label">Sort by:</span>
@@ -38,6 +40,15 @@ export default function CommentSort({ sort, open, onToggle, onClose, onSelect }:
             />
           ))}
         </DropdownMenu>
+      </div>
+      <div className="fk-comment-search">
+        <SearchIcon size={16} />
+        <input
+          className="fk-comment-search-input"
+          placeholder="Search Comments"
+          value={commentSearch}
+          onChange={e => onCommentSearchChange(e.target.value)}
+        />
       </div>
     </div>
   );
