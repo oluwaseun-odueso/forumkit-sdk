@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { SocialLink } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
 import { CloseIcon, TrashIcon, CameraIcon } from '../shared/icons';
@@ -23,6 +23,25 @@ export default function EditProfileModal({ displayName, bio, socialLinks, onSave
   const [draftName, setDraftName] = useState(displayName);
   const [draftBio, setDraftBio] = useState(bio);
   const [draftLinks, setDraftLinks] = useState<SocialLink[]>(() => socialLinks.map(l => ({ ...l })));
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBannerPreview(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+    e.target.value = '';
+  }
+
+  function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarPreview(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
+    e.target.value = '';
+  }
 
   function addLink() {
     setDraftLinks(prev => [...prev, { id: nextDraftId(), platform: 'Website', url: '' }]);
@@ -52,13 +71,42 @@ export default function EditProfileModal({ displayName, bio, socialLinks, onSave
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="fk-edit-modal">
-        <div className="fk-edit-modal-banner">
-          <button type="button" className="fk-edit-modal-change-banner">Change Banner</button>
-          <div className="fk-edit-modal-avatar">
+        <div
+          className="fk-edit-modal-banner"
+          style={bannerPreview ? { backgroundImage: `url(${bannerPreview})` } : undefined}
+          onClick={() => bannerInputRef.current?.click()}
+        >
+          <div className="fk-edit-modal-banner-overlay">
+            <div className="fk-edit-modal-banner-icon">
+              <CameraIcon size={22} />
+              <span>Change banner</span>
+            </div>
+          </div>
+          <input
+            ref={bannerInputRef}
+            type="file"
+            accept="image/*"
+            className="fk-edit-modal-file-input"
+            onChange={handleBannerFile}
+          />
+          <div
+            className="fk-edit-modal-avatar"
+            onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
+          >
+            {avatarPreview
+              ? <img src={avatarPreview} alt="Avatar preview" className="fk-edit-modal-avatar-img" />
+              : null}
             <span className="fk-edit-modal-avatar-badge">
               <CameraIcon size={13} />
             </span>
           </div>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="fk-edit-modal-file-input"
+            onChange={handleAvatarFile}
+          />
         </div>
 
         <div className="fk-edit-modal-body">
