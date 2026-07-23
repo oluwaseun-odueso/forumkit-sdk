@@ -6,6 +6,8 @@ import {
 import type { SimilarThread } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
+import { createThread } from '../api/threads';
+import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +41,8 @@ type ComposeState = {
   attachments: AttachmentFile[];
   genTitle: boolean;
   genTags: boolean;
+  submitting: boolean;
+  error: string | null;
 };
 
 type AsstState = {
@@ -111,7 +115,9 @@ type Action =
   | { type: 'UPDATE_ATTACHMENT_META'; id: number; caption: string; attachmentUrl: string }
   | { type: 'SET_ATTACHMENT_UPLOAD'; id: number; status: AttachmentFile['uploadStatus']; attachmentId?: string | null }
   | { type: 'REMOVE_FILE'; id: number }
-  | { type: 'SUBMIT_COMPOSER'; newId: string }
+  | { type: 'SUBMIT_COMPOSER_START' }
+  | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
+  | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
   | { type: 'SET_PROFILE_TAB'; tab: string }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
@@ -160,7 +166,7 @@ const initialState: State = {
   },
   composer: {
     open: false, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
-    communityId: null, attachments: [], genTitle: false, genTags: false,
+    communityId: null, attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
   profile: { activeTab: 'Overview' },
@@ -254,6 +260,7 @@ function reducer(state: State, action: Action): State {
         composer: {
           open: true, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
           communityId: state.composer.communityId, attachments: [], genTitle: false, genTags: false,
+          submitting: false, error: null,
         },
       };
     case 'CLOSE_COMPOSER':
@@ -303,30 +310,17 @@ function reducer(state: State, action: Action): State {
         ...state,
         composer: { ...state.composer, attachments: state.composer.attachments.filter(a => a.id !== action.id) },
       };
-    case 'SUBMIT_COMPOSER': {
-      const title = state.composer.title.trim();
-      if (!title) return state;
-      const newPost: FeedPost = {
-        id: action.newId,
-        communityId: state.composer.communityId ?? COMMUNITIES[0]?.id ?? 'c1',
-        author: 'You',
-        time: 'now',
-        title,
-        snippet: state.composer.body.trim().slice(0, 160) || title,
-        body: state.composer.body.trim(),
-        thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
-        domain: state.composer.activeTab === 'link' ? state.composer.linkUrl.trim() || null : null,
-        votes: 0,
-        commentCount: 0,
-        saved: false,
-      };
+    case 'SUBMIT_COMPOSER_START':
+      return { ...state, composer: { ...state.composer, submitting: true, error: null } };
+    case 'SUBMIT_COMPOSER_SUCCESS':
       return {
         ...state,
         view: 'feed',
-        posts: [newPost, ...state.posts],
-        composer: { ...state.composer, open: false },
+        posts: [action.post, ...state.posts],
+        composer: { ...state.composer, open: false, submitting: false, error: null },
       };
-    }
+    case 'SUBMIT_COMPOSER_ERROR':
+      return { ...state, composer: { ...state.composer, submitting: false, error: action.message } };
     case 'SET_PROFILE_TAB':
       return { ...state, profile: { activeTab: action.tab } };
     case 'ASST_SUMMARIZING':
@@ -348,8 +342,6 @@ function reducer(state: State, action: Action): State {
 
 let _nextCommentId = 100;
 function nextCommentId(): number { return _nextCommentId++; }
-let _nextPostId = 900;
-function nextPostId(): string { return `u${_nextPostId++}`; }
 let _nextFileId = 1;
 function nextFileId(): number { return _nextFileId++; }
 
@@ -357,6 +349,9 @@ function nextFileId(): number { return _nextFileId++; }
 
 function useForumStateInternal() {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const session = useSession();
+  const forumId = session.forumId;
+  const sessionToken = session.sessionToken ?? undefined;
 
   const setView = useCallback((view: View) => dispatch({ type: 'SET_VIEW', view }), []);
   const openThread = useCallback((postId: string) => dispatch({ type: 'OPEN_THREAD', postId }), []);
@@ -386,13 +381,50 @@ function useForumStateInternal() {
   const removeFile = useCallback((id: number) => dispatch({ type: 'REMOVE_FILE', id }), []);
   const updateAttachmentMeta = useCallback((id: number, caption: string, attachmentUrl: string) =>
     dispatch({ type: 'UPDATE_ATTACHMENT_META', id, caption, attachmentUrl }), []);
-  const submitComposer = useCallback(() => dispatch({ type: 'SUBMIT_COMPOSER', newId: nextPostId() }), []);
+  const submitComposer = useCallback(async () => {
+    const title = state.composer.title.trim();
+    if (!title) return;
+    const isLink = state.composer.activeTab === 'link';
+    const linkUrl = state.composer.linkUrl.trim();
+    const body = isLink && linkUrl ? `${state.composer.body.trim()}\n\n${linkUrl}`.trim() : state.composer.body.trim();
+
+    // The browser already holds the full image bytes from when the file was
+    // picked (used for the composer preview) — reuse that directly as the
+    // post's image rather than waiting on a separate fetch of the uploaded
+    // copy. The real upload to storage still happens in the background via
+    // uploadAttachment; this only decides what gets rendered.
+    const previewImage = state.composer.attachments.find(a => a.kind === 'image' && a.url)?.url ?? null;
+
+    dispatch({ type: 'SUBMIT_COMPOSER_START' });
+    try {
+      const thread = await createThread(forumId, { title, body, tagIds: [] }, sessionToken);
+      const newPost: FeedPost = {
+        id: thread.id,
+        communityId: state.composer.communityId ?? COMMUNITIES[0]?.id ?? forumId,
+        author: 'You',
+        time: 'now',
+        title: thread.title,
+        snippet: thread.body.slice(0, 160) || thread.title,
+        body: thread.body,
+        thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
+        imageUrl: previewImage,
+        domain: isLink ? linkUrl || null : null,
+        votes: 0,
+        commentCount: 0,
+        saved: false,
+      };
+      dispatch({ type: 'SUBMIT_COMPOSER_SUCCESS', post: newPost });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to submit post';
+      dispatch({ type: 'SUBMIT_COMPOSER_ERROR', message });
+    }
+  }, [state.composer, forumId, sessionToken]);
   const setProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_PROFILE_TAB', tab }), []);
 
   const uploadAttachment = useCallback(async (id: number, file: File, kind: AttachmentFile['kind']) => {
     dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploading' });
     try {
-      const upload = await requestUploadUrl('demo', file.name, file.type, file.size);
+      const upload = await requestUploadUrl(forumId, file.name, file.type, file.size, sessionToken);
       await putFile(upload.uploadUrl, upload.uploadHeaders, file);
 
       let width: number | null = null;
@@ -408,12 +440,12 @@ function useForumStateInternal() {
         }
       }
 
-      await confirmUpload('demo', upload.attachmentId, { width, height });
+      await confirmUpload(forumId, upload.attachmentId, { width, height }, sessionToken);
       dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploaded', attachmentId: upload.attachmentId });
     } catch {
       dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'error' });
     }
-  }, []);
+  }, [forumId, sessionToken]);
 
   const addFiles = useCallback((fileList: FileList) => {
     Array.from(fileList).forEach(file => {
@@ -442,39 +474,40 @@ function useForumStateInternal() {
   const summarize = useCallback(async () => {
     if (state.asst.summarizing || state.thread.activePostId === null) return;
     dispatch({ type: 'ASST_SUMMARIZING' });
-    const points = await callSummarise(state.thread.activePostId);
+    const points = await callSummarise(state.thread.activePostId, sessionToken);
     const note = `Synthesized from ${state.comments.length} comment${state.comments.length !== 1 ? 's' : ''}`;
     dispatch({ type: 'ASST_SUMMARY', points, note });
-  }, [state.asst.summarizing, state.thread.activePostId, state.comments.length]);
+  }, [state.asst.summarizing, state.thread.activePostId, state.comments.length, sessionToken]);
 
   const suggest = useCallback(async () => {
     if (state.thread.activePostId === null) return;
-    const text = await callSuggest(state.thread.activePostId);
+    const text = await callSuggest(state.thread.activePostId, sessionToken);
     dispatch({ type: 'ASST_SUGGEST', text });
-  }, [state.thread.activePostId]);
+  }, [state.thread.activePostId, sessionToken]);
 
   const surfaceRelated = useCallback(async () => {
     if (state.asst.surfacing || state.thread.activePostId === null) return;
     dispatch({ type: 'ASST_SURFACING' });
-    const threads = await callSurfaceRelated(state.thread.activePostId);
+    const threads = await callSurfaceRelated(state.thread.activePostId, sessionToken);
     dispatch({ type: 'ASST_RELATED', threads });
-  }, [state.asst.surfacing, state.thread.activePostId]);
+  }, [state.asst.surfacing, state.thread.activePostId, sessionToken]);
 
   const suggestComposeMeta = useCallback(async () => {
     dispatch({ type: 'SET_COMPOSER_GEN', field: 'genTitle', value: true });
     dispatch({ type: 'SET_COMPOSER_GEN', field: 'genTags', value: true });
     const { composer } = state;
     const result = await callSuggestMetadata(
-      'demo',
+      forumId,
       composer.title,
       composer.body,
       composer.tags.split(',').map(t => t.trim()).filter(Boolean),
+      sessionToken,
     );
     if (result.title) dispatch({ type: 'SET_COMPOSER_FIELD', field: 'title', value: result.title });
     if (result.tags.length > 0) dispatch({ type: 'SET_COMPOSER_FIELD', field: 'tags', value: result.tags.join(', ') });
     dispatch({ type: 'SET_COMPOSER_GEN', field: 'genTitle', value: false });
     dispatch({ type: 'SET_COMPOSER_GEN', field: 'genTags', value: false });
-  }, [state]);
+  }, [state, forumId, sessionToken]);
 
   // ─── Derived data ──────────────────────────────────────────────────────────
 

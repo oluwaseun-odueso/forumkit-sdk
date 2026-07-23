@@ -32,6 +32,7 @@ export default function ComposerModal({
   const canSaveDraft = hasTitle && composer.activeTab !== 'images';
   const canPost =
     hasTitle &&
+    !composer.submitting &&
     (composer.activeTab !== 'images' || composer.attachments.length > 0) &&
     (composer.activeTab !== 'link' || composer.linkUrl.trim().length > 0);
 
@@ -127,9 +128,13 @@ export default function ComposerModal({
         </div>
       )}
 
+      {composer.error && <p className="fk-composer-error">{composer.error}</p>}
+
       <div className="fk-composer-footer">
         <PillButton variant="surface" disabled={!canSaveDraft}>Save Draft</PillButton>
-        <PillButton variant="accent" onClick={onSubmit} disabled={!canPost}>Post</PillButton>
+        <PillButton variant="accent" onClick={onSubmit} disabled={!canPost}>
+          {composer.submitting ? 'Posting…' : 'Post'}
+        </PillButton>
       </div>
     </div>
   );

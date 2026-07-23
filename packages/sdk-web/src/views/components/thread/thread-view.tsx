@@ -36,7 +36,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
 
       <h1 className="fk-thread-title">{activePost.title}</h1>
       <p className="fk-thread-body">{activePost.body}</p>
-      <Thumbnail gradient={activePost.thumbGradient} height={340} radius={16} style={{ marginBottom: 16 }} />
+      <Thumbnail gradient={activePost.thumbGradient} imageUrl={activePost.imageUrl} height={340} radius={16} style={{ marginBottom: 16 }} />
 
       <div className="fk-thread-actions">
         <VotePill votes={activePost.votes} dir={state.feed.votes[activePost.id] ?? 0} onVote={dir => votePost(activePost.id, dir)} />

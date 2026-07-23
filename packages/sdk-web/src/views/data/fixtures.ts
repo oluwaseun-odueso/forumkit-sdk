@@ -9,6 +9,7 @@ export type FeedPost = {
   snippet: string;
   body: string;
   thumbGradient: string;
+  imageUrl?: string | null;
   domain: string | null;
   votes: number;
   commentCount: number;

@@ -267,6 +267,13 @@
   display: none;
 }
 
+.fk-composer-error {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--down);
+  text-align: right;
+}
+
 .fk-composer-footer {
   display: flex;
   justify-content: flex-end;

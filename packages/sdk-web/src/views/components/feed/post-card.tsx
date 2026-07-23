@@ -38,7 +38,7 @@ export default function PostCard({
         <>
           <h3 className="fk-post-card-title fk-post-card-title--card">{post.title}</h3>
           <div className="fk-post-card-cardimg">
-            <Thumbnail gradient={post.thumbGradient} radius={16} />
+            <Thumbnail gradient={post.thumbGradient} imageUrl={post.imageUrl} radius={16} />
             <span className="fk-post-card-cardimg-label">{community?.name}</span>
           </div>
         </>
@@ -48,7 +48,7 @@ export default function PostCard({
             <h3 className="fk-post-card-title fk-clamp-2">{post.title}</h3>
             <p className="fk-post-card-snippet fk-clamp-2">{post.snippet}</p>
           </div>
-          <Thumbnail gradient={post.thumbGradient} width={150} height={110} radius={14} domain={post.domain} />
+          <Thumbnail gradient={post.thumbGradient} imageUrl={post.imageUrl} width={150} height={110} radius={14} domain={post.domain} />
         </div>
       )}
 

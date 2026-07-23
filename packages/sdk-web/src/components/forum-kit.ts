@@ -115,7 +115,11 @@ export class ForumKitElement extends HTMLElement {
     if (!this._config) return;
     if (!this._root) this._root = createRoot(this._mountPoint);
     this._root.render(
-      createElement(ThemeHostContext.Provider, { value: { setThemeAttr: this._setThemeAttr } }, createElement(App)),
+      createElement(
+        ThemeHostContext.Provider,
+        { value: { setThemeAttr: this._setThemeAttr } },
+        createElement(App, { config: this._config }),
+      ),
     );
   }
 }
