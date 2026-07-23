@@ -162,6 +162,23 @@ export type CreatePostBody = {
   attachmentIds?: string[];
 };
 
+export type UserProfile = {
+  id: string;
+  displayName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  socialLinks: Array<{ platform: string; url: string }>;
+};
+
+export type UpdateProfileBody = {
+  displayName: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  socialLinks?: Array<{ platform: string; url: string }>;
+};
+
 export type UploadUrlRequest = {
   filename: string;
   mimeType: string;
