@@ -1,4 +1,4 @@
-import type { UploadUrlResponse } from '@forumkit/types';
+import type { Attachment, UploadUrlResponse } from '@forumkit/types';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -34,11 +34,12 @@ export async function confirmUpload(
   attachmentId: string,
   dimensions: { width: number | null; height: number | null },
   token?: string,
-): Promise<void> {
+): Promise<Attachment> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/attachments/${attachmentId}/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify(dimensions),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as Attachment;
 }

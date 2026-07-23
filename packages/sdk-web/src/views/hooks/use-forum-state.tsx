@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
 import {
   FEED_POSTS, COMMENTS, COMMUNITIES, LATEST_ITEMS, SIMILAR_ITEMS, TRENDING_ITEMS,
   type FeedPost, type CommentNodeData, type Community, type RailItem,
@@ -6,6 +6,7 @@ import {
 import type { SimilarThread } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
+import { getMyProfile, updateMyProfile } from '../api/profile';
 import { createThread } from '../api/threads';
 import { useSession } from './use-session';
 
@@ -87,7 +88,7 @@ type State = {
   thread: ThreadState;
   composer: ComposeState;
   asst: AsstState;
-  profile: { activeTab: string; displayName: string; bio: string; socialLinks: SocialLink[] };
+  profile: { activeTab: string; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null };
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
@@ -125,7 +126,7 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
   | { type: 'SET_PROFILE_TAB'; tab: string }
-  | { type: 'UPDATE_PROFILE'; displayName: string; bio: string; socialLinks: SocialLink[] }
+  | { type: 'UPDATE_PROFILE'; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
   | { type: 'ASST_SUGGEST'; text: string }
@@ -176,7 +177,7 @@ const initialState: State = {
     communityId: null, attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
-  profile: { activeTab: 'Overview', displayName: '', bio: '', socialLinks: [] },
+  profile: { activeTab: 'Overview', displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -331,7 +332,7 @@ function reducer(state: State, action: Action): State {
     case 'SET_PROFILE_TAB':
       return { ...state, profile: { ...state.profile, activeTab: action.tab } };
     case 'UPDATE_PROFILE':
-      return { ...state, profile: { ...state.profile, displayName: action.displayName, bio: action.bio, socialLinks: action.socialLinks } };
+      return { ...state, profile: { ...state.profile, displayName: action.displayName, bio: action.bio, socialLinks: action.socialLinks, avatarUrl: action.avatarUrl, bannerUrl: action.bannerUrl } };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
     case 'ASST_SUMMARY':
@@ -346,6 +347,12 @@ function reducer(state: State, action: Action): State {
       return state;
   }
 }
+
+// ─── API base URL (module-level, safe for SSR) ───────────────────────────────
+
+const FK_API_BASE = typeof window !== 'undefined'
+  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+  : '';
 
 // ─── ID counters (module-level, stable across renders) ───────────────────────
 
@@ -429,8 +436,59 @@ function useForumStateInternal() {
     }
   }, [state.composer, forumId, sessionToken]);
   const setProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_PROFILE_TAB', tab }), []);
-  const updateProfile = useCallback((displayName: string, bio: string, socialLinks: SocialLink[]) =>
-    dispatch({ type: 'UPDATE_PROFILE', displayName, bio, socialLinks }), []);
+
+  type SaveProfileFields = {
+    displayName: string;
+    bio: string;
+    socialLinks: SocialLink[];
+    avatarBlob: Blob | null;
+    bannerBlob: Blob | null;
+  };
+
+  const saveProfile = useCallback(async (fields: SaveProfileFields): Promise<void> => {
+    let avatarUrl: string | null = state.profile.avatarUrl;
+    let bannerUrl: string | null = state.profile.bannerUrl;
+
+    if (fields.avatarBlob) {
+      const avatarFile = new File([fields.avatarBlob], 'avatar.jpg', { type: 'image/jpeg' });
+      const up = await requestUploadUrl(forumId, 'avatar.jpg', 'image/jpeg', avatarFile.size, sessionToken);
+      await putFile(up.uploadUrl, up.uploadHeaders, avatarFile);
+      const att = await confirmUpload(forumId, up.attachmentId, { width: 400, height: 400 }, sessionToken);
+      avatarUrl = `${FK_API_BASE}/storage/local/download/${att.storageKey}`;
+    }
+
+    if (fields.bannerBlob) {
+      const bannerFile = new File([fields.bannerBlob], 'banner.jpg', { type: 'image/jpeg' });
+      const up = await requestUploadUrl(forumId, 'banner.jpg', 'image/jpeg', bannerFile.size, sessionToken);
+      await putFile(up.uploadUrl, up.uploadHeaders, bannerFile);
+      const att = await confirmUpload(forumId, up.attachmentId, { width: 1200, height: 300 }, sessionToken);
+      bannerUrl = `${FK_API_BASE}/storage/local/download/${att.storageKey}`;
+    }
+
+    const serverLinks = fields.socialLinks.map(({ platform, url }) => ({ platform, url }));
+    const profile = await updateMyProfile(forumId, {
+      displayName: fields.displayName,
+      bio: fields.bio || null,
+      avatarUrl,
+      bannerUrl,
+      socialLinks: serverLinks,
+    }, sessionToken);
+
+    const clientLinks: SocialLink[] = profile.socialLinks.map((l, i) => ({
+      id: Date.now() + i,
+      platform: l.platform as SocialLink['platform'],
+      url: l.url,
+    }));
+
+    dispatch({
+      type: 'UPDATE_PROFILE',
+      displayName: profile.displayName,
+      bio: profile.bio ?? '',
+      socialLinks: clientLinks,
+      avatarUrl: profile.avatarUrl,
+      bannerUrl: profile.bannerUrl,
+    });
+  }, [state.profile.avatarUrl, state.profile.bannerUrl, forumId, sessionToken]);
 
   const uploadAttachment = useCallback(async (id: number, file: File, kind: AttachmentFile['kind']) => {
     dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploading' });
@@ -520,6 +578,29 @@ function useForumStateInternal() {
     dispatch({ type: 'SET_COMPOSER_GEN', field: 'genTags', value: false });
   }, [state, forumId, sessionToken]);
 
+  // ─── Profile init: seed state from server on first session ───────────────────
+
+  useEffect(() => {
+    if (!sessionToken || !forumId) return;
+    void getMyProfile(forumId, sessionToken).then(profile => {
+      if (!profile) return;
+      const clientLinks: SocialLink[] = profile.socialLinks.map((l, i) => ({
+        id: Date.now() + i,
+        platform: l.platform as SocialLink['platform'],
+        url: l.url,
+      }));
+      dispatch({
+        type: 'UPDATE_PROFILE',
+        displayName: profile.displayName,
+        bio: profile.bio ?? '',
+        socialLinks: clientLinks,
+        avatarUrl: profile.avatarUrl,
+        bannerUrl: profile.bannerUrl,
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionToken]);
+
   // ─── Derived data ──────────────────────────────────────────────────────────
 
   const sortedPosts = state.posts.slice();
@@ -577,7 +658,7 @@ function useForumStateInternal() {
     updateAttachmentMeta,
     submitComposer,
     setProfileTab,
-    updateProfile,
+    saveProfile,
     summarize,
     suggest,
     surfaceRelated,
