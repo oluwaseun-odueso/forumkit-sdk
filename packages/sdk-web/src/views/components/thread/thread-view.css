@@ -90,3 +90,80 @@
   font-size: 14.5px;
   font-family: inherit;
 }
+
+.fk-ai-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.fk-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 14px;
+  font-family: inherit;
+  background:
+    linear-gradient(180deg, var(--surface-2), var(--surface-2)) padding-box,
+    linear-gradient(120deg, #3f7ee2, #7b5cff 55%, #37e0e6) border-box;
+  border: 1.5px solid transparent;
+}
+
+.fk-ai-btn:hover,
+.fk-ai-btn--active {
+  background:
+    linear-gradient(180deg, var(--hover-2), var(--hover-2)) padding-box,
+    linear-gradient(120deg, #3f7ee2, #7b5cff 55%, #37e0e6) border-box;
+}
+
+.fk-ai-panel {
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface-2);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.fk-ai-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-ai-panel-head button {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+
+.fk-ai-panel-head button:hover {
+  color: var(--text-2);
+}
+
+.fk-ai-panel-body {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.fk-ai-panel-body p {
+  margin: 0 0 6px;
+}
+
+.fk-ai-panel-body p:last-child {
+  margin-bottom: 0;
+}

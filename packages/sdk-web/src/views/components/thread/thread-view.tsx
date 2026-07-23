@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import type { useForum } from '../../hooks/use-forum-state';
+import type { useForum, CommentNodeData } from '../../hooks/use-forum-state';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
 import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
-import { ChevronLeftIcon, CommentIcon, ShareIcon } from '../shared/icons';
+import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon } from '../shared/icons';
 import CommentSort from './comment-sort';
 import Comment from './comment';
 import './thread-view.css';
@@ -14,15 +14,48 @@ type ThreadViewProps = {
   onBack: () => void;
 };
 
+function filterComments(list: CommentNodeData[], q: string): CommentNodeData[] {
+  const lower = q.toLowerCase();
+  return list.reduce<CommentNodeData[]>((acc, c) => {
+    const filteredReplies = filterComments(c.replies, lower);
+    if (c.body.toLowerCase().includes(lower) || filteredReplies.length > 0) {
+      acc.push({ ...c, replies: filteredReplies });
+    }
+    return acc;
+  }, []);
+}
+
 export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {
     state, activePost, sortedComments, communities,
     votePost, voteComment, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
+    summarize, suggest,
   } = forum;
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [commentSearch, setCommentSearch] = useState('');
+  const [aiPanel, setAiPanel] = useState<'summary' | 'reply' | null>(null);
 
   if (!activePost) return null;
   const community = communities.find(c => c.id === activePost.communityId);
+  const displayComments = commentSearch ? filterComments(sortedComments, commentSearch) : sortedComments;
+
+  function handleSummarise() {
+    if (aiPanel === 'summary') {
+      setAiPanel(null);
+    } else {
+      setAiPanel('summary');
+      if (!state.asst.summary && !state.asst.summarizing) void summarize();
+    }
+  }
+
+  function handleSuggestReply() {
+    if (aiPanel === 'reply') {
+      setAiPanel(null);
+    } else {
+      setAiPanel('reply');
+      if (!state.asst.suggested) void suggest();
+    }
+  }
 
   return (
     <div className="fk-thread">
@@ -50,6 +83,46 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         </button>
       </div>
 
+      <div className="fk-ai-row">
+        <button
+          type="button"
+          className={`fk-ai-btn${aiPanel === 'summary' ? ' fk-ai-btn--active' : ''}`}
+          onClick={handleSummarise}
+        >
+          <AiSparkleIcon gradId="fkAiG1" size={17} />
+          Summarise thread
+        </button>
+        <button
+          type="button"
+          className={`fk-ai-btn${aiPanel === 'reply' ? ' fk-ai-btn--active' : ''}`}
+          onClick={handleSuggestReply}
+        >
+          <AiSparkleIcon gradId="fkAiG2" size={17} />
+          Suggest reply
+        </button>
+      </div>
+
+      {aiPanel && (
+        <div className="fk-ai-panel">
+          <div className="fk-ai-panel-head">
+            <AiSparkleIcon gradId="fkAiPG" size={16} />
+            <span>{aiPanel === 'summary' ? 'Thread summary' : 'Suggested reply'}</span>
+            <button type="button" onClick={() => setAiPanel(null)}>
+              <CloseIcon size={16} />
+            </button>
+          </div>
+          <div className="fk-ai-panel-body">
+            {aiPanel === 'summary'
+              ? state.asst.summarizing
+                ? 'Summarising…'
+                : state.asst.summary
+                  ? state.asst.summary.points.map((p, i) => <p key={i}>{p}</p>)
+                  : 'No summary yet.'
+              : state.thread.commentInput || 'Generating suggestion…'}
+          </div>
+        </div>
+      )}
+
       <div className="fk-thread-composer">
         <input
           className="fk-thread-composer-input"
@@ -67,9 +140,11 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         onToggle={() => setSortMenuOpen(o => !o)}
         onClose={() => setSortMenuOpen(false)}
         onSelect={sort => { setCommentSort(sort); setSortMenuOpen(false); }}
+        commentSearch={commentSearch}
+        onCommentSearchChange={setCommentSearch}
       />
 
-      {sortedComments.map(comment => (
+      {displayComments.map(comment => (
         <Comment
           key={comment.id}
           comment={comment}
