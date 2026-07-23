@@ -1,68 +1,154 @@
 import { useState, useRef } from 'react';
 import type { SocialLink } from '../../hooks/use-forum-state';
+import { resizeImage } from '../../utils/resize-image';
 import PillButton from '../shared/pill-button';
-import { CloseIcon, TrashIcon, CameraIcon } from '../shared/icons';
+import {
+  CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon,
+  GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
+} from '../shared/icons';
 import './edit-profile-modal.css';
 
-const PLATFORMS: SocialLink['platform'][] = [
-  'Website', 'Portfolio', 'GitHub', 'LinkedIn', 'Twitter/X', 'Behance', 'Dribbble', 'Other',
-];
+// ─── Platform config ──────────────────────────────────────────────────────────
+
+type PlatformConfig = {
+  prefix: string;
+  placeholder: string;
+  Icon: React.ComponentType<{ size?: number }>;
+};
+
+const PLATFORM_CONFIG: Record<SocialLink['platform'], PlatformConfig> = {
+  'Website':   { prefix: '',                         placeholder: 'https://yoursite.com', Icon: GlobeIcon },
+  'Portfolio': { prefix: '',                         placeholder: 'https://portfolio.io', Icon: GlobeIcon },
+  'GitHub':    { prefix: 'https://github.com/',      placeholder: 'username',             Icon: GitHubIcon },
+  'LinkedIn':  { prefix: 'https://linkedin.com/in/', placeholder: 'your-name',            Icon: LinkedInIcon },
+  'Twitter/X': { prefix: 'https://x.com/',           placeholder: 'username',             Icon: TwitterXIcon },
+  'Behance':   { prefix: 'https://behance.net/',     placeholder: 'username',             Icon: BehanceIcon },
+  'Dribbble':  { prefix: 'https://dribbble.com/',    placeholder: 'username',             Icon: DribbbleIcon },
+  'Other':     { prefix: '',                         placeholder: 'https://',             Icon: LinkIcon },
+};
+
+const PLATFORMS = Object.keys(PLATFORM_CONFIG) as SocialLink['platform'][];
+
+function toSuffix(platform: SocialLink['platform'], url: string): string {
+  const { prefix } = PLATFORM_CONFIG[platform];
+  return prefix && url.startsWith(prefix) ? url.slice(prefix.length) : url;
+}
+
+function toUrl(platform: SocialLink['platform'], suffix: string): string {
+  const { prefix } = PLATFORM_CONFIG[platform];
+  const trimmed = suffix.trim();
+  return prefix ? `${prefix}${trimmed}` : trimmed;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type DraftLink = {
+  id: number;
+  platform: SocialLink['platform'];
+  suffix: string;
+};
 
 let _nextId = 1000;
 function nextDraftId(): number { return _nextId++; }
+
+type SavePayload = {
+  displayName: string;
+  bio: string;
+  socialLinks: SocialLink[];
+  avatarBlob: Blob | null;
+  bannerBlob: Blob | null;
+};
 
 type EditProfileModalProps = {
   displayName: string;
   bio: string;
   socialLinks: SocialLink[];
-  onSave: (displayName: string, bio: string, socialLinks: SocialLink[]) => void;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  onSave: (payload: SavePayload) => Promise<void>;
   onClose: () => void;
 };
 
-export default function EditProfileModal({ displayName, bio, socialLinks, onSave, onClose }: EditProfileModalProps) {
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function EditProfileModal({
+  displayName, bio, socialLinks, avatarUrl, bannerUrl, onSave, onClose,
+}: EditProfileModalProps) {
   const [draftName, setDraftName] = useState(displayName);
   const [draftBio, setDraftBio] = useState(bio);
-  const [draftLinks, setDraftLinks] = useState<SocialLink[]>(() => socialLinks.map(l => ({ ...l })));
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [draftLinks, setDraftLinks] = useState<DraftLink[]>(() =>
+    socialLinks.map(l => ({ id: l.id, platform: l.platform, suffix: toSuffix(l.platform, l.url) }))
+  );
+
+  const [bannerPreview, setBannerPreview] = useState<string | null>(bannerUrl);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(avatarUrl);
+  const [bannerBlob, setBannerBlob] = useState<Blob | null>(null);
+  const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
+
+  const [openPickerId, setOpenPickerId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setBannerPreview(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
     e.target.value = '';
+    const blob = await resizeImage(file, 1200, 300);
+    const url = URL.createObjectURL(blob);
+    setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
+    setBannerBlob(blob);
   }
 
-  function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAvatarPreview(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(file); });
     e.target.value = '';
+    const blob = await resizeImage(file, 400, 400);
+    const url = URL.createObjectURL(blob);
+    setAvatarPreview(prev => { if (prev && prev !== avatarUrl) URL.revokeObjectURL(prev); return url; });
+    setAvatarBlob(blob);
   }
 
   function addLink() {
-    setDraftLinks(prev => [...prev, { id: nextDraftId(), platform: 'Website', url: '' }]);
+    setDraftLinks(prev => [...prev, { id: nextDraftId(), platform: 'Website', suffix: '' }]);
   }
 
   function removeLink(id: number) {
     setDraftLinks(prev => prev.filter(l => l.id !== id));
+    if (openPickerId === id) setOpenPickerId(null);
   }
 
   function updateLinkPlatform(id: number, platform: SocialLink['platform']) {
-    setDraftLinks(prev => prev.map(l => l.id === id ? { ...l, platform } : l));
+    setDraftLinks(prev => prev.map(l => l.id === id ? { ...l, platform, suffix: '' } : l));
   }
 
-  function updateLinkUrl(id: number, url: string) {
-    setDraftLinks(prev => prev.map(l => l.id === id ? { ...l, url } : l));
+  function updateLinkSuffix(id: number, suffix: string) {
+    setDraftLinks(prev => prev.map(l => l.id === id ? { ...l, suffix } : l));
   }
 
-  function handleSave() {
-    const filtered = draftLinks.filter(l => l.url.trim() !== '');
-    onSave(draftName.trim(), draftBio.trim(), filtered);
-    onClose();
+  async function handleSave() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const reconstructedLinks: SocialLink[] = draftLinks
+        .filter(l => l.suffix.trim() !== '')
+        .map(l => ({ id: l.id, platform: l.platform, url: toUrl(l.platform, l.suffix) }));
+      await onSave({
+        displayName: draftName.trim(),
+        bio: draftBio.trim(),
+        socialLinks: reconstructedLinks,
+        avatarBlob,
+        bannerBlob,
+      });
+      onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -74,7 +160,7 @@ export default function EditProfileModal({ displayName, bio, socialLinks, onSave
         <div
           className="fk-edit-modal-banner"
           style={bannerPreview ? { backgroundImage: `url(${bannerPreview})`, cursor: 'zoom-in' } : undefined}
-          onClick={bannerPreview ? () => window.open(bannerPreview, '_blank') : undefined}
+          onClick={bannerPreview ? () => window.open(bannerPreview!, '_blank') : undefined}
         >
           <button
             type="button"
@@ -84,31 +170,16 @@ export default function EditProfileModal({ displayName, bio, socialLinks, onSave
             <CameraIcon size={13} />
             Change Banner
           </button>
-          <input
-            ref={bannerInputRef}
-            type="file"
-            accept="image/*"
-            className="fk-edit-modal-file-input"
-            onChange={handleBannerFile}
-          />
+          <input ref={bannerInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleBannerFile} />
+
           <div
             className="fk-edit-modal-avatar"
             onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
           >
-            {avatarPreview
-              ? <img src={avatarPreview} alt="Avatar preview" className="fk-edit-modal-avatar-img" />
-              : null}
-            <span className="fk-edit-modal-avatar-badge">
-              <CameraIcon size={13} />
-            </span>
+            {avatarPreview ? <img src={avatarPreview} alt="Avatar preview" className="fk-edit-modal-avatar-img" /> : null}
+            <span className="fk-edit-modal-avatar-badge"><CameraIcon size={13} /></span>
           </div>
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/*"
-            className="fk-edit-modal-file-input"
-            onChange={handleAvatarFile}
-          />
+          <input ref={avatarInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleAvatarFile} />
         </div>
 
         <div className="fk-edit-modal-body">
@@ -151,33 +222,72 @@ export default function EditProfileModal({ displayName, bio, socialLinks, onSave
             <p className="fk-edit-modal-empty">No links yet. Add one above.</p>
           ) : (
             <div className="fk-edit-modal-links-list">
-              {draftLinks.map(link => (
-                <div key={link.id} className="fk-edit-modal-link-row">
-                  <select
-                    className="fk-edit-modal-platform-select"
-                    value={link.platform}
-                    onChange={e => updateLinkPlatform(link.id, e.target.value as SocialLink['platform'])}
-                  >
-                    {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <input
-                    className="fk-edit-modal-link-input"
-                    value={link.url}
-                    onChange={e => updateLinkUrl(link.id, e.target.value)}
-                    placeholder="https://"
-                  />
-                  <button type="button" className="fk-edit-modal-link-trash" onClick={() => removeLink(link.id)}>
-                    <TrashIcon size={16} />
-                  </button>
-                </div>
-              ))}
+              {draftLinks.map(link => {
+                const cfg = PLATFORM_CONFIG[link.platform];
+                const Icon = cfg.Icon;
+                return (
+                  <div key={link.id} className="fk-edit-modal-link-row">
+                    <div className="fk-edit-modal-platform-picker">
+                      <button
+                        type="button"
+                        className="fk-edit-modal-platform-btn"
+                        onClick={() => setOpenPickerId(openPickerId === link.id ? null : link.id)}
+                        title={link.platform}
+                      >
+                        <Icon size={17} />
+                        <ChevronDownIcon size={11} />
+                      </button>
+                      {openPickerId === link.id && (
+                        <div className="fk-edit-modal-platform-dropdown">
+                          {PLATFORMS.map(p => {
+                            const PIcon = PLATFORM_CONFIG[p].Icon;
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                title={p}
+                                className={`fk-edit-modal-platform-option${link.platform === p ? ' fk-edit-modal-platform-option--active' : ''}`}
+                                onClick={() => { updateLinkPlatform(link.id, p); setOpenPickerId(null); }}
+                              >
+                                <PIcon size={17} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="fk-edit-modal-link-url-wrap">
+                      {cfg.prefix && (
+                        <span className="fk-edit-modal-link-prefix">
+                          {cfg.prefix.replace('https://', '')}
+                        </span>
+                      )}
+                      <input
+                        className="fk-edit-modal-link-suffix"
+                        value={link.suffix}
+                        onChange={e => updateLinkSuffix(link.id, e.target.value)}
+                        placeholder={cfg.placeholder}
+                      />
+                    </div>
+
+                    <button type="button" className="fk-edit-modal-link-trash" onClick={() => removeLink(link.id)}>
+                      <TrashIcon size={16} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
+
+          {saveError && <p className="fk-edit-modal-save-error">{saveError}</p>}
         </div>
 
         <div className="fk-edit-modal-footer">
-          <PillButton variant="surface" onClick={onClose}>Cancel</PillButton>
-          <PillButton variant="accent" onClick={handleSave}>Save</PillButton>
+          <PillButton variant="surface" onClick={onClose} disabled={saving}>Cancel</PillButton>
+          <PillButton variant="accent" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </PillButton>
         </div>
       </div>
     </div>
