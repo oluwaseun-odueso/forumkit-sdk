@@ -19,6 +19,7 @@ import { searchRoutes } from './routes/search';
 import { aiRoutes, composeAiRoutes } from './routes/ai';
 import { moderationRoutes } from './routes/moderation';
 import { attachmentsRoutes } from './routes/attachments';
+import { usersRoutes } from './routes/users';
 import { storageLocalRoutes } from './routes/storage-local';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
@@ -58,6 +59,7 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   await app.register(composeAiRoutes, { prefix: '/forums' });
   await app.register(moderationRoutes, { prefix: '/moderation' });
   await app.register(attachmentsRoutes, { prefix: '/forums' });
+  await app.register(usersRoutes, { prefix: '/forums' });
 
   if (config.storageProvider === 'local') {
     await app.register(storageLocalRoutes);
