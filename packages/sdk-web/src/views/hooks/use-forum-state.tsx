@@ -30,6 +30,12 @@ export type AttachmentFile = {
   uploadStatus: 'uploading' | 'uploaded' | 'error';
 };
 
+export type SocialLink = {
+  id: number;
+  platform: 'Website' | 'Portfolio' | 'GitHub' | 'LinkedIn' | 'Twitter/X' | 'Behance' | 'Dribbble' | 'Other';
+  url: string;
+};
+
 type ComposeState = {
   open: boolean;
   activeTab: ComposerTab;
@@ -81,7 +87,7 @@ type State = {
   thread: ThreadState;
   composer: ComposeState;
   asst: AsstState;
-  profile: { activeTab: string };
+  profile: { activeTab: string; displayName: string; bio: string; socialLinks: SocialLink[] };
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
@@ -119,6 +125,7 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
   | { type: 'SET_PROFILE_TAB'; tab: string }
+  | { type: 'UPDATE_PROFILE'; displayName: string; bio: string; socialLinks: SocialLink[] }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
   | { type: 'ASST_SUGGEST'; text: string }
@@ -169,7 +176,7 @@ const initialState: State = {
     communityId: null, attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
-  profile: { activeTab: 'Overview' },
+  profile: { activeTab: 'Overview', displayName: '', bio: '', socialLinks: [] },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -322,7 +329,9 @@ function reducer(state: State, action: Action): State {
     case 'SUBMIT_COMPOSER_ERROR':
       return { ...state, composer: { ...state.composer, submitting: false, error: action.message } };
     case 'SET_PROFILE_TAB':
-      return { ...state, profile: { activeTab: action.tab } };
+      return { ...state, profile: { ...state.profile, activeTab: action.tab } };
+    case 'UPDATE_PROFILE':
+      return { ...state, profile: { ...state.profile, displayName: action.displayName, bio: action.bio, socialLinks: action.socialLinks } };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
     case 'ASST_SUMMARY':
@@ -420,6 +429,8 @@ function useForumStateInternal() {
     }
   }, [state.composer, forumId, sessionToken]);
   const setProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_PROFILE_TAB', tab }), []);
+  const updateProfile = useCallback((displayName: string, bio: string, socialLinks: SocialLink[]) =>
+    dispatch({ type: 'UPDATE_PROFILE', displayName, bio, socialLinks }), []);
 
   const uploadAttachment = useCallback(async (id: number, file: File, kind: AttachmentFile['kind']) => {
     dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploading' });
@@ -566,6 +577,7 @@ function useForumStateInternal() {
     updateAttachmentMeta,
     submitComposer,
     setProfileTab,
+    updateProfile,
     summarize,
     suggest,
     surfaceRelated,

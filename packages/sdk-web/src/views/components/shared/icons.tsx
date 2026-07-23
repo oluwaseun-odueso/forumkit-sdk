@@ -414,3 +414,28 @@ export function PencilIcon({ size = 14 }: IconProps) {
     </svg>
   );
 }
+
+export function ExternalLinkIcon({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+      <path d="M15 3h6v6M10 14L21 3" />
+    </svg>
+  );
+}
+
+export function AiSparkleIcon({ size = 17, gradId }: IconProps & { gradId: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <defs>
+        <linearGradient id={gradId} x1="3" y1="3" x2="22" y2="20" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#3f7ee2" />
+          <stop offset="0.55" stopColor="#7b5cff" />
+          <stop offset="1" stopColor="#37e0e6" />
+        </linearGradient>
+      </defs>
+      <path d="M12 3l1.8 4.6L18.4 9l-4.6 1.8L12 15.4 10.2 10.8 5.6 9l4.6-1.8z" fill={`url(#${gradId})`} />
+      <path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill={`url(#${gradId})`} />
+    </svg>
+  );
+}

@@ -1,6 +1,9 @@
+import { useState } from 'react';
+import { useForum } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
 import IconButton from '../shared/icon-button';
-import { EllipsisIcon, ChevronRightIcon } from '../shared/icons';
+import { EllipsisIcon, ExternalLinkIcon } from '../shared/icons';
+import EditProfileModal from './edit-profile-modal';
 import './profile-right-rail.css';
 
 type ProfileRightRailProps = {
@@ -11,7 +14,15 @@ type ProfileRightRailProps = {
   cakeDay: string;
 };
 
+function cleanUrl(url: string): string {
+  return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
 export default function ProfileRightRail({ username, handle, postKarma, commentKarma, cakeDay }: ProfileRightRailProps) {
+  const { state, updateProfile } = useForum();
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const { socialLinks, displayName, bio } = state.profile;
+
   return (
     <aside className="fk-profile-rail">
       <div className="fk-profile-card fk-profile-card--identity">
@@ -25,23 +36,51 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
             <div><div className="fk-profile-stat-value">{cakeDay}</div><div className="fk-profile-stat-label">Cake Day</div></div>
           </div>
           <div className="fk-profile-card-actions">
-            <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }}>Edit Profile</PillButton>
+            <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setEditModalOpen(true)}>Edit Profile</PillButton>
             <IconButton label="More options" size={42}><EllipsisIcon /></IconButton>
           </div>
         </div>
       </div>
 
       <div className="fk-profile-card">
-        <div className="fk-profile-settings-title">SETTINGS</div>
-        <button type="button" className="fk-profile-settings-row">
-          <span>Profile moderation</span>
-          <ChevronRightIcon size={18} />
-        </button>
-        <button type="button" className="fk-profile-settings-row">
-          <span>Curate your profile</span>
-          <ChevronRightIcon size={18} />
+        <div className="fk-profile-card-head">
+          <span className="fk-profile-card-title">Social Links</span>
+          <button type="button" className="fk-profile-card-link fk-profile-card-link--accent" onClick={() => setEditModalOpen(true)}>
+            Manage
+          </button>
+        </div>
+
+        {socialLinks.map(link => (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="fk-social-link-row"
+          >
+            <span className="fk-social-link-badge">{link.platform[0]}</span>
+            <span className="fk-social-link-info">
+              <span className="fk-social-link-name">{link.platform}</span>
+              <span className="fk-social-link-url">{cleanUrl(link.url)}</span>
+            </span>
+            <ExternalLinkIcon size={14} />
+          </a>
+        ))}
+
+        <button type="button" className="fk-social-link-add" onClick={() => setEditModalOpen(true)}>
+          + Add a link
         </button>
       </div>
+
+      {editModalOpen && (
+        <EditProfileModal
+          displayName={displayName}
+          bio={bio}
+          socialLinks={socialLinks}
+          onSave={(name, newBio, links) => updateProfile(name, newBio, links)}
+          onClose={() => setEditModalOpen(false)}
+        />
+      )}
     </aside>
   );
 }

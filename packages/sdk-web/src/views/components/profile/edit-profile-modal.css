@@ -1,0 +1,267 @@
+.fk-edit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.fk-edit-modal {
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  background: var(--surface);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.fk-edit-modal-banner {
+  position: relative;
+  height: 100px;
+  background: linear-gradient(120deg, #3f7ee2, #7b5cff);
+  flex-shrink: 0;
+}
+
+.fk-edit-modal-change-banner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.fk-edit-modal-change-banner:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.fk-edit-modal-avatar {
+  position: absolute;
+  bottom: -38px;
+  left: 20px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 3px solid var(--surface);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fk-edit-modal-avatar-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.fk-edit-modal-body {
+  padding: 52px 24px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.fk-edit-modal-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.fk-edit-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.fk-edit-modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.fk-edit-modal-close:hover {
+  background: var(--hover-2);
+}
+
+.fk-edit-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.fk-edit-modal-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.fk-edit-modal-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.fk-edit-modal-input:focus {
+  border-color: var(--accent);
+}
+
+.fk-edit-modal-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.fk-edit-modal-textarea:focus {
+  border-color: var(--accent);
+}
+
+.fk-edit-modal-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.fk-edit-modal-links-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.fk-edit-modal-links-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-edit-modal-add-link {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.fk-edit-modal-empty {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.fk-edit-modal-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.fk-edit-modal-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fk-edit-modal-platform-select {
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fk-edit-modal-link-input {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.fk-edit-modal-link-input:focus {
+  border-color: var(--accent);
+}
+
+.fk-edit-modal-link-trash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fk-edit-modal-link-trash:hover {
+  background: var(--hover-2);
+  color: var(--down);
+}
+
+.fk-edit-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
