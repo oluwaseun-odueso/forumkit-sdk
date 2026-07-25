@@ -14,7 +14,6 @@
     "@fastify/cors": "^9.0.0",
     "@fastify/jwt": "^8.0.0",
     "@fastify/rate-limit": "^9.0.0",
-    "@fastify/static": "^7.0.0",
     "@fastify/websocket": "^8.0.0",
     "@forumkit/ai": "*",
     "@forumkit/storage": "*",

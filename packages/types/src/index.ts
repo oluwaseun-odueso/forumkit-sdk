@@ -8,7 +8,6 @@ export type ReactionType = 'like' | 'helpful' | 'insightful' | 'funny';
 export type EmbeddingProvider = 'local' | 'openai';
 export type ModerationProvider = 'local' | 'perspective';
 export type AIProvider = 'local' | 'openai' | 'anthropic';
-export type StorageProvider = 'local' | 's3';
 export type AttachmentStatus = 'pending' | 'confirmed' | 'deleted';
 
 // ── Core entities ──────────────────────────────────────────────────

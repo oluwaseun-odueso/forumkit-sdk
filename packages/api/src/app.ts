@@ -1,9 +1,7 @@
-import { resolve } from 'path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
-import fastifyStatic from '@fastify/static';
 import { createRequire } from 'module';
 import type { Config } from './config';
 import type { DB } from './db';
@@ -20,7 +18,6 @@ import { aiRoutes, composeAiRoutes } from './routes/ai';
 import { moderationRoutes } from './routes/moderation';
 import { attachmentsRoutes } from './routes/attachments';
 import { usersRoutes } from './routes/users';
-import { storageLocalRoutes } from './routes/storage-local';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
   const app = Fastify({
@@ -60,15 +57,6 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   await app.register(moderationRoutes, { prefix: '/moderation' });
   await app.register(attachmentsRoutes, { prefix: '/forums' });
   await app.register(usersRoutes, { prefix: '/forums' });
-
-  if (config.storageProvider === 'local') {
-    await app.register(storageLocalRoutes);
-    await app.register(fastifyStatic, {
-      root: resolve(config.storageLocalPath),
-      prefix: '/storage/local/download/',
-      decorateReply: false,
-    });
-  }
 
   // ── Health check ─────────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
