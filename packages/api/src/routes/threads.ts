@@ -16,6 +16,7 @@ const createBodySchema = z.object({
   title: z.string().min(1).max(300),
   body: z.string().min(1),
   tagIds: z.array(z.string().uuid()).max(5).default([]),
+  attachmentIds: z.array(z.string().uuid()).max(10).optional(),
 });
 
 const updateBodySchema = z.object({
@@ -67,6 +68,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await threadService.listThreads(
       request.server.db,
+      request.server.storage,
       forumId,
       parsed.data,
     );
@@ -123,6 +125,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
           request.server.db,
           request.server.ai.embed,
           request.server.ai.llm,
+          request.server.storage,
           forumId,
           user.id,
           parsed.data,
@@ -186,7 +189,12 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/:forumId/threads/:threadId', async (request, reply) => {
     const { forumId, threadId } = request.params as { forumId: string; threadId: string };
 
-    const result = await threadService.getThread(request.server.db, forumId, threadId);
+    const result = await threadService.getThreadWithAttachments(
+      request.server.db,
+      request.server.storage,
+      forumId,
+      threadId,
+    );
     if (!result.ok) {
       sendThreadError(result.code, reply);
       return;

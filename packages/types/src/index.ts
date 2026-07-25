@@ -51,6 +51,7 @@ export type Thread = {
   pinned: boolean;
   viewCount: number;
   tags: Tag[];
+  attachments?: AttachmentSummary[];
   createdAt: Date;
   updatedAt: Date;
   // embedding is not included in API responses — internal only
@@ -82,6 +83,7 @@ export type Attachment = {
   id: string;
   forumId: string;
   postId: string | null;             // null until attached to a post
+  threadId: string | null;           // null until attached to a thread
   uploaderId: string;
   storageKey: string;
   mimeType: string;
@@ -90,6 +92,16 @@ export type Attachment = {
   height: number | null;
   status: AttachmentStatus;
   createdAt: Date;
+};
+
+// Minimal, display-ready shape embedded in Thread/Post responses —
+// storageKey is internal only, never sent to clients directly.
+export type AttachmentSummary = {
+  id: string;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  downloadUrl: string;
 };
 
 export type Reaction = {
@@ -147,6 +159,7 @@ export type CreateThreadBody = {
   title: string;
   body: string;
   tagIds: string[];
+  attachmentIds?: string[] | undefined;
 };
 
 export type UpdateThreadBody = {

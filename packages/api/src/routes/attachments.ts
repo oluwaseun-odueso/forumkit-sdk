@@ -116,7 +116,8 @@ export async function attachmentsRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!result.ok) return sendStorageError(result.code, reply);
 
-    return reply.status(200).send(result.value);
+    const downloadUrl = await request.server.storage.getDownloadUrl(result.value.storageKey);
+    return reply.status(200).send({ ...result.value, downloadUrl });
   });
 
   /**

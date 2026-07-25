@@ -34,12 +34,12 @@ export async function confirmUpload(
   attachmentId: string,
   dimensions: { width: number | null; height: number | null },
   token?: string,
-): Promise<Attachment> {
+): Promise<Attachment & { downloadUrl: string }> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/attachments/${attachmentId}/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify(dimensions),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as Attachment;
+  return (await res.json()) as Attachment & { downloadUrl: string };
 }

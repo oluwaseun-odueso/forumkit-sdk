@@ -14,6 +14,7 @@ const baseAttachment: Attachment = {
   id: 'att-1',
   forumId: 'forum-1',
   postId: null,
+  threadId: null,
   uploaderId: 'user-1',
   storageKey: 'forum-1/abc.png',
   mimeType: 'image/png',

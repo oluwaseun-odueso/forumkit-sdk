@@ -1,24 +1,45 @@
 import type { DB } from '../db';
-import type { CreateThreadBody, ThreadListQuery, SimilarThread, Post, UserRole } from '@forumkit/types';
+import type { CreateThreadBody, ThreadListQuery, SimilarThread, Post, UserRole, AttachmentSummary } from '@forumkit/types';
 import type { EmbedFn, LLMFn } from '@forumkit/ai';
+import type { StorageAdapter } from '@forumkit/storage';
 import { embedOne, suggestTags as aiSuggestTags } from '@forumkit/ai';
 import * as threadRepo from '../repositories/thread';
 import type { ThreadWithMetaData } from '../repositories/thread';
 import * as postRepo from '../repositories/post';
 import * as tagsRepo from '../repositories/tags';
+import * as attachmentRepo from '../repositories/attachment';
+import type { Attachment } from '@forumkit/types';
+import { attachToExistingThread } from './storage';
 import { ok, err, type Result } from '../lib/result';
 
 export type ThreadError = 'thread_not_found' | 'forbidden';
+export type ThreadWithAttachments = ThreadWithMetaData & { attachments: AttachmentSummary[] };
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
+async function toAttachmentSummaries(
+  storage: StorageAdapter,
+  attachments: Attachment[],
+): Promise<AttachmentSummary[]> {
+  return Promise.all(
+    attachments.map(async (a) => ({
+      id: a.id,
+      mimeType: a.mimeType,
+      width: a.width,
+      height: a.height,
+      downloadUrl: await storage.getDownloadUrl(a.storageKey),
+    })),
+  );
+}
+
 export async function listThreads(
   db: DB,
+  storage: StorageAdapter,
   forumId: string,
   query: ThreadListQuery,
-): Promise<{ threads: ThreadWithMetaData[]; total: number; page: number; limit: number }> {
+): Promise<{ threads: ThreadWithAttachments[]; total: number; page: number; limit: number }> {
   const page = Math.max(1, query.page ?? DEFAULT_PAGE);
   const limit = Math.min(MAX_LIMIT, Math.max(1, query.limit ?? DEFAULT_LIMIT));
 
@@ -29,9 +50,30 @@ export async function listThreads(
     limit,
   });
 
-  return { ...result, page, limit };
+  const allAttachments = await attachmentRepo.listAttachmentsByThreadIds(
+    db,
+    result.threads.map((t) => t.id),
+  );
+  const attachmentsByThread = new Map<string, Attachment[]>();
+  for (const a of allAttachments) {
+    if (!a.threadId) continue;
+    const list = attachmentsByThread.get(a.threadId) ?? [];
+    list.push(a);
+    attachmentsByThread.set(a.threadId, list);
+  }
+
+  const threads = await Promise.all(
+    result.threads.map(async (t) => ({
+      ...t,
+      attachments: await toAttachmentSummaries(storage, attachmentsByThread.get(t.id) ?? []),
+    })),
+  );
+
+  return { threads, total: result.total, page, limit };
 }
 
+// Plain thread + posts, no attachment resolution — used by services/ai.ts,
+// which only reads title/body/posts and shouldn't need a storage adapter.
 export async function getThread(
   db: DB,
   forumId: string,
@@ -46,6 +88,26 @@ export async function getThread(
   void threadRepo.incrementViewCount(db, threadId);
 
   return ok({ thread, posts });
+}
+
+// Same as getThread, enriched with resolved attachment download URLs —
+// used by the route that serves the full thread page to a client.
+export async function getThreadWithAttachments(
+  db: DB,
+  storage: StorageAdapter,
+  forumId: string,
+  threadId: string,
+): Promise<Result<{ thread: ThreadWithAttachments; posts: Post[] }, 'thread_not_found'>> {
+  const result = await getThread(db, forumId, threadId);
+  if (!result.ok) return result;
+
+  const { thread, posts } = result.value;
+  const threadAttachments = await attachmentRepo.listAttachmentsByThread(db, threadId);
+
+  return ok({
+    thread: { ...thread, attachments: await toAttachmentSummaries(storage, threadAttachments) },
+    posts,
+  });
 }
 
 export async function updateThread(
@@ -131,10 +193,11 @@ export async function createThread(
   db: DB,
   embedFn: EmbedFn,
   llmFn: LLMFn,
+  storage: StorageAdapter,
   forumId: string,
   authorId: string,
   body: CreateThreadBody,
-): Promise<ThreadWithMetaData> {
+): Promise<ThreadWithAttachments> {
   const thread = await threadRepo.createThread(db, {
     forumId,
     authorId,
@@ -143,11 +206,18 @@ export async function createThread(
     tagIds: body.tagIds,
   });
 
+  // Best-effort: a bad/foreign attachment id shouldn't fail thread
+  // creation, since the thread itself was already created successfully.
+  for (const attachmentId of body.attachmentIds ?? []) {
+    await attachToExistingThread(db, attachmentId, thread.id, authorId);
+  }
+
   // Fire-and-forget async jobs — never block the response
   void embedThread(db, embedFn, thread.id, thread.title, thread.body);
   void suggestAndApplyTags(db, llmFn, forumId, thread.id, body.title, body.body);
 
-  return thread;
+  const attachments = await attachmentRepo.listAttachmentsByThread(db, thread.id);
+  return { ...thread, attachments: await toAttachmentSummaries(storage, attachments) };
 }
 
 async function embedThread(

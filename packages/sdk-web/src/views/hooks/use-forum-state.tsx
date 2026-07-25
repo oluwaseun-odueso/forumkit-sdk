@@ -348,12 +348,6 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-// ─── API base URL (module-level, safe for SSR) ───────────────────────────────
-
-const FK_API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
-
 // ─── ID counters (module-level, stable across renders) ───────────────────────
 
 let _nextCommentId = 100;
@@ -405,15 +399,17 @@ function useForumStateInternal() {
     const body = isLink && linkUrl ? `${state.composer.body.trim()}\n\n${linkUrl}`.trim() : state.composer.body.trim();
 
     // The browser already holds the full image bytes from when the file was
-    // picked (used for the composer preview) — reuse that directly as the
-    // post's image rather than waiting on a separate fetch of the uploaded
-    // copy. The real upload to storage still happens in the background via
-    // uploadAttachment; this only decides what gets rendered.
+    // picked (used for the composer preview) — fall back to that if the real
+    // upload hasn't confirmed yet by the time of submit.
     const previewImage = state.composer.attachments.find(a => a.kind === 'image' && a.url)?.url ?? null;
+    const attachmentIds = state.composer.attachments
+      .map(a => a.attachmentId)
+      .filter((id): id is string => id !== null);
 
     dispatch({ type: 'SUBMIT_COMPOSER_START' });
     try {
-      const thread = await createThread(forumId, { title, body, tagIds: [] }, sessionToken);
+      const thread = await createThread(forumId, { title, body, tagIds: [], attachmentIds }, sessionToken);
+      const serverImage = thread.attachments?.find(a => a.mimeType.startsWith('image/'))?.downloadUrl ?? null;
       const newPost: FeedPost = {
         id: thread.id,
         communityId: state.composer.communityId ?? COMMUNITIES[0]?.id ?? forumId,
@@ -423,7 +419,7 @@ function useForumStateInternal() {
         snippet: thread.body.slice(0, 160) || thread.title,
         body: thread.body,
         thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
-        imageUrl: previewImage,
+        imageUrl: serverImage ?? previewImage,
         domain: isLink ? linkUrl || null : null,
         votes: 0,
         commentCount: 0,
@@ -454,7 +450,7 @@ function useForumStateInternal() {
       const up = await requestUploadUrl(forumId, 'avatar.jpg', 'image/jpeg', avatarFile.size, sessionToken);
       await putFile(up.uploadUrl, up.uploadHeaders, avatarFile);
       const att = await confirmUpload(forumId, up.attachmentId, { width: 400, height: 400 }, sessionToken);
-      avatarUrl = `${FK_API_BASE}/storage/local/download/${att.storageKey}`;
+      avatarUrl = att.downloadUrl;
     }
 
     if (fields.bannerBlob) {
@@ -462,7 +458,7 @@ function useForumStateInternal() {
       const up = await requestUploadUrl(forumId, 'banner.jpg', 'image/jpeg', bannerFile.size, sessionToken);
       await putFile(up.uploadUrl, up.uploadHeaders, bannerFile);
       const att = await confirmUpload(forumId, up.attachmentId, { width: 1200, height: 300 }, sessionToken);
-      bannerUrl = `${FK_API_BASE}/storage/local/download/${att.storageKey}`;
+      bannerUrl = att.downloadUrl;
     }
 
     const serverLinks = fields.socialLinks.map(({ platform, url }) => ({ platform, url }));

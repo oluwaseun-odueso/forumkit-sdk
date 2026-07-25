@@ -97,6 +97,24 @@ export async function attachToExistingPost(
   return ok(undefined);
 }
 
+// Same as attachToExistingPost, but for a thread's own body — threads
+// carry content directly (no post row required), so their media links
+// here instead. Called once per id in the thread's attachmentIds.
+export async function attachToExistingThread(
+  db: DB,
+  attachmentId: string,
+  threadId: string,
+  requesterId: string,
+): Promise<Result<void, StorageError>> {
+  const attachment = await repo.getAttachmentById(db, attachmentId);
+  if (!attachment) return err('attachment_not_found');
+  if (attachment.uploaderId !== requesterId) return err('forbidden');
+  if (attachment.status !== 'confirmed') return err('not_pending');
+
+  await repo.attachToThread(db, attachmentId, threadId);
+  return ok(undefined);
+}
+
 export async function deleteAttachment(
   db: DB,
   adapter: StorageAdapter,
