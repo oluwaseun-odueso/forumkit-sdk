@@ -52,6 +52,7 @@ export type Thread = {
   viewCount: number;
   tags: Tag[];
   attachments?: AttachmentSummary[];
+  postCount?: number;
   createdAt: Date;
   updatedAt: Date;
   // embedding is not included in API responses — internal only

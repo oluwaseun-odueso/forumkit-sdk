@@ -1,13 +1,13 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
 import {
-  FEED_POSTS, COMMENTS, COMMUNITIES, LATEST_ITEMS, SIMILAR_ITEMS, TRENDING_ITEMS,
+  COMMENTS, COMMUNITIES, LATEST_ITEMS, SIMILAR_ITEMS, TRENDING_ITEMS,
   type FeedPost, type CommentNodeData, type Community, type RailItem,
 } from '../data/fixtures';
-import type { SimilarThread } from '@forumkit/types';
+import type { SimilarThread, Thread } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
 import { getMyProfile, updateMyProfile } from '../api/profile';
-import { createThread } from '../api/threads';
+import { createThread, listThreads as apiListThreads } from '../api/threads';
 import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -125,6 +125,7 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_START' }
   | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
+  | { type: 'SET_POSTS'; posts: FeedPost[] }
   | { type: 'SET_PROFILE_TAB'; tab: string }
   | { type: 'UPDATE_PROFILE'; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null }
   | { type: 'ASST_SUMMARIZING' }
@@ -157,11 +158,45 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+function fmtRelativeTime(iso: string | Date): string {
+  const then = new Date(iso).getTime();
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) return 'now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+// Backend Thread -> frontend FeedPost. Several FeedPost fields (votes,
+// saved, communityId) have no backend equivalent yet — ForumKit only has
+// forums (tenants) and tags, no voting or sub-communities — so those are
+// filled with inert defaults rather than fabricated data.
+function threadToFeedPost(thread: Thread, fallbackCommunityId: string): FeedPost {
+  return {
+    id: thread.id,
+    communityId: fallbackCommunityId,
+    author: 'Member',
+    time: fmtRelativeTime(thread.createdAt),
+    title: thread.title,
+    snippet: thread.body.slice(0, 160) || thread.title,
+    body: thread.body,
+    thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
+    imageUrl: thread.attachments?.find(a => a.mimeType.startsWith('image/'))?.downloadUrl ?? null,
+    domain: null,
+    votes: 0,
+    commentCount: thread.postCount ?? 0,
+    saved: false,
+  };
+}
+
 // ─── Initial state ───────────────────────────────────────────────────────────
 
 const initialState: State = {
   view: 'feed',
-  posts: FEED_POSTS.slice(),
+  posts: [], // populated from GET /forums/:forumId/threads once the session is ready
   comments: JSON.parse(JSON.stringify(COMMENTS)) as CommentNodeData[],
   sidebar: { pinned: false },
   accountMenu: { open: false },
@@ -329,6 +364,8 @@ function reducer(state: State, action: Action): State {
       };
     case 'SUBMIT_COMPOSER_ERROR':
       return { ...state, composer: { ...state.composer, submitting: false, error: action.message } };
+    case 'SET_POSTS':
+      return { ...state, posts: action.posts };
     case 'SET_PROFILE_TAB':
       return { ...state, profile: { ...state.profile, activeTab: action.tab } };
     case 'UPDATE_PROFILE':
@@ -596,6 +633,16 @@ function useForumStateInternal() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionToken]);
+
+  // ─── Feed init: load real threads from the server on first session ───────────
+
+  useEffect(() => {
+    if (!sessionToken || !forumId) return;
+    void apiListThreads(forumId, sessionToken).then(result => {
+      const posts = result.threads.map(t => threadToFeedPost(t, COMMUNITIES[0]?.id ?? forumId));
+      dispatch({ type: 'SET_POSTS', posts });
+    });
+  }, [sessionToken, forumId]);
 
   // ─── Derived data ──────────────────────────────────────────────────────────
 
