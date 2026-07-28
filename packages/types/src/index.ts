@@ -9,6 +9,7 @@ export type EmbeddingProvider = 'local' | 'openai';
 export type ModerationProvider = 'local' | 'perspective';
 export type AIProvider = 'local' | 'openai' | 'anthropic';
 export type AttachmentStatus = 'pending' | 'confirmed' | 'deleted';
+export type VoteDirection = 1 | -1;
 
 // ── Core entities ──────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ export type Thread = {
   id: string;
   forumId: string;
   authorId: string;
+  authorDisplayName?: string;
   title: string;
   body: string;
   status: ThreadStatus;
@@ -53,6 +55,8 @@ export type Thread = {
   tags: Tag[];
   attachments?: AttachmentSummary[];
   postCount?: number;
+  voteCounts?: VoteCounts;
+  myVote?: VoteDirection | null;
   createdAt: Date;
   updatedAt: Date;
   // embedding is not included in API responses — internal only
@@ -62,12 +66,15 @@ export type Post = {
   id: string;
   threadId: string;
   authorId: string;
+  authorDisplayName?: string;
   parentPostId: string | null;       // null = top-level reply
   body: string;
   status: PostStatus;
   toxicityScore: number | null;      // null until moderation completes
   isAcceptedAnswer: boolean;
   reactionCounts: Partial<Record<ReactionType, number>>;
+  voteCounts?: VoteCounts;
+  myVote?: VoteDirection | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -103,6 +110,11 @@ export type AttachmentSummary = {
   width: number | null;
   height: number | null;
   downloadUrl: string;
+};
+
+export type VoteCounts = {
+  up: number;
+  down: number;
 };
 
 export type Reaction = {
@@ -239,7 +251,8 @@ export type WSMessage =
   | { type: 'post.created'; payload: Post }
   | { type: 'post.updated'; payload: Post }
   | { type: 'post.deleted'; payload: { postId: string } }
-  | { type: 'reaction.updated'; payload: { postId: string; reactionCounts: Partial<Record<ReactionType, number>> } };
+  | { type: 'reaction.updated'; payload: { postId: string; reactionCounts: Partial<Record<ReactionType, number>> } }
+  | { type: 'vote.updated'; payload: { targetType: 'thread' | 'post'; targetId: string; voteCounts: VoteCounts } };
 
 // ── AI feature types ───────────────────────────────────────────────
 
