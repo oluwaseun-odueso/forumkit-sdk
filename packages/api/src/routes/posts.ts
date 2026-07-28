@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
 import * as postService from '../services/post';
 import type { PostError } from '../services/post';
+import * as voteService from '../services/vote';
 import { broadcast, joinRoom, leaveRoom } from '../lib/ws-rooms';
 import type { ReactionType } from '@forumkit/types';
 
@@ -27,6 +28,8 @@ const reportBodySchema = z.object({
   reason: z.string().min(1).max(500),
 });
 
+const voteBodySchema = z.object({ direction: z.union([z.literal(1), z.literal(-1)]) });
+
 // ── Shared helpers ────────────────────────────────────────────────────
 
 type UserRow = { id: string; role: string };
@@ -47,6 +50,15 @@ function sendPostError(code: PostError, reply: FastifyReply): void {
     thread_not_found: [404, 'Thread not found'],
     thread_locked:    [403, 'Thread is locked and no longer accepting posts'],
     forbidden:        [403, 'You do not have permission to perform this action'],
+  };
+  const [status, message] = map[code];
+  void reply.status(status).send({ error: code, message, statusCode: status });
+}
+
+function sendVoteError(code: voteService.VoteError, reply: FastifyReply): void {
+  const map: Record<voteService.VoteError, [number, string]> = {
+    thread_not_found: [404, 'Thread not found'],
+    post_not_found:   [404, 'Post not found'],
   };
   const [status, message] = map[code];
   void reply.status(status).send({ error: code, message, statusCode: status });
@@ -198,6 +210,46 @@ export async function postsRoutes(app: FastifyInstance): Promise<void> {
 
     broadcast(tid, { type: 'reaction.updated', payload: { postId: pid, reactionCounts: result.value } });
     return reply.status(200).send({ reactionCounts: result.value });
+  });
+
+  /**
+   * POST /threads/:tid/posts/:pid/vote
+   * Toggles: voting the same direction again clears the vote; voting the
+   * opposite direction flips it.
+   */
+  app.post('/:tid/posts/:pid/vote', { preHandler: authenticate }, async (request, reply) => {
+    const { tid, pid } = request.params as { tid: string; pid: string };
+
+    const parsed = voteBodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'invalid_body', message: parsed.error.issues.map((i) => i.message).join(', '), statusCode: 400 });
+    }
+
+    const user = await resolveUser(request);
+    if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
+
+    const result = await voteService.voteOnPost(request.server.db, pid, user.id, parsed.data.direction);
+    if (!result.ok) return sendVoteError(result.code, reply);
+
+    broadcast(tid, { type: 'vote.updated', payload: { targetType: 'post', targetId: pid, voteCounts: result.value.voteCounts } });
+    return reply.status(200).send(result.value);
+  });
+
+  /**
+   * DELETE /threads/:tid/posts/:pid/vote
+   * Unconditionally clears the caller's vote.
+   */
+  app.delete('/:tid/posts/:pid/vote', { preHandler: authenticate }, async (request, reply) => {
+    const { tid, pid } = request.params as { tid: string; pid: string };
+
+    const user = await resolveUser(request);
+    if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
+
+    const result = await voteService.removeVoteFromPost(request.server.db, pid, user.id);
+    if (!result.ok) return sendVoteError(result.code, reply);
+
+    broadcast(tid, { type: 'vote.updated', payload: { targetType: 'post', targetId: pid, voteCounts: result.value.voteCounts } });
+    return reply.status(200).send(result.value);
   });
 
   /**
