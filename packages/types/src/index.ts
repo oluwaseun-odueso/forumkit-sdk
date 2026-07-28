@@ -1,6 +1,6 @@
 // ── Enums ──────────────────────────────────────────────────────────
 
-export type UserRole = 'guest' | 'member' | 'moderator' | 'admin';
+export type UserRole = 'member' | 'moderator' | 'admin';
 export type ThreadStatus = 'open' | 'locked' | 'deleted';
 export type PostStatus = 'visible' | 'hidden' | 'deleted';
 export type ModerationStatus = 'pending' | 'approved' | 'removed';
