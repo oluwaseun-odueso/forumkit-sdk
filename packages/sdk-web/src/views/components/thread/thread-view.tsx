@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { useForum, CommentNodeData } from '../../hooks/use-forum-state';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
+import Carousel from '../shared/carousel';
+import Lightbox from '../shared/lightbox';
 import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
 import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon } from '../shared/icons';
@@ -40,6 +42,8 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const [postEditTitle, setPostEditTitle] = useState('');
   const [postEditBody, setPostEditBody] = useState('');
   const [postEditSubmitting, setPostEditSubmitting] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [postEditError, setPostEditError] = useState<string | null>(null);
 
   if (!activePost) return null;
@@ -135,11 +139,38 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         </>
       )}
 
-      {activePost.imageUrls && activePost.imageUrls.length > 0 ? (
-        <Thumbnail gradient={activePost.thumbGradient} imageUrl={activePost.imageUrls[0]} height={340} radius={16} style={{ marginBottom: 16 }} />
-      ) : (
-        <Thumbnail gradient={activePost.thumbGradient} imageUrl={activePost.imageUrl} height={340} radius={16} style={{ marginBottom: 16 }} />
-      )}
+      {(() => {
+        const images = activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : []);
+        if (images.length > 1) {
+          return (
+            <div style={{ position: 'relative', height: 340, borderRadius: 16, marginBottom: 16 }}>
+              <Carousel
+                images={images}
+                index={carouselIndex}
+                onIndexChange={setCarouselIndex}
+                onImageClick={() => setLightboxOpen(true)}
+              />
+            </div>
+          );
+        }
+        return (
+          <Thumbnail
+            gradient={activePost.thumbGradient}
+            imageUrl={images[0] ?? null}
+            height={340}
+            radius={16}
+            style={{ marginBottom: 16, cursor: images[0] ? 'pointer' : undefined }}
+            onClick={images[0] ? (() => setLightboxOpen(true)) : undefined}
+          />
+        );
+      })()}
+
+      {lightboxOpen && (() => {
+        const images = activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : []);
+        return images.length > 0
+          ? <Lightbox images={images} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
+          : null;
+      })()}
 
       <div className="fk-thread-actions">
         <VotePill votes={activePost.votes} dir={activePost.myVote ?? 0} onVote={dir => votePost(activePost.id, dir)} />

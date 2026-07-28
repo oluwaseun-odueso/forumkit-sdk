@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import type { FeedPost, Community, VoteDir } from '../../hooks/use-forum-state';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
+import Carousel from '../shared/carousel';
+import Lightbox from '../shared/lightbox';
 import VotePill from '../shared/vote-pill';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon } from '../shared/icons';
@@ -25,6 +28,15 @@ export default function PostCard({
   onOpen, onVote, onToggleMenu, onCloseMenu, onSave,
 }: PostCardProps) {
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const images = post.imageUrls ?? (post.imageUrl ? [post.imageUrl] : []);
+
+  function openLightbox(e: React.MouseEvent, index: number) {
+    e.stopPropagation();
+    setCarouselIndex(index);
+    setLightboxOpen(true);
+  }
 
   return (
     <article className="fk-post-card" onClick={onOpen}>
@@ -37,8 +49,17 @@ export default function PostCard({
       {view === 'card' ? (
         <>
           <h3 className="fk-post-card-title fk-post-card-title--card">{post.title}</h3>
-          <div className="fk-post-card-cardimg">
-            <Thumbnail gradient={post.thumbGradient} imageUrl={post.imageUrl} radius={16} />
+          <div className="fk-post-card-cardimg" onClick={stop}>
+            {images.length > 1 ? (
+              <Carousel
+                images={images}
+                index={carouselIndex}
+                onIndexChange={setCarouselIndex}
+                onImageClick={() => setLightboxOpen(true)}
+              />
+            ) : (
+              <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: images[0] ? 'pointer' : undefined }} onClick={images[0] ? (e => openLightbox(e, 0)) : undefined} />
+            )}
             <span className="fk-post-card-cardimg-label">{community?.name}</span>
           </div>
         </>
@@ -48,7 +69,21 @@ export default function PostCard({
             <h3 className="fk-post-card-title fk-clamp-2">{post.title}</h3>
             <p className="fk-post-card-snippet fk-clamp-2">{post.snippet}</p>
           </div>
-          <Thumbnail gradient={post.thumbGradient} imageUrl={post.imageUrl} width={150} height={110} radius={14} domain={post.domain} />
+          <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
+            <Thumbnail
+              gradient={post.thumbGradient}
+              imageUrl={images[0] ?? null}
+              width={150}
+              height={110}
+              radius={14}
+              domain={post.domain}
+              style={{ cursor: images[0] ? 'pointer' : undefined }}
+              onClick={images[0] ? (e => openLightbox(e, 0)) : undefined}
+            />
+            {images.length > 1 && (
+              <span className="fk-post-card-more-badge">+{images.length - 1}</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -74,6 +109,10 @@ export default function PostCard({
         </div>
       </div>
       <div className="fk-post-card-divider" />
+
+      {lightboxOpen && images.length > 0 && (
+        <Lightbox images={images} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
+      )}
     </article>
   );
 }
