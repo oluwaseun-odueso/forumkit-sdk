@@ -1,9 +1,11 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { authenticate, requireRole } from '../middleware/auth';
 import * as threadService from '../services/thread';
+import * as voteService from '../services/vote';
 import type { ThreadError } from '../services/thread';
 import type { HostJWTPayload } from '@forumkit/types';
+import { broadcast } from '../lib/ws-rooms';
 
 const listQuerySchema = z.object({
   tagId: z.string().uuid().optional(),
@@ -32,6 +34,27 @@ const duplicatesQuerySchema = z.object({
 
 const lockBodySchema = z.object({ locked: z.boolean() });
 const pinBodySchema = z.object({ pinned: z.boolean() });
+const voteBodySchema = z.object({ direction: z.union([z.literal(1), z.literal(-1)]) });
+
+type UserRow = { id: string };
+
+async function resolveUser(request: FastifyRequest, forumId: string): Promise<UserRow | null> {
+  const payload = request.jwtPayload;
+  const rows = await request.server.db<UserRow[]>`
+    SELECT id FROM users
+    WHERE external_id = ${payload.sub}
+      AND forum_id = ${forumId}
+  `;
+  return rows[0] ?? null;
+}
+
+function sendSessionRequired(reply: FastifyReply): FastifyReply {
+  return reply.status(401).send({
+    error: 'session_not_initialised',
+    message: 'Call POST /auth/session first',
+    statusCode: 401,
+  });
+}
 
 function sendThreadError(code: ThreadError | 'thread_not_found', reply: FastifyReply): void {
   if (code === 'thread_not_found') {
@@ -49,12 +72,21 @@ function sendThreadError(code: ThreadError | 'thread_not_found', reply: FastifyR
   }
 }
 
+function sendVoteError(code: voteService.VoteError, reply: FastifyReply): void {
+  const map: Record<voteService.VoteError, [number, string]> = {
+    thread_not_found: [404, 'Thread not found'],
+    post_not_found:   [404, 'Post not found'],
+  };
+  const [status, message] = map[code];
+  void reply.status(status).send({ error: code, message, statusCode: status });
+}
+
 export async function threadsRoutes(app: FastifyInstance): Promise<void> {
   /**
    * GET /forums/:forumId/threads
-   * Public — no authentication required.
+   * Requires authentication — no ForumKit endpoint is public.
    */
-  app.get('/:forumId/threads', async (request, reply) => {
+  app.get('/:forumId/threads', { preHandler: authenticate }, async (request, reply) => {
     const { forumId } = request.params as { forumId: string };
 
     const parsed = listQuerySchema.safeParse(request.query);
@@ -66,11 +98,15 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    const user = await resolveUser(request, forumId);
+    if (!user) return sendSessionRequired(reply);
+
     const result = await threadService.listThreads(
       request.server.db,
       request.server.storage,
       forumId,
       parsed.data,
+      user.id,
     );
 
     return reply.status(200).send(result);
@@ -157,9 +193,10 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:forumId/threads/duplicates
-   * Public — must be registered before /:threadId to avoid param shadowing.
+   * Requires authentication. Must be registered before /:threadId to avoid
+   * param shadowing.
    */
-  app.get('/:forumId/threads/duplicates', async (request, reply) => {
+  app.get('/:forumId/threads/duplicates', { preHandler: authenticate }, async (request, reply) => {
     const { forumId } = request.params as { forumId: string };
 
     const parsed = duplicatesQuerySchema.safeParse(request.query);
@@ -184,16 +221,20 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:forumId/threads/:threadId
-   * Public.
+   * Requires authentication.
    */
-  app.get('/:forumId/threads/:threadId', async (request, reply) => {
+  app.get('/:forumId/threads/:threadId', { preHandler: authenticate }, async (request, reply) => {
     const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+    const user = await resolveUser(request, forumId);
+    if (!user) return sendSessionRequired(reply);
 
     const result = await threadService.getThreadWithAttachments(
       request.server.db,
       request.server.storage,
       forumId,
       threadId,
+      user.id,
     );
     if (!result.ok) {
       sendThreadError(result.code, reply);
@@ -354,6 +395,68 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
         sendThreadError(result.code, reply);
         return;
       }
+      return reply.status(200).send(result.value);
+    },
+  );
+
+  /**
+   * POST /forums/:forumId/threads/:threadId/vote
+   * Requires authentication. Toggles: voting the same direction again
+   * clears the vote; voting the opposite direction flips it.
+   */
+  app.post(
+    '/:forumId/threads/:threadId/vote',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const parsed = voteBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'invalid_body',
+          message: parsed.error.issues.map((i) => i.message).join(', '),
+          statusCode: 400,
+        });
+      }
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await voteService.voteOnThread(request.server.db, threadId, user.id, parsed.data.direction);
+      if (!result.ok) {
+        sendVoteError(result.code, reply);
+        return;
+      }
+      broadcast(threadId, {
+        type: 'vote.updated',
+        payload: { targetType: 'thread', targetId: threadId, voteCounts: result.value.voteCounts },
+      });
+      return reply.status(200).send(result.value);
+    },
+  );
+
+  /**
+   * DELETE /forums/:forumId/threads/:threadId/vote
+   * Requires authentication. Unconditionally clears the caller's vote.
+   */
+  app.delete(
+    '/:forumId/threads/:threadId/vote',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await voteService.removeVoteFromThread(request.server.db, threadId, user.id);
+      if (!result.ok) {
+        sendVoteError(result.code, reply);
+        return;
+      }
+      broadcast(threadId, {
+        type: 'vote.updated',
+        payload: { targetType: 'thread', targetId: threadId, voteCounts: result.value.voteCounts },
+      });
       return reply.status(200).send(result.value);
     },
   );

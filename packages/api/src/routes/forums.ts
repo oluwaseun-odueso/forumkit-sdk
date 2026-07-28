@@ -84,10 +84,9 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:fid
-   * Public if the forum's config.isPublic is true.
-   * Private forums require a valid token scoped to that forum.
+   * Requires authentication.
    */
-  app.get('/:fid', async (request, reply) => {
+  app.get('/:fid', { preHandler: authenticate }, async (request, reply) => {
     const { fid } = request.params as { fid: string };
     const result = await forumService.getForum(request.server.db, fid);
     if (!result.ok) {
@@ -142,9 +141,9 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:fid/tags
-   * Public.
+   * Requires authentication.
    */
-  app.get('/:fid/tags', async (request, reply) => {
+  app.get('/:fid/tags', { preHandler: authenticate }, async (request, reply) => {
     const { fid } = request.params as { fid: string };
     const result = await forumService.listTags(request.server.db, fid);
     if (!result.ok) {

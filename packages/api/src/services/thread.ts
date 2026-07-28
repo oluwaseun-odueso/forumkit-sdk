@@ -39,6 +39,7 @@ export async function listThreads(
   storage: StorageAdapter,
   forumId: string,
   query: ThreadListQuery,
+  requesterId?: string | undefined,
 ): Promise<{ threads: ThreadWithAttachments[]; total: number; page: number; limit: number }> {
   const page = Math.max(1, query.page ?? DEFAULT_PAGE);
   const limit = Math.min(MAX_LIMIT, Math.max(1, query.limit ?? DEFAULT_LIMIT));
@@ -48,6 +49,7 @@ export async function listThreads(
     sort: query.sort ?? 'latest',
     page,
     limit,
+    requesterId,
   });
 
   const allAttachments = await attachmentRepo.listAttachmentsByThreadIds(
@@ -78,11 +80,12 @@ export async function getThread(
   db: DB,
   forumId: string,
   threadId: string,
+  requesterId?: string | undefined,
 ): Promise<Result<{ thread: ThreadWithMetaData; posts: Post[] }, 'thread_not_found'>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await threadRepo.getThreadById(db, threadId, requesterId);
   if (!thread || thread.forumId !== forumId) return err('thread_not_found');
 
-  const posts = await postRepo.listPostsByThread(db, threadId);
+  const posts = await postRepo.listPostsByThread(db, threadId, requesterId);
 
   // Fire-and-forget: view count increment never blocks the response
   void threadRepo.incrementViewCount(db, threadId);
@@ -97,8 +100,9 @@ export async function getThreadWithAttachments(
   storage: StorageAdapter,
   forumId: string,
   threadId: string,
+  requesterId?: string | undefined,
 ): Promise<Result<{ thread: ThreadWithAttachments; posts: Post[] }, 'thread_not_found'>> {
-  const result = await getThread(db, forumId, threadId);
+  const result = await getThread(db, forumId, threadId, requesterId);
   if (!result.ok) return result;
 
   const { thread, posts } = result.value;
