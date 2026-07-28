@@ -42,7 +42,7 @@ export function Feed() {
             post={post}
             community={communities.find(c => c.id === post.communityId)}
             view={state.feed.view}
-            vote={state.feed.votes[post.id] ?? 0}
+            vote={post.myVote ?? 0}
             saved={state.feed.saved[post.id] ?? false}
             menuOpen={state.feed.openPostMenuId === post.id}
             onOpen={() => openThread(post.id)}

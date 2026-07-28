@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CommentNodeData, VoteDir } from '../../hooks/use-forum-state';
 import VotePill from '../shared/vote-pill';
 import './comment.css';
@@ -5,19 +6,65 @@ import './comment.css';
 type CommentProps = {
   comment: CommentNodeData;
   depth?: number;
-  collapsed: Record<number, boolean>;
-  votes: Record<number, VoteDir>;
-  onToggleCollapsed: (id: number) => void;
-  onVote: (id: number, dir: VoteDir) => void;
+  collapsed: Record<string, boolean>;
+  currentUserId: string | null;
+  onToggleCollapsed: (id: string) => void;
+  onVote: (id: string, dir: VoteDir) => void;
+  onReply: (parentId: string, body: string) => Promise<void>;
+  onEdit: (commentId: string, body: string) => Promise<void>;
 };
 
 /**
  * A single threaded comment, recursively rendering its replies inside a
  * "link chain" connector line with a +/− toggle sitting on the line itself.
  */
-export default function Comment({ comment, depth = 0, collapsed, votes, onToggleCollapsed, onVote }: CommentProps) {
+export default function Comment({
+  comment, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit,
+}: CommentProps) {
   const isCollapsed = collapsed[comment.id] ?? false;
   const size = depth === 0 ? 'md' : 'sm';
+  const isMine = currentUserId !== null && comment.authorId === currentUserId;
+
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replySubmitting, setReplySubmitting] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editText, setEditText] = useState(comment.body);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  async function handleSubmitReply() {
+    const body = replyText.trim();
+    if (!body || replySubmitting) return;
+    setReplySubmitting(true);
+    setReplyError(null);
+    try {
+      await onReply(comment.id, body);
+      setReplyText('');
+      setReplyOpen(false);
+    } catch (err) {
+      setReplyError(err instanceof Error ? err.message : 'Failed to post reply');
+    } finally {
+      setReplySubmitting(false);
+    }
+  }
+
+  async function handleSaveEdit() {
+    const body = editText.trim();
+    if (!body || editSubmitting) return;
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      await onEdit(comment.id, body);
+      setEditOpen(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
 
   return (
     <div className={`fk-comment fk-comment--${size}`}>
@@ -50,18 +97,74 @@ export default function Comment({ comment, depth = 0, collapsed, votes, onToggle
           >
             <MinusMark />
           </button>
-          <p className="fk-comment-body">{comment.body}</p>
+
+          {editOpen ? (
+            <div className="fk-comment-edit">
+              <textarea
+                className="fk-comment-edit-input"
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                rows={3}
+              />
+              {editError && <p className="fk-comment-error">{editError}</p>}
+              <div className="fk-comment-edit-actions">
+                <button type="button" className="fk-comment-action" onClick={handleSaveEdit} disabled={editSubmitting}>
+                  {editSubmitting ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className="fk-comment-action"
+                  onClick={() => { setEditOpen(false); setEditText(comment.body); setEditError(null); }}
+                  disabled={editSubmitting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="fk-comment-body">{comment.body}</p>
+          )}
+
           <div className="fk-comment-actions">
             <VotePill
               votes={comment.votes}
-              dir={votes[comment.id] ?? 0}
+              dir={comment.myVote ?? 0}
               onVote={dir => onVote(comment.id, dir)}
               variant="inline"
               size="sm"
             />
-            <span className="fk-comment-action">Reply</span>
+            <button type="button" className="fk-comment-action" onClick={() => setReplyOpen(o => !o)}>Reply</button>
+            {isMine && !editOpen && (
+              <button type="button" className="fk-comment-action" onClick={() => setEditOpen(true)}>Edit</button>
+            )}
             {depth === 0 && <span className="fk-comment-action">Share</span>}
           </div>
+
+          {replyOpen && (
+            <div className="fk-comment-reply">
+              <input
+                className="fk-comment-reply-input"
+                placeholder={`Reply to ${comment.author}`}
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void handleSubmitReply(); }}
+              />
+              {replyError && <p className="fk-comment-error">{replyError}</p>}
+              <div className="fk-comment-edit-actions">
+                <button type="button" className="fk-comment-action" onClick={handleSubmitReply} disabled={replySubmitting}>
+                  {replySubmitting ? 'Posting…' : 'Reply'}
+                </button>
+                <button
+                  type="button"
+                  className="fk-comment-action"
+                  onClick={() => { setReplyOpen(false); setReplyText(''); setReplyError(null); }}
+                  disabled={replySubmitting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {comment.replies.map(reply => (
             <Comment
@@ -69,9 +172,11 @@ export default function Comment({ comment, depth = 0, collapsed, votes, onToggle
               comment={reply}
               depth={depth + 1}
               collapsed={collapsed}
-              votes={votes}
+              currentUserId={currentUserId}
               onToggleCollapsed={onToggleCollapsed}
               onVote={onVote}
+              onReply={onReply}
+              onEdit={onEdit}
             />
           ))}
         </div>

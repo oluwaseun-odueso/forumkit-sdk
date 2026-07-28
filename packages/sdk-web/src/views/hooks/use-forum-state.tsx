@@ -1,13 +1,17 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
 import {
-  COMMENTS, COMMUNITIES, LATEST_ITEMS, SIMILAR_ITEMS, TRENDING_ITEMS,
+  COMMUNITIES, LATEST_ITEMS, SIMILAR_ITEMS, TRENDING_ITEMS,
   type FeedPost, type CommentNodeData, type Community, type RailItem,
 } from '../data/fixtures';
-import type { SimilarThread, Thread } from '@forumkit/types';
+import type { SimilarThread, Thread, Post, VoteCounts } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
 import { getMyProfile, updateMyProfile } from '../api/profile';
-import { createThread, listThreads as apiListThreads } from '../api/threads';
+import {
+  createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
+} from '../api/threads';
+import { createReply, updateReply } from '../api/posts';
+import { voteOnThread, removeVoteFromThread, voteOnPost, removeVoteFromPost } from '../api/votes';
 import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -63,19 +67,27 @@ type AsstState = {
 type ThreadState = {
   activePostId: string | null;
   commentSort: CommentSort;
-  collapsed: Record<number, boolean>;
-  commentVotes: Record<number, VoteDir>;
+  collapsed: Record<string, boolean>;
   commentInput: string;
 };
 
 type FeedState = {
   view: FeedView;
   sort: FeedSort;
-  votes: Record<string, VoteDir>;
   saved: Record<string, boolean>;
   openPostMenuId: string | null;
   sortMenuOpen: boolean;
   viewMenuOpen: boolean;
+};
+
+type ProfileState = {
+  activeTab: string;
+  id: string | null;
+  displayName: string;
+  bio: string;
+  socialLinks: SocialLink[];
+  avatarUrl: string | null;
+  bannerUrl: string | null;
 };
 
 type State = {
@@ -88,7 +100,7 @@ type State = {
   thread: ThreadState;
   composer: ComposeState;
   asst: AsstState;
-  profile: { activeTab: string; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null };
+  profile: ProfileState;
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
@@ -105,12 +117,15 @@ type Action =
   | { type: 'CLOSE_FEED_MENUS' }
   | { type: 'SET_POST_MENU'; postId: string | null }
   | { type: 'TOGGLE_SAVE_POST'; postId: string }
-  | { type: 'VOTE_POST'; postId: string; dir: VoteDir }
-  | { type: 'VOTE_COMMENT'; commentId: number; dir: VoteDir }
+  | { type: 'SET_POST_VOTE'; postId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
+  | { type: 'SET_COMMENT_VOTE'; commentId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_SORT'; sort: CommentSort }
-  | { type: 'TOGGLE_COMMENT_COLLAPSED'; commentId: number }
+  | { type: 'TOGGLE_COMMENT_COLLAPSED'; commentId: string }
   | { type: 'SET_COMMENT_INPUT'; value: string }
-  | { type: 'SUBMIT_COMMENT'; newId: number }
+  | { type: 'THREAD_LOADED'; post: FeedPost; comments: CommentNodeData[] }
+  | { type: 'REPLY_SUBMITTED'; parentId: string | null; comment: CommentNodeData }
+  | { type: 'COMMENT_EDITED'; commentId: string; body: string }
+  | { type: 'POST_EDITED'; postId: string; title: string; body: string }
   | { type: 'OPEN_COMPOSER' }
   | { type: 'CLOSE_COMPOSER' }
   | { type: 'SET_COMPOSER_TAB'; tab: ComposerTab }
@@ -127,7 +142,7 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
   | { type: 'SET_POSTS'; posts: FeedPost[] }
   | { type: 'SET_PROFILE_TAB'; tab: string }
-  | { type: 'UPDATE_PROFILE'; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null }
+  | { type: 'UPDATE_PROFILE'; id: string; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
   | { type: 'ASST_SUGGEST'; text: string }
@@ -138,7 +153,7 @@ type Action =
 
 function mapComment(
   list: CommentNodeData[],
-  id: number,
+  id: string,
   fn: (c: CommentNodeData) => CommentNodeData,
 ): CommentNodeData[] {
   return list.map(c => {
@@ -148,8 +163,33 @@ function mapComment(
   });
 }
 
+// Recursively inserts a new reply into the tree at parentId, or prepends it
+// to the top level when parentId is null.
+function insertReply(list: CommentNodeData[], parentId: string | null, node: CommentNodeData): CommentNodeData[] {
+  if (parentId === null) return [node, ...list];
+  return list.map(c => c.id === parentId
+    ? { ...c, replies: [node, ...c.replies] }
+    : { ...c, replies: insertReply(c.replies, parentId, node) });
+}
+
 function nextVote(current: VoteDir, clicked: VoteDir): VoteDir {
   return current === clicked ? 0 : clicked;
+}
+
+function netVotes(v?: VoteCounts): number {
+  return (v?.up ?? 0) - (v?.down ?? 0);
+}
+
+// A comment needs both a close up/down split AND real volume to rank as
+// controversial — a 1-up/1-down comment is technically "perfectly split"
+// but meaningless next to a 50-up/50-down one.
+function controversyScore(v?: VoteCounts): number {
+  const up = v?.up ?? 0;
+  const down = v?.down ?? 0;
+  const total = up + down;
+  if (total === 0) return -Infinity;
+  const balance = 1 - Math.abs(up - down) / total;
+  return balance * Math.log(total + 1);
 }
 
 function fmtSize(bytes: number): string {
@@ -170,26 +210,65 @@ function fmtRelativeTime(iso: string | Date): string {
   return `${days}d`;
 }
 
-// Backend Thread -> frontend FeedPost. Several FeedPost fields (votes,
-// saved, communityId) have no backend equivalent yet — ForumKit only has
-// forums (tenants) and tags, no voting or sub-communities — so those are
-// filled with inert defaults rather than fabricated data.
+// Backend Thread -> frontend FeedPost. communityId/saved have no backend
+// equivalent yet — ForumKit only has forums (tenants), no sub-communities —
+// so those are filled with inert defaults rather than fabricated data.
 function threadToFeedPost(thread: Thread, fallbackCommunityId: string): FeedPost {
+  const imageUrls = (thread.attachments ?? [])
+    .filter(a => a.mimeType.startsWith('image/'))
+    .map(a => a.downloadUrl);
+  const voteCounts = thread.voteCounts ?? { up: 0, down: 0 };
   return {
     id: thread.id,
     communityId: fallbackCommunityId,
-    author: 'Member',
+    authorId: thread.authorId,
+    author: thread.authorDisplayName ?? 'Member',
     time: fmtRelativeTime(thread.createdAt),
     title: thread.title,
     snippet: thread.body.slice(0, 160) || thread.title,
     body: thread.body,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
-    imageUrl: thread.attachments?.find(a => a.mimeType.startsWith('image/'))?.downloadUrl ?? null,
+    imageUrl: imageUrls[0] ?? null,
+    imageUrls,
     domain: null,
-    votes: 0,
+    votes: netVotes(voteCounts),
+    voteCounts,
+    myVote: thread.myVote ?? null,
     commentCount: thread.postCount ?? 0,
     saved: false,
   };
+}
+
+// Backend flat Post[] (already created_at ASC) -> a nested CommentNodeData
+// tree, built from parentPostId. The server never builds this tree itself.
+function postToCommentTree(posts: Post[]): CommentNodeData[] {
+  const byId = new Map<string, CommentNodeData>();
+  const roots: CommentNodeData[] = [];
+
+  for (const p of posts) {
+    const voteCounts = p.voteCounts ?? { up: 0, down: 0 };
+    byId.set(p.id, {
+      id: p.id,
+      authorId: p.authorId,
+      author: p.authorDisplayName ?? 'Member',
+      time: fmtRelativeTime(p.createdAt),
+      body: p.body,
+      votes: netVotes(voteCounts),
+      voteCounts,
+      myVote: p.myVote ?? null,
+      replies: [],
+    });
+  }
+
+  for (const p of posts) {
+    const node = byId.get(p.id);
+    if (!node) continue;
+    const parent = p.parentPostId ? byId.get(p.parentPostId) : undefined;
+    if (parent) parent.replies.push(node);
+    else roots.push(node);
+  }
+
+  return roots;
 }
 
 // ─── Initial state ───────────────────────────────────────────────────────────
@@ -197,22 +276,22 @@ function threadToFeedPost(thread: Thread, fallbackCommunityId: string): FeedPost
 const initialState: State = {
   view: 'feed',
   posts: [], // populated from GET /forums/:forumId/threads once the session is ready
-  comments: JSON.parse(JSON.stringify(COMMENTS)) as CommentNodeData[],
+  comments: [], // populated per-thread from GET /forums/:forumId/threads/:threadId on open
   sidebar: { pinned: false },
   accountMenu: { open: false },
   feed: {
-    view: 'compact', sort: 'Best', votes: {}, saved: {},
+    view: 'compact', sort: 'Best', saved: {},
     openPostMenuId: null, sortMenuOpen: false, viewMenuOpen: false,
   },
   thread: {
-    activePostId: null, commentSort: 'Best', collapsed: {}, commentVotes: {}, commentInput: '',
+    activePostId: null, commentSort: 'Best', collapsed: {}, commentInput: '',
   },
   composer: {
     open: false, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
     communityId: null, attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
-  profile: { activeTab: 'Overview', displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null },
+  profile: { activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -253,26 +332,20 @@ function reducer(state: State, action: Action): State {
           openPostMenuId: null,
         },
       };
-    case 'VOTE_POST': {
-      const current = state.feed.votes[action.postId] ?? 0;
-      const dir = nextVote(current, action.dir);
-      const delta = dir - current;
+    case 'SET_POST_VOTE':
       return {
         ...state,
-        posts: state.posts.map(p => p.id === action.postId ? { ...p, votes: p.votes + delta } : p),
-        feed: { ...state.feed, votes: { ...state.feed.votes, [action.postId]: dir } },
+        posts: state.posts.map(p => p.id === action.postId
+          ? { ...p, voteCounts: action.voteCounts, myVote: action.myVote, votes: netVotes(action.voteCounts) }
+          : p),
       };
-    }
-    case 'VOTE_COMMENT': {
-      const current = state.thread.commentVotes[action.commentId] ?? 0;
-      const dir = nextVote(current, action.dir);
-      const delta = dir - current;
+    case 'SET_COMMENT_VOTE':
       return {
         ...state,
-        comments: mapComment(state.comments, action.commentId, c => ({ ...c, votes: c.votes + delta })),
-        thread: { ...state.thread, commentVotes: { ...state.thread.commentVotes, [action.commentId]: dir } },
+        comments: mapComment(state.comments, action.commentId, c => ({
+          ...c, voteCounts: action.voteCounts, myVote: action.myVote, votes: netVotes(action.voteCounts),
+        })),
       };
-    }
     case 'SET_COMMENT_SORT':
       return { ...state, thread: { ...state.thread, commentSort: action.sort } };
     case 'TOGGLE_COMMENT_COLLAPSED':
@@ -285,16 +358,27 @@ function reducer(state: State, action: Action): State {
       };
     case 'SET_COMMENT_INPUT':
       return { ...state, thread: { ...state.thread, commentInput: action.value } };
-    case 'SUBMIT_COMMENT': {
-      const body = state.thread.commentInput.trim();
-      if (!body) return state;
-      const newComment: CommentNodeData = { id: action.newId, author: 'You', time: 'now', body, votes: 0, replies: [] };
+    case 'THREAD_LOADED': {
+      const exists = state.posts.some(p => p.id === action.post.id);
       return {
         ...state,
-        comments: [newComment, ...state.comments],
-        thread: { ...state.thread, commentInput: '' },
+        posts: exists
+          ? state.posts.map(p => p.id === action.post.id ? action.post : p)
+          : [action.post, ...state.posts],
+        comments: action.comments,
       };
     }
+    case 'REPLY_SUBMITTED':
+      return { ...state, comments: insertReply(state.comments, action.parentId, action.comment) };
+    case 'COMMENT_EDITED':
+      return { ...state, comments: mapComment(state.comments, action.commentId, c => ({ ...c, body: action.body })) };
+    case 'POST_EDITED':
+      return {
+        ...state,
+        posts: state.posts.map(p => p.id === action.postId
+          ? { ...p, title: action.title, body: action.body, snippet: action.body.slice(0, 160) || action.title }
+          : p),
+      };
     case 'OPEN_COMPOSER':
       return {
         ...state,
@@ -369,7 +453,13 @@ function reducer(state: State, action: Action): State {
     case 'SET_PROFILE_TAB':
       return { ...state, profile: { ...state.profile, activeTab: action.tab } };
     case 'UPDATE_PROFILE':
-      return { ...state, profile: { ...state.profile, displayName: action.displayName, bio: action.bio, socialLinks: action.socialLinks, avatarUrl: action.avatarUrl, bannerUrl: action.bannerUrl } };
+      return {
+        ...state,
+        profile: {
+          ...state.profile, id: action.id, displayName: action.displayName, bio: action.bio,
+          socialLinks: action.socialLinks, avatarUrl: action.avatarUrl, bannerUrl: action.bannerUrl,
+        },
+      };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
     case 'ASST_SUMMARY':
@@ -387,8 +477,6 @@ function reducer(state: State, action: Action): State {
 
 // ─── ID counters (module-level, stable across renders) ───────────────────────
 
-let _nextCommentId = 100;
-function nextCommentId(): number { return _nextCommentId++; }
 let _nextFileId = 1;
 function nextFileId(): number { return _nextFileId++; }
 
@@ -411,12 +499,97 @@ function useForumStateInternal() {
   const closeFeedMenus = useCallback(() => dispatch({ type: 'CLOSE_FEED_MENUS' }), []);
   const setPostMenu = useCallback((postId: string | null) => dispatch({ type: 'SET_POST_MENU', postId }), []);
   const toggleSavePost = useCallback((postId: string) => dispatch({ type: 'TOGGLE_SAVE_POST', postId }), []);
-  const votePost = useCallback((postId: string, dir: VoteDir) => dispatch({ type: 'VOTE_POST', postId, dir }), []);
-  const voteComment = useCallback((commentId: number, dir: VoteDir) => dispatch({ type: 'VOTE_COMMENT', commentId, dir }), []);
+
+  const votePost = useCallback(async (postId: string, dir: VoteDir) => {
+    const post = state.posts.find(p => p.id === postId);
+    if (!post || dir === 0) return;
+    const previousVoteCounts = post.voteCounts ?? { up: 0, down: 0 };
+    const previousMyVote = post.myVote ?? null;
+    const newMyVote = nextVote(previousMyVote ?? 0, dir) || null;
+
+    try {
+      const result = newMyVote === null
+        ? await removeVoteFromThread(forumId, postId, sessionToken)
+        : await voteOnThread(forumId, postId, newMyVote, sessionToken);
+      dispatch({ type: 'SET_POST_VOTE', postId, voteCounts: result.voteCounts, myVote: result.myVote });
+    } catch {
+      dispatch({ type: 'SET_POST_VOTE', postId, voteCounts: previousVoteCounts, myVote: previousMyVote });
+    }
+  }, [state.posts, forumId, sessionToken]);
+
+  const voteComment = useCallback(async (commentId: string, dir: VoteDir) => {
+    const threadId = state.thread.activePostId;
+    if (!threadId || dir === 0) return;
+
+    function findComment(list: CommentNodeData[]): CommentNodeData | undefined {
+      for (const c of list) {
+        if (c.id === commentId) return c;
+        const found = findComment(c.replies);
+        if (found) return found;
+      }
+      return undefined;
+    }
+    const comment = findComment(state.comments);
+    if (!comment) return;
+    const previousVoteCounts = comment.voteCounts ?? { up: 0, down: 0 };
+    const previousMyVote = comment.myVote ?? null;
+    const newMyVote = nextVote(previousMyVote ?? 0, dir) || null;
+
+    try {
+      const result = newMyVote === null
+        ? await removeVoteFromPost(threadId, commentId, sessionToken)
+        : await voteOnPost(threadId, commentId, newMyVote, sessionToken);
+      dispatch({ type: 'SET_COMMENT_VOTE', commentId, voteCounts: result.voteCounts, myVote: result.myVote });
+    } catch {
+      dispatch({ type: 'SET_COMMENT_VOTE', commentId, voteCounts: previousVoteCounts, myVote: previousMyVote });
+    }
+  }, [state.thread.activePostId, state.comments, sessionToken]);
+
   const setCommentSort = useCallback((sort: CommentSort) => dispatch({ type: 'SET_COMMENT_SORT', sort }), []);
-  const toggleCommentCollapsed = useCallback((commentId: number) => dispatch({ type: 'TOGGLE_COMMENT_COLLAPSED', commentId }), []);
+  const toggleCommentCollapsed = useCallback((commentId: string) => dispatch({ type: 'TOGGLE_COMMENT_COLLAPSED', commentId }), []);
   const setCommentInput = useCallback((value: string) => dispatch({ type: 'SET_COMMENT_INPUT', value }), []);
-  const submitComment = useCallback(() => dispatch({ type: 'SUBMIT_COMMENT', newId: nextCommentId() }), []);
+
+  const submitReply = useCallback(async (parentId: string | null, body: string): Promise<void> => {
+    const threadId = state.thread.activePostId;
+    const trimmed = body.trim();
+    if (!threadId || !trimmed) return;
+    const post = await createReply(threadId, { body: trimmed, parentPostId: parentId ?? undefined }, sessionToken);
+    const voteCounts = post.voteCounts ?? { up: 0, down: 0 };
+    const comment: CommentNodeData = {
+      id: post.id,
+      authorId: post.authorId,
+      author: post.authorDisplayName ?? 'You',
+      time: 'now',
+      body: post.body,
+      votes: netVotes(voteCounts),
+      voteCounts,
+      myVote: post.myVote ?? null,
+      replies: [],
+    };
+    dispatch({ type: 'REPLY_SUBMITTED', parentId, comment });
+  }, [state.thread.activePostId, sessionToken]);
+
+  const submitComment = useCallback(async () => {
+    const body = state.thread.commentInput;
+    if (!body.trim()) return;
+    await submitReply(null, body);
+    dispatch({ type: 'SET_COMMENT_INPUT', value: '' });
+  }, [state.thread.commentInput, submitReply]);
+
+  const editComment = useCallback(async (commentId: string, body: string): Promise<void> => {
+    const threadId = state.thread.activePostId;
+    if (!threadId) return;
+    const post = await updateReply(threadId, commentId, body, sessionToken);
+    dispatch({ type: 'COMMENT_EDITED', commentId, body: post.body });
+  }, [state.thread.activePostId, sessionToken]);
+
+  const editPost = useCallback(async (title: string, body: string): Promise<void> => {
+    const threadId = state.thread.activePostId;
+    if (!threadId) return;
+    const thread = await updateThread(forumId, threadId, { title, body }, sessionToken);
+    dispatch({ type: 'POST_EDITED', postId: threadId, title: thread.title, body: thread.body });
+  }, [state.thread.activePostId, forumId, sessionToken]);
+
   const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER' }), []);
   const closeComposer = useCallback(() => dispatch({ type: 'CLOSE_COMPOSER' }), []);
   const setComposerTab = useCallback((tab: ComposerTab) => dispatch({ type: 'SET_COMPOSER_TAB', tab }), []);
@@ -446,22 +619,12 @@ function useForumStateInternal() {
     dispatch({ type: 'SUBMIT_COMPOSER_START' });
     try {
       const thread = await createThread(forumId, { title, body, tagIds: [], attachmentIds }, sessionToken);
-      const serverImage = thread.attachments?.find(a => a.mimeType.startsWith('image/'))?.downloadUrl ?? null;
-      const newPost: FeedPost = {
-        id: thread.id,
-        communityId: state.composer.communityId ?? COMMUNITIES[0]?.id ?? forumId,
-        author: 'You',
-        time: 'now',
-        title: thread.title,
-        snippet: thread.body.slice(0, 160) || thread.title,
-        body: thread.body,
-        thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
-        imageUrl: serverImage ?? previewImage,
-        domain: isLink ? linkUrl || null : null,
-        votes: 0,
-        commentCount: 0,
-        saved: false,
-      };
+      const newPost = threadToFeedPost(thread, state.composer.communityId ?? COMMUNITIES[0]?.id ?? forumId);
+      if (!newPost.imageUrl && previewImage) {
+        newPost.imageUrl = previewImage;
+        newPost.imageUrls = [previewImage];
+      }
+      newPost.domain = isLink ? linkUrl || null : null;
       dispatch({ type: 'SUBMIT_COMPOSER_SUCCESS', post: newPost });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit post';
@@ -515,6 +678,7 @@ function useForumStateInternal() {
 
     dispatch({
       type: 'UPDATE_PROFILE',
+      id: profile.id,
       displayName: profile.displayName,
       bio: profile.bio ?? '',
       socialLinks: clientLinks,
@@ -624,6 +788,7 @@ function useForumStateInternal() {
       }));
       dispatch({
         type: 'UPDATE_PROFILE',
+        id: profile.id,
         displayName: profile.displayName,
         bio: profile.bio ?? '',
         socialLinks: clientLinks,
@@ -644,6 +809,18 @@ function useForumStateInternal() {
     });
   }, [sessionToken, forumId]);
 
+  // ─── Thread init: load the real thread + its replies whenever one opens ──────
+
+  useEffect(() => {
+    const threadId = state.thread.activePostId;
+    if (!threadId || !sessionToken || !forumId) return;
+    void apiGetThread(forumId, threadId, sessionToken).then(({ thread, posts }) => {
+      const post = threadToFeedPost(thread, COMMUNITIES[0]?.id ?? forumId);
+      const comments = postToCommentTree(posts);
+      dispatch({ type: 'THREAD_LOADED', post, comments });
+    });
+  }, [state.thread.activePostId, sessionToken, forumId]);
+
   // ─── Derived data ──────────────────────────────────────────────────────────
 
   const sortedPosts = state.posts.slice();
@@ -652,12 +829,12 @@ function useForumStateInternal() {
   } else if (state.feed.sort === 'Top') {
     sortedPosts.sort((a, b) => b.votes - a.votes);
   }
-  // Best/Hot/Rising fall back to the fixture's natural order (no live signals to rank by yet).
+  // Best/Hot/Rising fall back to natural order (no live signals to rank by yet).
 
   function sortComments(list: CommentNodeData[], mode: CommentSort): CommentNodeData[] {
     const sorted = list.slice();
-    if (mode === 'Best' || mode === 'Top') sorted.sort((a, b) => b.votes - a.votes);
-    else if (mode === 'Controversial') sorted.sort((a, b) => Math.abs(a.votes) - Math.abs(b.votes));
+    if (mode === 'Best' || mode === 'Top') sorted.sort((a, b) => netVotes(b.voteCounts) - netVotes(a.voteCounts));
+    else if (mode === 'Controversial') sorted.sort((a, b) => controversyScore(b.voteCounts) - controversyScore(a.voteCounts));
     else sorted.reverse();
     return sorted.map(c => ({ ...c, replies: sortComments(c.replies, mode) }));
   }
@@ -670,6 +847,7 @@ function useForumStateInternal() {
     sortedPosts,
     sortedComments,
     activePost,
+    currentUserId: state.profile.id,
     communities: COMMUNITIES,
     latestItems: LATEST_ITEMS,
     similarItems: SIMILAR_ITEMS,
@@ -691,6 +869,9 @@ function useForumStateInternal() {
     toggleCommentCollapsed,
     setCommentInput,
     submitComment,
+    submitReply,
+    editComment,
+    editPost,
     openComposer,
     closeComposer,
     setComposerTab,

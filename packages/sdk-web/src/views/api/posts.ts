@@ -21,7 +21,7 @@ async function unwrap(res: Response): Promise<Post> {
 
 export async function createReply(
   threadId: string,
-  body: { body: string; parentPostId?: string; attachmentIds?: string[] },
+  body: { body: string; parentPostId?: string | undefined; attachmentIds?: string[] | undefined },
   token?: string,
 ): Promise<Post> {
   const res = await fetch(`${API_BASE}/threads/${threadId}/posts`, {

@@ -27,17 +27,25 @@ function filterComments(list: CommentNodeData[], q: string): CommentNodeData[] {
 
 export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {
-    state, activePost, sortedComments, communities,
+    state, activePost, sortedComments, communities, currentUserId,
     votePost, voteComment, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
+    submitReply, editComment, editPost,
     summarize, suggest,
   } = forum;
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [commentSearch, setCommentSearch] = useState('');
   const [aiPanel, setAiPanel] = useState<'summary' | 'reply' | null>(null);
 
+  const [postEditOpen, setPostEditOpen] = useState(false);
+  const [postEditTitle, setPostEditTitle] = useState('');
+  const [postEditBody, setPostEditBody] = useState('');
+  const [postEditSubmitting, setPostEditSubmitting] = useState(false);
+  const [postEditError, setPostEditError] = useState<string | null>(null);
+
   if (!activePost) return null;
   const community = communities.find(c => c.id === activePost.communityId);
   const displayComments = commentSearch ? filterComments(sortedComments, commentSearch) : sortedComments;
+  const isMyPost = currentUserId !== null && activePost.authorId === currentUserId;
 
   function handleSummarise() {
     if (aiPanel === 'summary') {
@@ -57,6 +65,30 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
     }
   }
 
+  function openPostEdit() {
+    if (!activePost) return;
+    setPostEditTitle(activePost.title);
+    setPostEditBody(activePost.body);
+    setPostEditError(null);
+    setPostEditOpen(true);
+  }
+
+  async function handleSavePostEdit() {
+    const title = postEditTitle.trim();
+    const body = postEditBody.trim();
+    if (!title || !body || postEditSubmitting) return;
+    setPostEditSubmitting(true);
+    setPostEditError(null);
+    try {
+      await editPost(title, body);
+      setPostEditOpen(false);
+    } catch (err) {
+      setPostEditError(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setPostEditSubmitting(false);
+    }
+  }
+
   return (
     <div className="fk-thread">
       <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={onBack}>Back</PillButton>
@@ -67,12 +99,50 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         <span className="fk-thread-time">· {activePost.time}</span>
       </div>
 
-      <h1 className="fk-thread-title">{activePost.title}</h1>
-      <p className="fk-thread-body">{activePost.body}</p>
-      <Thumbnail gradient={activePost.thumbGradient} imageUrl={activePost.imageUrl} height={340} radius={16} style={{ marginBottom: 16 }} />
+      {postEditOpen ? (
+        <div className="fk-comment-edit">
+          <input
+            className="fk-comment-reply-input"
+            value={postEditTitle}
+            onChange={e => setPostEditTitle(e.target.value)}
+            style={{ marginBottom: 8, fontWeight: 600 }}
+          />
+          <textarea
+            className="fk-comment-edit-input"
+            value={postEditBody}
+            onChange={e => setPostEditBody(e.target.value)}
+            rows={5}
+          />
+          {postEditError && <p className="fk-comment-error">{postEditError}</p>}
+          <div className="fk-comment-edit-actions">
+            <button type="button" className="fk-comment-action" onClick={handleSavePostEdit} disabled={postEditSubmitting}>
+              {postEditSubmitting ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              className="fk-comment-action"
+              onClick={() => setPostEditOpen(false)}
+              disabled={postEditSubmitting}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h1 className="fk-thread-title">{activePost.title}</h1>
+          <p className="fk-thread-body">{activePost.body}</p>
+        </>
+      )}
+
+      {activePost.imageUrls && activePost.imageUrls.length > 0 ? (
+        <Thumbnail gradient={activePost.thumbGradient} imageUrl={activePost.imageUrls[0]} height={340} radius={16} style={{ marginBottom: 16 }} />
+      ) : (
+        <Thumbnail gradient={activePost.thumbGradient} imageUrl={activePost.imageUrl} height={340} radius={16} style={{ marginBottom: 16 }} />
+      )}
 
       <div className="fk-thread-actions">
-        <VotePill votes={activePost.votes} dir={state.feed.votes[activePost.id] ?? 0} onVote={dir => votePost(activePost.id, dir)} />
+        <VotePill votes={activePost.votes} dir={activePost.myVote ?? 0} onVote={dir => votePost(activePost.id, dir)} />
         <div className="fk-thread-chip fk-thread-chip--static">
           <CommentIcon size={18} />
           {activePost.commentCount}
@@ -81,6 +151,11 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           <ShareIcon size={18} />
           Share
         </button>
+        {isMyPost && !postEditOpen && (
+          <button type="button" className="fk-thread-chip" onClick={openPostEdit}>
+            Edit
+          </button>
+        )}
       </div>
 
       <div className="fk-ai-row">
@@ -129,9 +204,9 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           placeholder="Add a comment"
           value={state.thread.commentInput}
           onChange={e => setCommentInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') submitComment(); }}
+          onKeyDown={e => { if (e.key === 'Enter') void submitComment(); }}
         />
-        <PillButton variant="accent" onClick={submitComment}>Comment</PillButton>
+        <PillButton variant="accent" onClick={() => void submitComment()}>Comment</PillButton>
       </div>
 
       <CommentSort
@@ -149,9 +224,11 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           key={comment.id}
           comment={comment}
           collapsed={state.thread.collapsed}
-          votes={state.thread.commentVotes}
+          currentUserId={currentUserId}
           onToggleCollapsed={toggleCommentCollapsed}
           onVote={voteComment}
+          onReply={submitReply}
+          onEdit={editComment}
         />
       ))}
     </div>
