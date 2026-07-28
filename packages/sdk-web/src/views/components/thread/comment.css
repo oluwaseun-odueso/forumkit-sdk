@@ -95,4 +95,63 @@
 
 .fk-comment-action {
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+
+.fk-comment-action:hover {
+  color: var(--text);
+}
+
+.fk-comment-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fk-comment-reply,
+.fk-comment-edit {
+  margin-bottom: 12px;
+}
+
+.fk-comment-reply-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.fk-comment-edit-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+
+.fk-comment-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.fk-comment-error {
+  color: var(--danger, #e0463a);
+  font-size: 12.5px;
+  margin: 0 0 8px;
 }
