@@ -1,16 +1,20 @@
 import type { DB } from '../db';
-import type { ForumConfig, Post, ReactionType, Thread } from '@forumkit/types';
+import type { ForumConfig, Post, ReactionType, Thread, VoteCounts, VoteDirection } from '@forumkit/types';
+import { POST_VOTE_COUNTS_SUBQUERY } from './vote';
 
 type PostRow = {
   id: string;
   thread_id: string;
   author_id: string;
+  author_display_name: string;
   parent_post_id: string | null;
   body: string;
   status: Post['status'];
   toxicity_score: number | null;
   is_accepted_answer: boolean;
   reaction_counts: Partial<Record<ReactionType, number>> | null;
+  vote_counts: VoteCounts;
+  my_vote: VoteDirection | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -41,25 +45,36 @@ function toPost(row: PostRow): Post {
     id: row.id,
     threadId: row.thread_id,
     authorId: row.author_id,
+    authorDisplayName: row.author_display_name,
     parentPostId: row.parent_post_id,
     body: row.body,
     status: row.status,
     toxicityScore: row.toxicity_score,
     isAcceptedAnswer: row.is_accepted_answer,
     reactionCounts: row.reaction_counts ?? {},
+    voteCounts: row.vote_counts,
+    myVote: row.my_vote,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export async function getPostById(db: DB, postId: string): Promise<Post | null> {
+export async function getPostById(
+  db: DB,
+  postId: string,
+  requesterId?: string | undefined,
+): Promise<Post | null> {
   const rows = await db<PostRow[]>`
     SELECT
-      p.id, p.thread_id, p.author_id, p.parent_post_id, p.body,
+      p.id, p.thread_id, p.author_id, u.display_name AS author_display_name,
+      p.parent_post_id, p.body,
       p.status, p.toxicity_score, p.is_accepted_answer,
       p.created_at, p.updated_at,
-      ${db.unsafe(REACTION_COUNTS_SUBQUERY)}
+      ${db.unsafe(REACTION_COUNTS_SUBQUERY)},
+      ${db.unsafe(POST_VOTE_COUNTS_SUBQUERY)},
+      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote
     FROM posts p
+    JOIN users u ON u.id = p.author_id
     WHERE p.id = ${postId}
       AND p.status != 'deleted'
   `;
@@ -209,14 +224,22 @@ export async function insertModerationQueueItem(
   `;
 }
 
-export async function listPostsByThread(db: DB, threadId: string): Promise<Post[]> {
+export async function listPostsByThread(
+  db: DB,
+  threadId: string,
+  requesterId?: string | undefined,
+): Promise<Post[]> {
   const rows = await db<PostRow[]>`
     SELECT
-      p.id, p.thread_id, p.author_id, p.parent_post_id, p.body,
+      p.id, p.thread_id, p.author_id, u.display_name AS author_display_name,
+      p.parent_post_id, p.body,
       p.status, p.toxicity_score, p.is_accepted_answer,
       p.created_at, p.updated_at,
-      ${db.unsafe(REACTION_COUNTS_SUBQUERY)}
+      ${db.unsafe(REACTION_COUNTS_SUBQUERY)},
+      ${db.unsafe(POST_VOTE_COUNTS_SUBQUERY)},
+      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote
     FROM posts p
+    JOIN users u ON u.id = p.author_id
     WHERE p.thread_id = ${threadId}
       AND p.status != 'deleted'
     ORDER BY p.created_at ASC

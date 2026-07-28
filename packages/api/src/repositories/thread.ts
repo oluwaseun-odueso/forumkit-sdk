@@ -1,5 +1,6 @@
 import type { DB } from '../db';
-import type { Tag, Thread, ThreadListQuery, SimilarThread } from '@forumkit/types';
+import type { Tag, Thread, ThreadListQuery, SimilarThread, VoteCounts, VoteDirection } from '@forumkit/types';
+import { THREAD_VOTE_COUNTS_SUBQUERY } from './vote';
 
 export type ThreadWithMetaData = Thread & { postCount: number; reactionCount: number };
 
@@ -7,6 +8,7 @@ type ThreadRow = {
   id: string;
   forum_id: string;
   author_id: string;
+  author_display_name: string;
   title: string;
   body: string;
   status: Thread['status'];
@@ -17,6 +19,8 @@ type ThreadRow = {
   post_count: string;
   reaction_count: string;
   tags: (Tag & { forum_id: string })[] | null;
+  vote_counts: VoteCounts;
+  my_vote: VoteDirection | null;
 };
 
 type CreateThreadInput = {
@@ -32,6 +36,7 @@ type ListThreadsOptions = {
   sort: NonNullable<ThreadListQuery['sort']>;
   page: number;
   limit: number;
+  requesterId?: string | undefined;
 };
 
 // Hardcoded ORDER BY clauses keyed by sort enum — no user content ever
@@ -49,6 +54,7 @@ function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
     id: row.id,
     forumId: row.forum_id,
     authorId: row.author_id,
+    authorDisplayName: row.author_display_name,
     title: row.title,
     body: row.body,
     status: row.status,
@@ -63,6 +69,8 @@ function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
       description: t.description,
       color: t.color,
     })),
+    voteCounts: row.vote_counts,
+    myVote: row.my_vote,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -84,7 +92,8 @@ export async function listThreads(
   const [rows, countRows] = await Promise.all([
     db<ThreadRow[]>`
       SELECT
-        t.id, t.forum_id, t.author_id, t.title, t.body,
+        t.id, t.forum_id, t.author_id, u.display_name AS author_display_name,
+        t.title, t.body,
         t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
         COALESCE(pc.post_count, 0) AS post_count,
         COALESCE(rc.reaction_count, 0) AS reaction_count,
@@ -99,8 +108,11 @@ export async function listThreads(
             )
           ) FILTER (WHERE tg.id IS NOT NULL),
           '[]'::json
-        ) AS tags
+        ) AS tags,
+        ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+        (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${opts.requesterId ?? null}) AS my_vote
       FROM threads t
+      JOIN users u ON u.id = t.author_id
       LEFT JOIN (
         SELECT thread_id, COUNT(*) AS post_count
         FROM posts
@@ -118,7 +130,7 @@ export async function listThreads(
       WHERE t.forum_id = ${forumId}
         AND t.status != 'deleted'
         ${tagFilter}
-      GROUP BY t.id, pc.post_count, rc.reaction_count
+      GROUP BY t.id, u.display_name, pc.post_count, rc.reaction_count
       ORDER BY ${db.unsafe(SORT_CLAUSES[opts.sort])}
       LIMIT ${opts.limit} OFFSET ${offset}
     `,
@@ -140,10 +152,12 @@ export async function listThreads(
 export async function getThreadById(
   db: DB,
   threadId: string,
+  requesterId?: string | undefined,
 ): Promise<ThreadWithMetaData | null> {
   const rows = await db<ThreadRow[]>`
     SELECT
-      t.id, t.forum_id, t.author_id, t.title, t.body,
+      t.id, t.forum_id, t.author_id, u.display_name AS author_display_name,
+      t.title, t.body,
       t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
       COALESCE(pc.post_count, 0) AS post_count,
       0 AS reaction_count,
@@ -158,8 +172,11 @@ export async function getThreadById(
           )
         ) FILTER (WHERE tg.id IS NOT NULL),
         '[]'::json
-      ) AS tags
+      ) AS tags,
+      ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+      (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS my_vote
     FROM threads t
+    JOIN users u ON u.id = t.author_id
     LEFT JOIN (
       SELECT thread_id, COUNT(*) AS post_count
       FROM posts
@@ -170,7 +187,7 @@ export async function getThreadById(
     LEFT JOIN tags tg ON tg.id = tt.tag_id
     WHERE t.id = ${threadId}
       AND t.status != 'deleted'
-    GROUP BY t.id, pc.post_count
+    GROUP BY t.id, u.display_name, pc.post_count
   `;
 
   const row = rows[0];
