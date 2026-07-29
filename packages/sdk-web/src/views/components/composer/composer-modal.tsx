@@ -1,10 +1,12 @@
+import { Suspense, lazy } from 'react';
 import type { ComposerTab } from '../../hooks/use-forum-state';
 import type { useForum } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
 import { CloseIcon, SparkleIcon, PencilIcon } from '../shared/icons';
-import RichTextToolbar from './rich-text-toolbar';
 import MediaGallery from './media-gallery';
 import './composer-modal.css';
+
+const RichTextEditor = lazy(() => import('./rich-text-editor'));
 
 const TABS: { id: ComposerTab; label: string }[] = [
   { id: 'text', label: 'Text' },
@@ -14,6 +16,8 @@ const TABS: { id: ComposerTab; label: string }[] = [
 
 type ComposerModalProps = {
   composer: ReturnType<typeof useForum>['state']['composer'];
+  forumId: string;
+  sessionToken: string | undefined;
   onClose: () => void;
   onSetTab: (tab: ComposerTab) => void;
   onSetField: (field: 'title' | 'tags' | 'body' | 'linkUrl', value: string) => void;
@@ -25,7 +29,7 @@ type ComposerModalProps = {
 };
 
 export default function ComposerModal({
-  composer, onClose, onSetTab, onSetField,
+  composer, forumId, sessionToken, onClose, onSetTab, onSetField,
   onAddFiles, onRemoveFile, onUpdateMeta, onSuggestMeta, onSubmit,
 }: ComposerModalProps) {
   const hasTitle = composer.title.trim().length > 0;
@@ -96,13 +100,14 @@ export default function ComposerModal({
 
       {composer.activeTab === 'text' && (
         <div className="fk-composer-textbox">
-          <RichTextToolbar />
-          <textarea
-            className="fk-composer-textarea"
-            placeholder="Body text (optional)"
-            value={composer.body}
-            onChange={e => onSetField('body', e.target.value)}
-          />
+          <Suspense fallback={<div className="fk-rte-loading">Loading editor…</div>}>
+            <RichTextEditor
+              content={composer.body}
+              onChange={body => onSetField('body', body)}
+              forumId={forumId}
+              sessionToken={sessionToken}
+            />
+          </Suspense>
         </div>
       )}
 

@@ -5,7 +5,7 @@ import './compose.css';
 
 export function Compose() {
   const {
-    state, closeComposer, setComposerTab, setComposerField,
+    state, forumId, sessionToken, closeComposer, setComposerTab, setComposerField,
     addFiles, removeFile, updateAttachmentMeta, suggestComposeMeta, submitComposer,
   } = useForum();
 
@@ -14,6 +14,8 @@ export function Compose() {
       <div className="fk-compose">
         <ComposerModal
           composer={state.composer}
+          forumId={forumId}
+          sessionToken={sessionToken}
           onClose={closeComposer}
           onSetTab={setComposerTab}
           onSetField={setComposerField}

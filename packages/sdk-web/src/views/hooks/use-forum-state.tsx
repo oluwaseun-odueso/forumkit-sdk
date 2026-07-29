@@ -887,6 +887,8 @@ function useForumStateInternal() {
     suggest,
     surfaceRelated,
     suggestComposeMeta,
+    forumId,
+    sessionToken,
   };
 }
 

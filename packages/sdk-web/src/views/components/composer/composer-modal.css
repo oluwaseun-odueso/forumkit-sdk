@@ -215,7 +215,6 @@
 .fk-composer-textbox {
   border: 1px solid var(--border-strong);
   border-radius: 22px;
-  overflow: hidden;
 }
 
 .fk-composer-textarea {
