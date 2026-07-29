@@ -43,7 +43,7 @@ export function Profile() {
         </div>
         <div className="fk-profile-divider" />
 
-        <ProfileEmptyState onUpdateSettings={() => {}} />
+        <ProfileEmptyState tab={state.profile.activeTab} onUpdateSettings={() => {}} />
       </div>
     </Shell>
   );
