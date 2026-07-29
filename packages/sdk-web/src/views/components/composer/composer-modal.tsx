@@ -29,10 +29,12 @@ export default function ComposerModal({
   onAddFiles, onRemoveFile, onUpdateMeta, onSuggestMeta, onSubmit,
 }: ComposerModalProps) {
   const hasTitle = composer.title.trim().length > 0;
+  const hasUploadsInFlight = composer.attachments.some(a => a.uploadStatus === 'uploading');
   const canSaveDraft = hasTitle && composer.activeTab !== 'images';
   const canPost =
     hasTitle &&
     !composer.submitting &&
+    !hasUploadsInFlight &&
     (composer.activeTab !== 'images' || composer.attachments.length > 0) &&
     (composer.activeTab !== 'link' || composer.linkUrl.trim().length > 0);
 
@@ -133,7 +135,7 @@ export default function ComposerModal({
       <div className="fk-composer-footer">
         <PillButton variant="surface" disabled={!canSaveDraft}>Save Draft</PillButton>
         <PillButton variant="accent" onClick={onSubmit} disabled={!canPost}>
-          {composer.submitting ? 'Posting…' : 'Post'}
+          {composer.submitting ? 'Posting…' : hasUploadsInFlight ? 'Uploading…' : 'Post'}
         </PillButton>
       </div>
     </div>
