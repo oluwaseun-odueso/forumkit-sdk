@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CommentNodeData, VoteDir } from '../../hooks/use-forum-state';
 import VotePill from '../shared/vote-pill';
+import RenderedBody from '../shared/rendered-body';
 import './comment.css';
 
 type CommentProps = {
@@ -122,7 +123,7 @@ export default function Comment({
               </div>
             </div>
           ) : (
-            <p className="fk-comment-body">{comment.body}</p>
+            <RenderedBody body={comment.body} className="fk-comment-body" />
           )}
 
           <div className="fk-comment-actions">

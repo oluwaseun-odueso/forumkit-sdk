@@ -4,6 +4,7 @@ import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
 import Carousel from '../shared/carousel';
 import Lightbox from '../shared/lightbox';
+import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
 import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon } from '../shared/icons';
@@ -135,7 +136,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
       ) : (
         <>
           <h1 className="fk-thread-title">{activePost.title}</h1>
-          <p className="fk-thread-body">{activePost.body}</p>
+          <RenderedBody body={activePost.body} className="fk-thread-body" />
         </>
       )}
 
