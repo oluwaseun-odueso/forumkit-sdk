@@ -278,6 +278,7 @@ export type RelatedThreadForRail = {
   postCount: number;
   voteCounts: VoteCounts;
   similarity: number;
+  imageUrl: string | null;
 };
 
 export type AISummary = {
