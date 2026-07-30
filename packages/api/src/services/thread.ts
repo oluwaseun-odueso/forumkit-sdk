@@ -1,5 +1,5 @@
 import type { DB } from '../db';
-import type { CreateThreadBody, ThreadListQuery, SimilarThread, Post, UserRole, AttachmentSummary } from '@forumkit/types';
+import type { CreateThreadBody, ThreadListQuery, SimilarThread, RelatedThreadForRail, Post, UserRole, AttachmentSummary } from '@forumkit/types';
 import type { EmbedFn, LLMFn } from '@forumkit/ai';
 import type { StorageAdapter } from '@forumkit/storage';
 import { embedOne, suggestTags as aiSuggestTags } from '@forumkit/ai';
@@ -8,6 +8,7 @@ import type { ThreadWithMetaData } from '../repositories/thread';
 import * as postRepo from '../repositories/post';
 import * as tagsRepo from '../repositories/tags';
 import * as attachmentRepo from '../repositories/attachment';
+import * as searchRepo from '../repositories/search';
 import type { Attachment } from '@forumkit/types';
 import { attachToExistingThread } from './storage';
 import { ok, err, type Result } from '../lib/result';
@@ -194,6 +195,32 @@ export async function findDuplicates(
   const vector = await embedOne(`${title} ${body}`, embedFn);
   if (!vector) return [];
   return threadRepo.findSimilarThreads(db, forumId, vector, excludeId);
+}
+
+// Backs the right rail's "Similar Posts" section — unlike surfaceRelated
+// (the manual AI assistant action), this must be cheap enough to call
+// automatically every time a thread is opened, so it never calls the
+// embedding model live: if the thread's fire-and-forget embed job hasn't
+// finished yet, it returns an empty list rather than blocking on one.
+export async function getSimilarThreadsForRail(
+  db: DB,
+  forumId: string,
+  threadId: string,
+  limit: number,
+): Promise<Result<RelatedThreadForRail[], 'thread_not_found'>> {
+  type ThreadRow = { embedding: string | null; forum_id: string };
+  const rows = await db<ThreadRow[]>`
+    SELECT embedding, forum_id FROM threads
+    WHERE id = ${threadId} AND status != 'deleted'
+    LIMIT 1
+  `;
+  const thread = rows[0];
+  if (!thread || thread.forum_id !== forumId) return err('thread_not_found');
+  if (!thread.embedding) return ok([]);
+
+  const vector = JSON.parse(thread.embedding) as number[];
+  const related = await searchRepo.findRelatedThreadsForRail(db, forumId, vector, threadId, limit);
+  return ok(related);
 }
 
 export async function createThread(
