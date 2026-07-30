@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkSupersub from 'remark-supersub';
 import type { Components } from 'react-markdown';
 import { remarkSpoiler } from './remark-spoiler';
 import './rendered-body.css';
@@ -47,7 +48,7 @@ type RenderedBodyProps = {
 export default function RenderedBody({ body, className }: RenderedBodyProps) {
   return (
     <div className={`fk-rendered-body${className ? ` ${className}` : ''}`}>
-      <Markdown remarkPlugins={[remarkGfm, remarkSpoiler]} components={components}>
+      <Markdown remarkPlugins={[remarkGfm, remarkSupersub, remarkSpoiler]} components={components}>
         {body}
       </Markdown>
     </div>
