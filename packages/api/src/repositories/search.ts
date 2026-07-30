@@ -1,5 +1,6 @@
 import type { DB } from '../db';
-import type { SimilarThread } from '@forumkit/types';
+import type { SimilarThread, RelatedThreadForRail } from '@forumkit/types';
+import { THREAD_VOTE_COUNTS_SUBQUERY } from './vote';
 
 export type SearchResult = {
   threadId: string;
@@ -90,6 +91,60 @@ export async function findRelatedThreads(
   `;
 
   return rows.map(r => ({ id: r.id, title: r.title, similarity: Number(r.similarity) }));
+}
+
+// Same cosine-similarity query as findRelatedThreads, but enriched with the
+// vote-counts/post-count fields needed to build a full right-rail RailItem
+// (votes/comment-count/time) rather than just a bare title.
+export async function findRelatedThreadsForRail(
+  db: DB,
+  forumId: string,
+  embedding: number[],
+  excludeThreadId: string,
+  limit: number,
+): Promise<RelatedThreadForRail[]> {
+  const vec = '[' + embedding.join(',') + ']';
+
+  type Row = {
+    id: string;
+    title: string;
+    created_at: Date;
+    post_count: string;
+    vote_counts: RelatedThreadForRail['voteCounts'];
+    similarity: number;
+  };
+
+  const rows = await db<Row[]>`
+    SELECT
+      t.id,
+      t.title,
+      t.created_at,
+      COALESCE(pc.post_count, 0) AS post_count,
+      ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+      (1 - (t.embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
+    FROM threads t
+    LEFT JOIN (
+      SELECT thread_id, COUNT(*) AS post_count
+      FROM posts
+      WHERE status = 'visible'
+      GROUP BY thread_id
+    ) pc ON pc.thread_id = t.id
+    WHERE t.forum_id = ${forumId}
+      AND t.status != 'deleted'
+      AND t.embedding IS NOT NULL
+      AND t.id != ${excludeThreadId}
+    ORDER BY t.embedding <=> ${db.unsafe(vec)}::vector
+    LIMIT ${limit}
+  `;
+
+  return rows.map(r => ({
+    id: r.id,
+    title: r.title,
+    createdAt: r.created_at,
+    postCount: Number(r.post_count),
+    voteCounts: r.vote_counts,
+    similarity: Number(r.similarity),
+  }));
 }
 
 export async function semanticSearch(
