@@ -142,6 +142,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
 
       {(() => {
         const images = activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : []);
+        if (images.length === 0) return null;
         if (images.length > 1) {
           return (
             <div style={{ position: 'relative', height: 340, borderRadius: 16, marginBottom: 16 }}>
@@ -160,8 +161,8 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
             imageUrl={images[0] ?? null}
             height={340}
             radius={16}
-            style={{ marginBottom: 16, cursor: images[0] ? 'pointer' : undefined }}
-            onClick={images[0] ? (() => setLightboxOpen(true)) : undefined}
+            style={{ marginBottom: 16, cursor: 'pointer' }}
+            onClick={() => setLightboxOpen(true)}
           />
         );
       })()}
