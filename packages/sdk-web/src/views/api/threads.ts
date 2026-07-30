@@ -22,13 +22,13 @@ async function unwrapThread(res: Response): Promise<Thread> {
 export type ListThreadsResult = { threads: Thread[]; total: number; page: number; limit: number };
 
 export type ListThreadsParams = {
-  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising';
-  tagId?: string;
-  tagName?: string;
-  pinned?: boolean;
-  topWindow?: TopWindow;
-  limit?: number;
-  page?: number;
+  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising' | undefined;
+  tagId?: string | undefined;
+  tagName?: string | undefined;
+  pinned?: boolean | undefined;
+  topWindow?: TopWindow | undefined;
+  limit?: number | undefined;
+  page?: number | undefined;
 };
 
 export async function listThreads(
