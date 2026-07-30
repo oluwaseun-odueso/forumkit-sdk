@@ -270,6 +270,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await threadService.getSimilarThreadsForRail(
       request.server.db,
+      request.server.storage,
       forumId,
       threadId,
       parsed.data.limit ?? 5,
