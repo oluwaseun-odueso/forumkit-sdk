@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { FeedPost, Community, VoteDir } from '../../hooks/use-forum-state';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
 import Carousel from '../shared/carousel';
 import Lightbox from '../shared/lightbox';
+import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon } from '../shared/icons';
@@ -30,12 +31,44 @@ export default function PostCard({
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [snippetExpanded, setSnippetExpanded] = useState(false);
+  const [snippetOverflowing, setSnippetOverflowing] = useState(false);
+  const snippetRef = useRef<HTMLDivElement>(null);
   const images = post.imageUrls ?? (post.imageUrl ? [post.imageUrl] : []);
+
+  useLayoutEffect(() => {
+    if (snippetExpanded) return;
+    const el = snippetRef.current;
+    if (!el) return;
+    setSnippetOverflowing(el.scrollHeight > el.clientHeight + 1);
+  }, [post.body, snippetExpanded]);
 
   function openLightbox(e: React.MouseEvent, index: number) {
     e.stopPropagation();
     setCarouselIndex(index);
     setLightboxOpen(true);
+  }
+
+  function renderSnippet() {
+    return (
+      <>
+        <div
+          ref={snippetRef}
+          className={`fk-post-card-snippet${snippetExpanded ? ' fk-post-card-snippet--expanded' : ''}`}
+        >
+          <RenderedBody body={post.body} />
+        </div>
+        {snippetOverflowing && (
+          <button
+            type="button"
+            className="fk-post-card-showmore"
+            onClick={e => { e.stopPropagation(); setSnippetExpanded(x => !x); }}
+          >
+            {snippetExpanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </>
+    );
   }
 
   return (
@@ -49,41 +82,46 @@ export default function PostCard({
       {view === 'card' ? (
         <>
           <h3 className="fk-post-card-title fk-post-card-title--card">{post.title}</h3>
-          <div className="fk-post-card-cardimg" onClick={stop}>
-            {images.length > 1 ? (
-              <Carousel
-                images={images}
-                index={carouselIndex}
-                onIndexChange={setCarouselIndex}
-                onImageClick={() => setLightboxOpen(true)}
-              />
-            ) : (
-              <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: images[0] ? 'pointer' : undefined }} onClick={images[0] ? (e => openLightbox(e, 0)) : undefined} />
-            )}
-            <span className="fk-post-card-cardimg-label">{community?.name}</span>
-          </div>
+          {renderSnippet()}
+          {images.length > 0 && (
+            <div className="fk-post-card-cardimg" onClick={stop}>
+              {images.length > 1 ? (
+                <Carousel
+                  images={images}
+                  index={carouselIndex}
+                  onIndexChange={setCarouselIndex}
+                  onImageClick={() => setLightboxOpen(true)}
+                />
+              ) : (
+                <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
+              )}
+              <span className="fk-post-card-cardimg-label">{community?.name}</span>
+            </div>
+          )}
         </>
       ) : (
         <div className="fk-post-card-row">
           <div className="fk-post-card-row-text">
             <h3 className="fk-post-card-title fk-clamp-2">{post.title}</h3>
-            <p className="fk-post-card-snippet fk-clamp-2">{post.snippet}</p>
+            {renderSnippet()}
           </div>
-          <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
-            <Thumbnail
-              gradient={post.thumbGradient}
-              imageUrl={images[0] ?? null}
-              width={150}
-              height={110}
-              radius={14}
-              domain={post.domain}
-              style={{ cursor: images[0] ? 'pointer' : undefined }}
-              onClick={images[0] ? (e => openLightbox(e, 0)) : undefined}
-            />
-            {images.length > 1 && (
-              <span className="fk-post-card-more-badge">+{images.length - 1}</span>
-            )}
-          </div>
+          {images.length > 0 && (
+            <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
+              <Thumbnail
+                gradient={post.thumbGradient}
+                imageUrl={images[0] ?? null}
+                width={150}
+                height={110}
+                radius={14}
+                domain={post.domain}
+                style={{ cursor: 'pointer' }}
+                onClick={e => openLightbox(e, 0)}
+              />
+              {images.length > 1 && (
+                <span className="fk-post-card-more-badge">+{images.length - 1}</span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
