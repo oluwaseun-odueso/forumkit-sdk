@@ -3,3 +3,9 @@
   margin: 0 auto;
   padding: 18px 20px 60px;
 }
+
+.fk-feed-loading-more {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
