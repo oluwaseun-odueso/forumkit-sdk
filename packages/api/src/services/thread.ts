@@ -204,6 +204,7 @@ export async function findDuplicates(
 // finished yet, it returns an empty list rather than blocking on one.
 export async function getSimilarThreadsForRail(
   db: DB,
+  storage: StorageAdapter,
   forumId: string,
   threadId: string,
   limit: number,
@@ -220,7 +221,24 @@ export async function getSimilarThreadsForRail(
 
   const vector = JSON.parse(thread.embedding) as number[];
   const related = await searchRepo.findRelatedThreadsForRail(db, forumId, vector, threadId, limit);
-  return ok(related);
+
+  // Real media only — never a decorative placeholder. First image
+  // attachment per related thread, resolved to a real download URL.
+  const allAttachments = await attachmentRepo.listAttachmentsByThreadIds(db, related.map((r) => r.id));
+  const firstImageByThread = new Map<string, Attachment>();
+  for (const a of allAttachments) {
+    if (!a.threadId || !a.mimeType.startsWith('image/')) continue;
+    if (!firstImageByThread.has(a.threadId)) firstImageByThread.set(a.threadId, a);
+  }
+
+  const withImages = await Promise.all(
+    related.map(async (r) => {
+      const image = firstImageByThread.get(r.id);
+      return { ...r, imageUrl: image ? await storage.getDownloadUrl(image.storageKey) : null };
+    }),
+  );
+
+  return ok(withImages);
 }
 
 export async function createThread(
