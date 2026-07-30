@@ -9,9 +9,16 @@ import { broadcast } from '../lib/ws-rooms';
 
 const listQuerySchema = z.object({
   tagId: z.string().uuid().optional(),
-  sort: z.enum(['latest', 'oldest', 'most_posts', 'most_reactions']).optional(),
+  tagName: z.string().min(1).max(100).optional(),
+  pinned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+  sort: z.enum(['best', 'hot', 'new', 'top', 'rising']).optional(),
+  topWindow: z.enum(['hour', 'day', 'week', 'month', 'year', 'all']).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+const similarQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(10).optional(),
 });
 
 const createBodySchema = z.object({

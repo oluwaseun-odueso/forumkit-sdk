@@ -28,6 +28,7 @@ export type ForumConfig = {
   aiEnabled: boolean;
   maxPostLength: number;
   requireApproval: boolean;
+  newsTagName?: string;               // tag name backing the sidebar's "News" scope; falls back to "news"
 };
 
 export type User = {
@@ -222,9 +223,14 @@ export type UpdatePostBody = {
   body: string;
 };
 
+export type TopWindow = 'hour' | 'day' | 'week' | 'month' | 'year' | 'all';
+
 export type ThreadListQuery = {
   tagId?: string | undefined;
-  sort?: 'latest' | 'oldest' | 'most_posts' | 'most_reactions' | undefined;
+  tagName?: string | undefined;
+  pinned?: boolean | undefined;
+  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising' | undefined;
+  topWindow?: TopWindow | undefined;
   page?: number | undefined;
   limit?: number | undefined;
 };
@@ -260,6 +266,18 @@ export type SimilarThread = {
   id: string;
   title: string;
   similarity: number;                // 0-1
+};
+
+// Enriched similar-thread shape for the right rail — needs enough fields to
+// build a full RailItem (votes/comment-count/time), unlike SimilarThread
+// above which only backs the manual AI assistant panel's simpler list.
+export type RelatedThreadForRail = {
+  id: string;
+  title: string;
+  createdAt: Date;
+  postCount: number;
+  voteCounts: VoteCounts;
+  similarity: number;
 };
 
 export type AISummary = {

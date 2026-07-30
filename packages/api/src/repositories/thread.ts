@@ -1,5 +1,5 @@
 import type { DB } from '../db';
-import type { Tag, Thread, ThreadListQuery, SimilarThread, VoteCounts, VoteDirection } from '@forumkit/types';
+import type { Tag, Thread, ThreadListQuery, SimilarThread, VoteCounts, VoteDirection, TopWindow } from '@forumkit/types';
 import { THREAD_VOTE_COUNTS_SUBQUERY } from './vote';
 
 export type ThreadWithMetaData = Thread & { postCount: number; reactionCount: number };
@@ -33,7 +33,10 @@ type CreateThreadInput = {
 
 type ListThreadsOptions = {
   tagId?: string | undefined;
+  tagName?: string | undefined;
+  pinned?: boolean | undefined;
   sort: NonNullable<ThreadListQuery['sort']>;
+  topWindow?: TopWindow | undefined;
   page: number;
   limit: number;
   requesterId?: string | undefined;
@@ -42,12 +45,22 @@ type ListThreadsOptions = {
 // Hardcoded ORDER BY clauses keyed by sort enum — no user content ever
 // reaches db.unsafe(). SQL parameterised placeholders cannot represent column
 // names or expressions, so a static lookup + db.unsafe() is the correct pattern.
+// Real ranking algorithms (see packages/db/src/migrations/008_ranking_functions.ts):
+// best/hot/rising use SQL functions, top/new are plain column sorts.
 const SORT_CLAUSES = {
-  latest:         't.pinned DESC, t.created_at DESC',
-  oldest:         't.pinned DESC, t.created_at ASC',
-  most_posts:     't.pinned DESC, COALESCE(pc.post_count, 0) DESC, t.created_at DESC',
-  most_reactions: 't.pinned DESC, COALESCE(rc.reaction_count, 0) DESC, t.created_at DESC',
+  best:   't.pinned DESC, fk_wilson_lower_bound(COALESCE(vc.up,0), COALESCE(vc.down,0)) DESC, t.created_at DESC',
+  hot:    't.pinned DESC, fk_hot_score(COALESCE(vc.up,0), COALESCE(vc.down,0), t.created_at) DESC, t.created_at DESC',
+  new:    't.pinned DESC, t.created_at DESC',
+  top:    't.pinned DESC, (COALESCE(vc.up,0) - COALESCE(vc.down,0)) DESC, t.created_at DESC',
+  rising: 't.pinned DESC, fk_rising_score(COALESCE(vc.up,0), COALESCE(vc.down,0), t.created_at) DESC, t.created_at DESC',
 } satisfies Record<NonNullable<ThreadListQuery['sort']>, string>;
+
+// Reddit's own default window when Top is first selected.
+const DEFAULT_TOP_WINDOW: TopWindow = 'day';
+
+const TOP_WINDOW_INTERVALS: Record<Exclude<TopWindow, 'all'>, string> = {
+  hour: '1 hour', day: '1 day', week: '7 days', month: '30 days', year: '365 days',
+};
 
 function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
   return {
@@ -88,6 +101,22 @@ export async function listThreads(
         WHERE thread_id = t.id AND tag_id = ${opts.tagId}
       )`
     : db``;
+  const tagNameFilter = opts.tagName
+    ? db`AND EXISTS (
+        SELECT 1 FROM thread_tags tt2 JOIN tags tg2 ON tg2.id = tt2.tag_id
+        WHERE tt2.thread_id = t.id AND LOWER(tg2.name) = LOWER(${opts.tagName})
+      )`
+    : db``;
+  const pinnedFilter = opts.pinned !== undefined ? db`AND t.pinned = ${opts.pinned}` : db``;
+  // Rising only ever considers recent threads — old threads are excluded as
+  // candidates entirely, not merely down-ranked, matching Reddit's real tab.
+  const risingFilter = opts.sort === 'rising'
+    ? db`AND t.created_at > NOW() - INTERVAL '48 hours'`
+    : db``;
+  const topWindow = opts.topWindow ?? DEFAULT_TOP_WINDOW;
+  const topWindowFilter = opts.sort === 'top' && topWindow !== 'all'
+    ? db.unsafe(`AND t.created_at > NOW() - INTERVAL '${TOP_WINDOW_INTERVALS[topWindow]}'`)
+    : db``;
 
   const [rows, countRows] = await Promise.all([
     db<ThreadRow[]>`
@@ -125,12 +154,24 @@ export async function listThreads(
         JOIN posts p ON p.id = r.post_id
         GROUP BY p.thread_id
       ) rc ON rc.thread_id = t.id
+      LEFT JOIN (
+        SELECT thread_id,
+          COUNT(*) FILTER (WHERE direction = 1)  AS up,
+          COUNT(*) FILTER (WHERE direction = -1) AS down
+        FROM votes
+        WHERE thread_id IS NOT NULL
+        GROUP BY thread_id
+      ) vc ON vc.thread_id = t.id
       LEFT JOIN thread_tags tt ON tt.thread_id = t.id
       LEFT JOIN tags tg ON tg.id = tt.tag_id
       WHERE t.forum_id = ${forumId}
         AND t.status != 'deleted'
         ${tagFilter}
-      GROUP BY t.id, u.display_name, pc.post_count, rc.reaction_count
+        ${tagNameFilter}
+        ${pinnedFilter}
+        ${risingFilter}
+        ${topWindowFilter}
+      GROUP BY t.id, u.display_name, pc.post_count, rc.reaction_count, vc.up, vc.down
       ORDER BY ${db.unsafe(SORT_CLAUSES[opts.sort])}
       LIMIT ${opts.limit} OFFSET ${offset}
     `,
@@ -140,6 +181,10 @@ export async function listThreads(
       WHERE t.forum_id = ${forumId}
         AND t.status != 'deleted'
         ${tagFilter}
+        ${tagNameFilter}
+        ${pinnedFilter}
+        ${risingFilter}
+        ${topWindowFilter}
     `,
   ]);
 

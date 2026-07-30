@@ -46,7 +46,10 @@ export async function listThreads(
 
   const result = await threadRepo.listThreads(db, forumId, {
     tagId: query.tagId,
-    sort: query.sort ?? 'latest',
+    tagName: query.tagName,
+    pinned: query.pinned,
+    sort: query.sort ?? 'best',
+    topWindow: query.topWindow,
     page,
     limit,
     requesterId,
