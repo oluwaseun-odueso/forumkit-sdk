@@ -251,6 +251,37 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
+   * GET /forums/:forumId/threads/:threadId/similar
+   * Requires authentication. Backs the right rail's "Similar Posts" card —
+   * reads the thread's already-computed embedding, never calls the
+   * embedding model live.
+   */
+  app.get('/:forumId/threads/:threadId/similar', { preHandler: authenticate }, async (request, reply) => {
+    const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+    const parsed = similarQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: 'invalid_query',
+        message: parsed.error.issues.map((i) => i.message).join(', '),
+        statusCode: 400,
+      });
+    }
+
+    const result = await threadService.getSimilarThreadsForRail(
+      request.server.db,
+      forumId,
+      threadId,
+      parsed.data.limit ?? 5,
+    );
+    if (!result.ok) {
+      sendThreadError(result.code, reply);
+      return;
+    }
+    return reply.status(200).send({ threads: result.value });
+  });
+
+  /**
    * PATCH /forums/:forumId/threads/:threadId
    * Author or admin/moderator.
    */
