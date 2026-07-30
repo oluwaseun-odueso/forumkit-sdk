@@ -19,7 +19,7 @@ type ShellProps = {
  * right rail. Routes only supply their own center content (and rail).
  */
 export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true, scopeTag }: ShellProps) {
-  const { state, setView, openComposer, toggleSidebarPin } = useForum();
+  const { state, setView, openComposer, toggleSidebarPin, setFeedScope } = useForum();
 
   return (
     <div className="fk-shell">
@@ -32,7 +32,12 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
         scopeTag={scopeTag}
       />
       <div className="fk-shell-body">
-        <Sidebar pinned={state.sidebar.pinned} onTogglePin={toggleSidebarPin} onHome={() => setView('feed')} />
+        <Sidebar
+          pinned={state.sidebar.pinned}
+          onTogglePin={toggleSidebarPin}
+          activeScope={state.view === 'feed' ? state.feed.scope : null}
+          onSelectScope={setFeedScope}
+        />
         <main className="fk-shell-main" style={{ overflowY: scrollMain ? 'auto' : 'hidden' }}>{children}</main>
         {rail}
       </div>
