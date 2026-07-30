@@ -1,14 +1,16 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
 import {
-  COMMUNITIES, LATEST_ITEMS, SIMILAR_ITEMS, TRENDING_ITEMS,
+  COMMUNITIES,
   type FeedPost, type CommentNodeData, type Community, type RailItem,
 } from '../data/fixtures';
-import type { SimilarThread, Thread, Post, VoteCounts } from '@forumkit/types';
+import type { SimilarThread, Thread, Post, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
 import { getMyProfile, updateMyProfile } from '../api/profile';
+import { getForum } from '../api/forums';
 import {
   createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
+  getSimilarThreads, type ListThreadsParams,
 } from '../api/threads';
 import { createReply, updateReply } from '../api/posts';
 import { voteOnThread, removeVoteFromThread, voteOnPost, removeVoteFromPost } from '../api/votes';
@@ -19,6 +21,7 @@ import { useSession } from './use-session';
 export type View = 'feed' | 'thread' | 'profile' | 'compose';
 export type FeedView = 'card' | 'compact';
 export type FeedSort = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
+export type FeedScope = 'home' | 'popular' | 'news';
 export type CommentSort = 'Best' | 'Top' | 'Controversial' | 'Old';
 export type ComposerTab = 'text' | 'images' | 'link';
 export type VoteDir = -1 | 0 | 1;
@@ -74,10 +77,23 @@ type ThreadState = {
 type FeedState = {
   view: FeedView;
   sort: FeedSort;
+  scope: FeedScope;
+  tagName: string | null;
+  topWindow: TopWindow;
+  page: number;
+  hasMore: boolean;
+  loadingMore: boolean;
   saved: Record<string, boolean>;
   openPostMenuId: string | null;
   sortMenuOpen: boolean;
   viewMenuOpen: boolean;
+  topWindowMenuOpen: boolean;
+};
+
+type RailState = {
+  latest: RailItem[];
+  similar: RailItem[];
+  featured: RailItem[];
 };
 
 type ProfileState = {
@@ -97,6 +113,8 @@ type State = {
   sidebar: { pinned: boolean };
   accountMenu: { open: boolean };
   feed: FeedState;
+  rail: RailState;
+  forumConfig: ForumConfig | null;
   thread: ThreadState;
   composer: ComposeState;
   asst: AsstState;
@@ -112,8 +130,17 @@ type Action =
   | { type: 'SET_ACCOUNT_MENU'; open: boolean }
   | { type: 'SET_FEED_VIEW'; view: FeedView }
   | { type: 'SET_FEED_SORT'; sort: FeedSort }
+  | { type: 'SET_FEED_SCOPE'; scope: FeedScope }
+  | { type: 'SET_TOP_WINDOW'; window: TopWindow }
+  | { type: 'SET_LOADING_MORE'; loading: boolean }
+  | { type: 'APPEND_POSTS'; posts: FeedPost[]; hasMore: boolean }
+  | { type: 'SET_LATEST_RAIL'; items: RailItem[] }
+  | { type: 'SET_SIMILAR_RAIL'; items: RailItem[] }
+  | { type: 'SET_FEATURED_RAIL'; items: RailItem[] }
+  | { type: 'SET_FORUM_CONFIG'; config: ForumConfig }
   | { type: 'TOGGLE_SORT_MENU' }
   | { type: 'TOGGLE_VIEW_MENU' }
+  | { type: 'TOGGLE_TOP_WINDOW_MENU' }
   | { type: 'CLOSE_FEED_MENUS' }
   | { type: 'SET_POST_MENU'; postId: string | null }
   | { type: 'TOGGLE_SAVE_POST'; postId: string }
@@ -140,7 +167,7 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_START' }
   | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
-  | { type: 'SET_POSTS'; posts: FeedPost[] }
+  | { type: 'SET_POSTS'; posts: FeedPost[]; hasMore: boolean }
   | { type: 'SET_PROFILE_TAB'; tab: string }
   | { type: 'UPDATE_PROFILE'; id: string; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null }
   | { type: 'ASST_SUMMARIZING' }
@@ -225,7 +252,6 @@ function threadToFeedPost(thread: Thread, fallbackCommunityId: string): FeedPost
     author: thread.authorDisplayName ?? 'Member',
     time: fmtRelativeTime(thread.createdAt),
     title: thread.title,
-    snippet: thread.body.slice(0, 160) || thread.title,
     body: thread.body,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
     imageUrl: imageUrls[0] ?? null,
@@ -236,6 +262,38 @@ function threadToFeedPost(thread: Thread, fallbackCommunityId: string): FeedPost
     myVote: thread.myVote ?? null,
     commentCount: thread.postCount ?? 0,
     saved: false,
+  };
+}
+
+// Backend Thread -> a right-rail RailItem (Latest/Featured cards). Real
+// image only (first image attachment) — never a decorative placeholder;
+// right-rail.tsx omits the thumbnail entirely when imageUrl is null.
+function threadToRailItem(thread: Thread, fallbackCommunityId: string): RailItem {
+  const voteCounts = thread.voteCounts ?? { up: 0, down: 0 };
+  const firstImage = (thread.attachments ?? []).find(a => a.mimeType.startsWith('image/'));
+  return {
+    id: thread.id,
+    title: thread.title,
+    communityId: fallbackCommunityId,
+    time: fmtRelativeTime(thread.createdAt),
+    votes: netVotes(voteCounts),
+    commentCount: thread.postCount ?? 0,
+    thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
+    imageUrl: firstImage?.downloadUrl ?? null,
+  };
+}
+
+// pgvector-similarity result -> a right-rail RailItem (Similar Posts card).
+function relatedToRailItem(t: RelatedThreadForRail, fallbackCommunityId: string): RailItem {
+  return {
+    id: t.id,
+    title: t.title,
+    communityId: fallbackCommunityId,
+    time: fmtRelativeTime(t.createdAt),
+    votes: netVotes(t.voteCounts),
+    commentCount: t.postCount,
+    thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
+    imageUrl: t.imageUrl,
   };
 }
 
@@ -271,6 +329,15 @@ function postToCommentTree(posts: Post[]): CommentNodeData[] {
   return roots;
 }
 
+// Threads-per-page for the main feed list (both the initial fetch and each
+// "load more" page). Reddit's own default Top window when first selected.
+const FEED_PAGE_SIZE = 20;
+const DEFAULT_TOP_WINDOW: TopWindow = 'day';
+
+const FEED_SORT_TO_QUERY: Record<FeedSort, NonNullable<ListThreadsParams['sort']>> = {
+  Best: 'best', Hot: 'hot', New: 'new', Top: 'top', Rising: 'rising',
+};
+
 // ─── Initial state ───────────────────────────────────────────────────────────
 
 const initialState: State = {
@@ -280,9 +347,12 @@ const initialState: State = {
   sidebar: { pinned: false },
   accountMenu: { open: false },
   feed: {
-    view: 'compact', sort: 'Best', saved: {},
-    openPostMenuId: null, sortMenuOpen: false, viewMenuOpen: false,
+    view: 'compact', sort: 'Best', scope: 'home', tagName: null, topWindow: DEFAULT_TOP_WINDOW,
+    page: 1, hasMore: false, loadingMore: false, saved: {},
+    openPostMenuId: null, sortMenuOpen: false, viewMenuOpen: false, topWindowMenuOpen: false,
   },
+  rail: { latest: [], similar: [], featured: [] },
+  forumConfig: null,
   thread: {
     activePostId: null, commentSort: 'Best', collapsed: {}, commentInput: '',
   },
@@ -315,12 +385,46 @@ function reducer(state: State, action: Action): State {
       return { ...state, feed: { ...state.feed, view: action.view, viewMenuOpen: false } };
     case 'SET_FEED_SORT':
       return { ...state, feed: { ...state.feed, sort: action.sort, sortMenuOpen: false } };
+    case 'SET_FEED_SCOPE': {
+      // Popular/News/Home are just parameterisations of the feed: Popular
+      // forces Hot (Reddit's own convention for its Popular tab), News
+      // filters to the forum's configured tag (falling back to "news"),
+      // Home resets to the default sort with no filter. A manual sort-dropdown
+      // change afterwards only touches `sort`, not `scope`/`tagName` — so
+      // picking "Top" while on News keeps the News tag filter.
+      const tagName = action.scope === 'news' ? (state.forumConfig?.newsTagName ?? 'news') : null;
+      const sort =
+        action.scope === 'popular' ? 'Hot' :
+        action.scope === 'home' ? 'Best' :
+        state.feed.sort;
+      return { ...state, view: 'feed', feed: { ...state.feed, scope: action.scope, tagName, sort } };
+    }
+    case 'SET_TOP_WINDOW':
+      return { ...state, feed: { ...state.feed, topWindow: action.window } };
+    case 'SET_LOADING_MORE':
+      return { ...state, feed: { ...state.feed, loadingMore: action.loading } };
+    case 'APPEND_POSTS':
+      return {
+        ...state,
+        posts: [...state.posts, ...action.posts],
+        feed: { ...state.feed, page: state.feed.page + 1, hasMore: action.hasMore, loadingMore: false },
+      };
+    case 'SET_LATEST_RAIL':
+      return { ...state, rail: { ...state.rail, latest: action.items } };
+    case 'SET_SIMILAR_RAIL':
+      return { ...state, rail: { ...state.rail, similar: action.items } };
+    case 'SET_FEATURED_RAIL':
+      return { ...state, rail: { ...state.rail, featured: action.items } };
+    case 'SET_FORUM_CONFIG':
+      return { ...state, forumConfig: action.config };
     case 'TOGGLE_SORT_MENU':
-      return { ...state, feed: { ...state.feed, sortMenuOpen: !state.feed.sortMenuOpen, viewMenuOpen: false } };
+      return { ...state, feed: { ...state.feed, sortMenuOpen: !state.feed.sortMenuOpen, viewMenuOpen: false, topWindowMenuOpen: false } };
     case 'TOGGLE_VIEW_MENU':
-      return { ...state, feed: { ...state.feed, viewMenuOpen: !state.feed.viewMenuOpen, sortMenuOpen: false } };
+      return { ...state, feed: { ...state.feed, viewMenuOpen: !state.feed.viewMenuOpen, sortMenuOpen: false, topWindowMenuOpen: false } };
+    case 'TOGGLE_TOP_WINDOW_MENU':
+      return { ...state, feed: { ...state.feed, topWindowMenuOpen: !state.feed.topWindowMenuOpen, sortMenuOpen: false, viewMenuOpen: false } };
     case 'CLOSE_FEED_MENUS':
-      return { ...state, feed: { ...state.feed, sortMenuOpen: false, viewMenuOpen: false, openPostMenuId: null } };
+      return { ...state, feed: { ...state.feed, sortMenuOpen: false, viewMenuOpen: false, topWindowMenuOpen: false, openPostMenuId: null } };
     case 'SET_POST_MENU':
       return { ...state, feed: { ...state.feed, openPostMenuId: action.postId } };
     case 'TOGGLE_SAVE_POST':
@@ -376,7 +480,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         posts: state.posts.map(p => p.id === action.postId
-          ? { ...p, title: action.title, body: action.body, snippet: action.body.slice(0, 160) || action.title }
+          ? { ...p, title: action.title, body: action.body }
           : p),
       };
     case 'OPEN_COMPOSER':
@@ -449,7 +553,10 @@ function reducer(state: State, action: Action): State {
     case 'SUBMIT_COMPOSER_ERROR':
       return { ...state, composer: { ...state.composer, submitting: false, error: action.message } };
     case 'SET_POSTS':
-      return { ...state, posts: action.posts };
+      // Always the "sort/scope/filter changed" path (or the very first
+      // load) — resets pagination to page 1 since it's a full replace, not
+      // an append (see APPEND_POSTS for the "load more" case).
+      return { ...state, posts: action.posts, feed: { ...state.feed, page: 1, hasMore: action.hasMore } };
     case 'SET_PROFILE_TAB':
       return { ...state, profile: { ...state.profile, activeTab: action.tab } };
     case 'UPDATE_PROFILE':
@@ -494,8 +601,38 @@ function useForumStateInternal() {
   const setAccountMenu = useCallback((open: boolean) => dispatch({ type: 'SET_ACCOUNT_MENU', open }), []);
   const setFeedView = useCallback((view: FeedView) => dispatch({ type: 'SET_FEED_VIEW', view }), []);
   const setFeedSort = useCallback((sort: FeedSort) => dispatch({ type: 'SET_FEED_SORT', sort }), []);
+  const setFeedScope = useCallback((scope: FeedScope) => dispatch({ type: 'SET_FEED_SCOPE', scope }), []);
+  const setTopWindow = useCallback((window: TopWindow) => dispatch({ type: 'SET_TOP_WINDOW', window }), []);
+
+  // Infinite-scroll "load more" — appends the next page using the *current*
+  // sort/scope/window, rather than replacing state.posts (see SET_POSTS,
+  // used by the "sort/scope changed" effect below, which always replaces).
+  const loadMorePosts = useCallback(async () => {
+    if (!sessionToken || !forumId || state.feed.loadingMore || !state.feed.hasMore) return;
+    dispatch({ type: 'SET_LOADING_MORE', loading: true });
+    try {
+      const nextPage = state.feed.page + 1;
+      const result = await apiListThreads(forumId, sessionToken, {
+        sort: FEED_SORT_TO_QUERY[state.feed.sort],
+        tagName: state.feed.tagName ?? undefined,
+        topWindow: state.feed.topWindow,
+        page: nextPage,
+        limit: FEED_PAGE_SIZE,
+      });
+      const posts = result.threads.map(t => threadToFeedPost(t, COMMUNITIES[0]?.id ?? forumId));
+      const hasMore = nextPage * result.limit < result.total;
+      dispatch({ type: 'APPEND_POSTS', posts, hasMore });
+    } catch {
+      dispatch({ type: 'SET_LOADING_MORE', loading: false });
+    }
+  }, [
+    forumId, sessionToken,
+    state.feed.loadingMore, state.feed.hasMore, state.feed.page,
+    state.feed.sort, state.feed.tagName, state.feed.topWindow,
+  ]);
   const toggleSortMenu = useCallback(() => dispatch({ type: 'TOGGLE_SORT_MENU' }), []);
   const toggleViewMenu = useCallback(() => dispatch({ type: 'TOGGLE_VIEW_MENU' }), []);
+  const toggleTopWindowMenu = useCallback(() => dispatch({ type: 'TOGGLE_TOP_WINDOW_MENU' }), []);
   const closeFeedMenus = useCallback(() => dispatch({ type: 'CLOSE_FEED_MENUS' }), []);
   const setPostMenu = useCallback((postId: string | null) => dispatch({ type: 'SET_POST_MENU', postId }), []);
   const toggleSavePost = useCallback((postId: string) => dispatch({ type: 'TOGGLE_SAVE_POST', postId }), []);
@@ -799,15 +936,65 @@ function useForumStateInternal() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionToken]);
 
-  // ─── Feed init: load real threads from the server on first session ───────────
+  // ─── Feed init: (re)load real threads whenever the sort/scope/window changes ─
+  // Ranking is now computed server-side (see repositories/thread.ts
+  // SORT_CLAUSES) — this always fetches page 1 and replaces state.posts;
+  // "load more" (loadMorePosts above) is a separate append-only path.
 
   useEffect(() => {
     if (!sessionToken || !forumId) return;
-    void apiListThreads(forumId, sessionToken).then(result => {
+    void apiListThreads(forumId, sessionToken, {
+      sort: FEED_SORT_TO_QUERY[state.feed.sort],
+      tagName: state.feed.tagName ?? undefined,
+      topWindow: state.feed.topWindow,
+      page: 1,
+      limit: FEED_PAGE_SIZE,
+    }).then(result => {
       const posts = result.threads.map(t => threadToFeedPost(t, COMMUNITIES[0]?.id ?? forumId));
-      dispatch({ type: 'SET_POSTS', posts });
+      const hasMore = result.page * result.limit < result.total;
+      dispatch({ type: 'SET_POSTS', posts, hasMore });
+    });
+  }, [sessionToken, forumId, state.feed.sort, state.feed.tagName, state.feed.topWindow]);
+
+  // ─── Forum config init: needed to resolve the News scope's tag name ─────────
+
+  useEffect(() => {
+    if (!sessionToken || !forumId) return;
+    void getForum(forumId, sessionToken).then(forum => {
+      dispatch({ type: 'SET_FORUM_CONFIG', config: forum.config });
     });
   }, [sessionToken, forumId]);
+
+  // ─── Featured rail: pinned threads, admin-curated so it rarely changes ──────
+
+  useEffect(() => {
+    if (!sessionToken || !forumId) return;
+    void apiListThreads(forumId, sessionToken, { pinned: true, limit: 5 }).then(result => {
+      const items = result.threads.map(t => threadToRailItem(t, COMMUNITIES[0]?.id ?? forumId));
+      dispatch({ type: 'SET_FEATURED_RAIL', items });
+    });
+  }, [sessionToken, forumId]);
+
+  // ─── Latest rail: feed screens only ──────────────────────────────────────────
+
+  useEffect(() => {
+    if (!sessionToken || !forumId || state.view !== 'feed') return;
+    void apiListThreads(forumId, sessionToken, { sort: 'new', limit: 5 }).then(result => {
+      const items = result.threads.map(t => threadToRailItem(t, COMMUNITIES[0]?.id ?? forumId));
+      dispatch({ type: 'SET_LATEST_RAIL', items });
+    });
+  }, [sessionToken, forumId, state.view]);
+
+  // ─── Similar rail: single-thread view only, keyed on the open thread ─────────
+
+  useEffect(() => {
+    const threadId = state.thread.activePostId;
+    if (!threadId || !sessionToken || !forumId) return;
+    void getSimilarThreads(forumId, threadId, sessionToken, 5).then(result => {
+      const items = result.threads.map(t => relatedToRailItem(t, COMMUNITIES[0]?.id ?? forumId));
+      dispatch({ type: 'SET_SIMILAR_RAIL', items });
+    });
+  }, [state.thread.activePostId, sessionToken, forumId]);
 
   // ─── Thread init: load the real thread + its replies whenever one opens ──────
 
@@ -823,13 +1010,9 @@ function useForumStateInternal() {
 
   // ─── Derived data ──────────────────────────────────────────────────────────
 
-  const sortedPosts = state.posts.slice();
-  if (state.feed.sort === 'New') {
-    sortedPosts.reverse();
-  } else if (state.feed.sort === 'Top') {
-    sortedPosts.sort((a, b) => b.votes - a.votes);
-  }
-  // Best/Hot/Rising fall back to natural order (no live signals to rank by yet).
+  // Ranking is computed server-side (repositories/thread.ts SORT_CLAUSES) —
+  // state.posts already arrives in the correct order for the active sort/scope.
+  const sortedPosts = state.posts;
 
   function sortComments(list: CommentNodeData[], mode: CommentSort): CommentNodeData[] {
     const sorted = list.slice();
@@ -849,17 +1032,18 @@ function useForumStateInternal() {
     activePost,
     currentUserId: state.profile.id,
     communities: COMMUNITIES,
-    latestItems: LATEST_ITEMS,
-    similarItems: SIMILAR_ITEMS,
-    trendingItems: TRENDING_ITEMS,
     setView,
     openThread,
     toggleSidebarPin,
     setAccountMenu,
     setFeedView,
     setFeedSort,
+    setFeedScope,
+    setTopWindow,
+    loadMorePosts,
     toggleSortMenu,
     toggleViewMenu,
+    toggleTopWindowMenu,
     closeFeedMenus,
     setPostMenu,
     toggleSavePost,
