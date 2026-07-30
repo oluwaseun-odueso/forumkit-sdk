@@ -22,6 +22,7 @@ const updateForumConfigSchema = z.object({
   aiEnabled: z.boolean().optional(),
   maxPostLength: z.number().int().min(1).optional(),
   requireApproval: z.boolean().optional(),
+  newsTagName: z.string().min(1).max(100).optional(),
 });
 
 const createTagBodySchema = z.object({
