@@ -144,6 +144,7 @@ export async function findRelatedThreadsForRail(
     postCount: Number(r.post_count),
     voteCounts: r.vote_counts,
     similarity: Number(r.similarity),
+    imageUrl: null, // resolved by the service layer, which has the storage adapter
   }));
 }
 
