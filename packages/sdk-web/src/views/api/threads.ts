@@ -1,4 +1,4 @@
-import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Post } from '@forumkit/types';
+import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Post, TopWindow, RelatedThreadForRail } from '@forumkit/types';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -21,13 +21,51 @@ async function unwrapThread(res: Response): Promise<Thread> {
 
 export type ListThreadsResult = { threads: Thread[]; total: number; page: number; limit: number };
 
-export async function listThreads(forumId: string, token?: string): Promise<ListThreadsResult> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads`, {
+export type ListThreadsParams = {
+  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising';
+  tagId?: string;
+  tagName?: string;
+  pinned?: boolean;
+  topWindow?: TopWindow;
+  limit?: number;
+  page?: number;
+};
+
+export async function listThreads(
+  forumId: string,
+  token?: string,
+  params?: ListThreadsParams,
+): Promise<ListThreadsResult> {
+  const qs = new URLSearchParams();
+  if (params?.sort) qs.set('sort', params.sort);
+  if (params?.tagId) qs.set('tagId', params.tagId);
+  if (params?.tagName) qs.set('tagName', params.tagName);
+  if (params?.pinned !== undefined) qs.set('pinned', String(params.pinned));
+  if (params?.topWindow) qs.set('topWindow', params.topWindow);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.page) qs.set('page', String(params.page));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+
+  const res = await fetch(`${API_BASE}/forums/${forumId}/threads${suffix}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as ListThreadsResult;
+}
+
+export async function getSimilarThreads(
+  forumId: string,
+  threadId: string,
+  token?: string,
+  limit = 5,
+): Promise<{ threads: RelatedThreadForRail[] }> {
+  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/similar?limit=${limit}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as { threads: RelatedThreadForRail[] };
 }
 
 export type GetThreadResult = { thread: Thread; posts: Post[] };
