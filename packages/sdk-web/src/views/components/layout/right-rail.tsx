@@ -70,11 +70,6 @@ export default function RightRail({ communities, latestItems, similarItems, tren
           </div>
         ))}
       </div>
-
-      <div className="fk-rail-footer">
-        <span>Home</span><span>Popular</span><span>News</span><span>Explore</span><span>Best of Forum Kit</span>
-        <div className="fk-rail-footer-copy">Forum Kit, Inc. © 2026. All rights reserved.</div>
-      </div>
     </aside>
   );
 }
