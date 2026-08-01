@@ -112,6 +112,9 @@ export async function findRelatedThreadsForRail(
     post_count: string;
     vote_counts: RelatedThreadForRail['voteCounts'];
     similarity: number;
+    author_id: string;
+    author_display_name: string;
+    author_avatar_url: string | null;
   };
 
   const rows = await db<Row[]>`
@@ -119,10 +122,14 @@ export async function findRelatedThreadsForRail(
       t.id,
       t.title,
       t.created_at,
+      t.author_id,
+      u.display_name AS author_display_name,
+      u.avatar_url AS author_avatar_url,
       COALESCE(pc.post_count, 0) AS post_count,
       ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
       (1 - (t.embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
     FROM threads t
+    JOIN users u ON u.id = t.author_id
     LEFT JOIN (
       SELECT thread_id, COUNT(*) AS post_count
       FROM posts
@@ -145,6 +152,9 @@ export async function findRelatedThreadsForRail(
     voteCounts: r.vote_counts,
     similarity: Number(r.similarity),
     imageUrl: null, // resolved by the service layer, which has the storage adapter
+    authorId: r.author_id,
+    authorDisplayName: r.author_display_name,
+    authorAvatarUrl: r.author_avatar_url,
   }));
 }
 
