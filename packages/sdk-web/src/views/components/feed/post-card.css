@@ -15,7 +15,7 @@
   margin-bottom: 9px;
 }
 
-.fk-post-card-community {
+.fk-post-card-author {
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
@@ -62,18 +62,6 @@
   pointer-events: none;
 }
 
-.fk-post-card-cardimg-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: Michroma, sans-serif;
-  font-size: 34px;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
-}
 
 .fk-post-card-row {
   display: flex;

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { FeedPost, Community, VoteDir } from '../../hooks/use-forum-state';
+import type { FeedPost, VoteDir } from '../../hooks/use-forum-state';
+import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
 import Carousel from '../shared/carousel';
@@ -12,7 +13,6 @@ import './post-card.css';
 
 type PostCardProps = {
   post: FeedPost;
-  community: Community | undefined;
   view: 'card' | 'compact';
   vote: VoteDir;
   saved: boolean;
@@ -25,9 +25,10 @@ type PostCardProps = {
 };
 
 export default function PostCard({
-  post, community, view, vote, saved, menuOpen,
+  post, view, vote, saved, menuOpen,
   onOpen, onVote, onToggleMenu, onCloseMenu, onSave,
 }: PostCardProps) {
+  const avatar = authorAvatar(post.authorId, post.author);
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -74,8 +75,8 @@ export default function PostCard({
   return (
     <article className="fk-post-card" onClick={onOpen}>
       <div className="fk-post-card-head">
-        {community && <Avatar size={22} gradient={community.gradient} letter={community.letter} />}
-        <span className="fk-post-card-community">{community?.name}</span>
+        <Avatar size={22} gradient={avatar.gradient} letter={avatar.letter} imageUrl={post.authorAvatarUrl} />
+        <span className="fk-post-card-author">{post.author}</span>
         <span className="fk-post-card-time">· {post.time}</span>
       </div>
 
@@ -95,7 +96,6 @@ export default function PostCard({
               ) : (
                 <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
               )}
-              <span className="fk-post-card-cardimg-label">{community?.name}</span>
             </div>
           )}
         </>
