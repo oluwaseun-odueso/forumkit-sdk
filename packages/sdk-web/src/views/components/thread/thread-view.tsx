@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { useForum, CommentNodeData } from '../../hooks/use-forum-state';
+import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
 import Carousel from '../shared/carousel';
@@ -30,7 +31,7 @@ function filterComments(list: CommentNodeData[], q: string): CommentNodeData[] {
 
 export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {
-    state, activePost, sortedComments, communities, currentUserId,
+    state, activePost, sortedComments, currentUserId,
     votePost, voteComment, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
     submitReply, editComment, editPost,
     summarize, suggest,
@@ -48,7 +49,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const [postEditError, setPostEditError] = useState<string | null>(null);
 
   if (!activePost) return null;
-  const community = communities.find(c => c.id === activePost.communityId);
+  const avatar = authorAvatar(activePost.authorId, activePost.author);
   const displayComments = commentSearch ? filterComments(sortedComments, commentSearch) : sortedComments;
   const isMyPost = currentUserId !== null && activePost.authorId === currentUserId;
 
@@ -99,8 +100,8 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
       <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={onBack}>Back</PillButton>
 
       <div className="fk-thread-head">
-        {community && <Avatar size={26} gradient={community.gradient} letter={community.letter} />}
-        <span className="fk-thread-community">{community?.name}</span>
+        <Avatar size={26} gradient={avatar.gradient} letter={avatar.letter} imageUrl={activePost.authorAvatarUrl} />
+        <span className="fk-thread-author">{activePost.author}</span>
         <span className="fk-thread-time">· {activePost.time}</span>
       </div>
 
