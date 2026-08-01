@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { CommentNodeData, VoteDir } from '../../hooks/use-forum-state';
+import { authorAvatar } from '../../lib/author-avatar';
+import Avatar from '../shared/avatar';
 import VotePill from '../shared/vote-pill';
 import RenderedBody from '../shared/rendered-body';
 import './comment.css';
@@ -25,6 +27,7 @@ export default function Comment({
   const isCollapsed = collapsed[comment.id] ?? false;
   const size = depth === 0 ? 'md' : 'sm';
   const isMine = currentUserId !== null && comment.authorId === currentUserId;
+  const avatar = authorAvatar(comment.authorId, comment.author);
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -70,7 +73,12 @@ export default function Comment({
   return (
     <div className={`fk-comment fk-comment--${size}`}>
       <div className="fk-comment-head">
-        <div className="fk-comment-avatar" style={{ background: `linear-gradient(135deg,#8360c3,#2ebf91)` }} />
+        <Avatar
+          size={depth === 0 ? 26 : 24}
+          gradient={avatar.gradient}
+          letter={avatar.letter}
+          imageUrl={comment.authorAvatarUrl}
+        />
         <span className="fk-comment-author">{comment.author}</span>
         <span className="fk-comment-time">· {comment.time}</span>
         {isCollapsed && (
