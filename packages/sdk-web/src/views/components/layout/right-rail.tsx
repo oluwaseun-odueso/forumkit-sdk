@@ -1,4 +1,5 @@
-import type { Community, RailItem } from '../../hooks/use-forum-state';
+import type { RailItem } from '../../hooks/use-forum-state';
+import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
 import { UpvoteIcon, CommentIcon } from '../shared/icons';
@@ -11,22 +12,18 @@ type RailSections = {
 };
 
 type RightRailProps = {
-  communities: Community[];
   sections: RailSections;
   onOpenPost: (id: string) => void;
 };
 
-function findCommunity(communities: Community[], id: string): Community | undefined {
-  return communities.find(c => c.id === id);
-}
-
-function RailRow({ item, community, onOpen }: { item: RailItem; community: Community | undefined; onOpen: () => void }) {
+function RailRow({ item, onOpen }: { item: RailItem; onOpen: () => void }) {
+  const avatar = authorAvatar(item.authorId, item.author);
   return (
     <div className="fk-rail-row" onClick={onOpen}>
       <div className="fk-rail-row-body">
         <div className="fk-rail-row-head">
-          {community && <Avatar size={18} gradient={community.gradient} letter={community.letter} />}
-          <span className="fk-rail-row-community">{community?.name}</span>
+          <Avatar size={18} gradient={avatar.gradient} letter={avatar.letter} imageUrl={item.authorAvatarUrl} />
+          <span className="fk-rail-row-author">{item.author}</span>
           <span className="fk-rail-row-time">· {item.time}</span>
         </div>
         <div className="fk-rail-row-title fk-clamp-2">{item.title}</div>
@@ -45,7 +42,7 @@ function RailRow({ item, community, onOpen }: { item: RailItem; community: Commu
  * Thread passes {similar, featured} — only sections actually present render,
  * so the two screens share this one component instead of near-duplicating it.
  */
-export default function RightRail({ communities, sections, onOpenPost }: RightRailProps) {
+export default function RightRail({ sections, onOpenPost }: RightRailProps) {
   const hasLatestOrSimilar = (sections.latest?.length ?? 0) > 0 || (sections.similar?.length ?? 0) > 0;
 
   return (
@@ -56,7 +53,7 @@ export default function RightRail({ communities, sections, onOpenPost }: RightRa
             <>
               <div className="fk-rail-card-title">Latest Posts</div>
               {sections.latest.map(item => (
-                <RailRow key={item.id} item={item} community={findCommunity(communities, item.communityId)} onOpen={() => onOpenPost(item.id)} />
+                <RailRow key={item.id} item={item} onOpen={() => onOpenPost(item.id)} />
               ))}
             </>
           )}
@@ -64,7 +61,7 @@ export default function RightRail({ communities, sections, onOpenPost }: RightRa
             <>
               <div className={`fk-rail-card-title${sections.latest && sections.latest.length > 0 ? ' fk-rail-card-title--divided' : ''}`}>Similar Posts</div>
               {sections.similar.map(item => (
-                <RailRow key={item.id} item={item} community={findCommunity(communities, item.communityId)} onOpen={() => onOpenPost(item.id)} />
+                <RailRow key={item.id} item={item} onOpen={() => onOpenPost(item.id)} />
               ))}
             </>
           )}
