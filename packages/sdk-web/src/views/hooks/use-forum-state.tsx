@@ -1,7 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
 import {
-  COMMUNITIES,
-  type FeedPost, type CommentNodeData, type Community, type RailItem,
+  type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
 import type { SimilarThread, Thread, Post, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
@@ -51,7 +50,6 @@ type ComposeState = {
   tags: string;
   body: string;
   linkUrl: string;
-  communityId: string | null;
   attachments: AttachmentFile[];
   genTitle: boolean;
   genTags: boolean;
@@ -157,7 +155,6 @@ type Action =
   | { type: 'CLOSE_COMPOSER' }
   | { type: 'SET_COMPOSER_TAB'; tab: ComposerTab }
   | { type: 'SET_COMPOSER_FIELD'; field: 'title' | 'tags' | 'body' | 'linkUrl'; value: string }
-  | { type: 'SET_COMPOSER_COMMUNITY'; communityId: string }
   | { type: 'SET_COMPOSER_GEN'; field: 'genTitle' | 'genTags'; value: boolean }
   | { type: 'ADD_FILE'; file: AttachmentFile }
   | { type: 'UPDATE_FILE_URL'; id: number; url: string }
@@ -237,19 +234,17 @@ function fmtRelativeTime(iso: string | Date): string {
   return `${days}d`;
 }
 
-// Backend Thread -> frontend FeedPost. communityId/saved have no backend
-// equivalent yet — ForumKit only has forums (tenants), no sub-communities —
-// so those are filled with inert defaults rather than fabricated data.
-function threadToFeedPost(thread: Thread, fallbackCommunityId: string): FeedPost {
+// Backend Thread -> frontend FeedPost.
+function threadToFeedPost(thread: Thread): FeedPost {
   const imageUrls = (thread.attachments ?? [])
     .filter(a => a.mimeType.startsWith('image/'))
     .map(a => a.downloadUrl);
   const voteCounts = thread.voteCounts ?? { up: 0, down: 0 };
   return {
     id: thread.id,
-    communityId: fallbackCommunityId,
     authorId: thread.authorId,
     author: thread.authorDisplayName ?? 'Member',
+    authorAvatarUrl: thread.authorAvatarUrl ?? null,
     time: fmtRelativeTime(thread.createdAt),
     title: thread.title,
     body: thread.body,
@@ -268,13 +263,15 @@ function threadToFeedPost(thread: Thread, fallbackCommunityId: string): FeedPost
 // Backend Thread -> a right-rail RailItem (Latest/Featured cards). Real
 // image only (first image attachment) — never a decorative placeholder;
 // right-rail.tsx omits the thumbnail entirely when imageUrl is null.
-function threadToRailItem(thread: Thread, fallbackCommunityId: string): RailItem {
+function threadToRailItem(thread: Thread): RailItem {
   const voteCounts = thread.voteCounts ?? { up: 0, down: 0 };
   const firstImage = (thread.attachments ?? []).find(a => a.mimeType.startsWith('image/'));
   return {
     id: thread.id,
     title: thread.title,
-    communityId: fallbackCommunityId,
+    authorId: thread.authorId,
+    author: thread.authorDisplayName ?? 'Member',
+    authorAvatarUrl: thread.authorAvatarUrl ?? null,
     time: fmtRelativeTime(thread.createdAt),
     votes: netVotes(voteCounts),
     commentCount: thread.postCount ?? 0,
@@ -284,11 +281,13 @@ function threadToRailItem(thread: Thread, fallbackCommunityId: string): RailItem
 }
 
 // pgvector-similarity result -> a right-rail RailItem (Similar Posts card).
-function relatedToRailItem(t: RelatedThreadForRail, fallbackCommunityId: string): RailItem {
+function relatedToRailItem(t: RelatedThreadForRail): RailItem {
   return {
     id: t.id,
     title: t.title,
-    communityId: fallbackCommunityId,
+    authorId: t.authorId,
+    author: t.authorDisplayName ?? 'Member',
+    authorAvatarUrl: t.authorAvatarUrl,
     time: fmtRelativeTime(t.createdAt),
     votes: netVotes(t.voteCounts),
     commentCount: t.postCount,
@@ -309,6 +308,7 @@ function postToCommentTree(posts: Post[]): CommentNodeData[] {
       id: p.id,
       authorId: p.authorId,
       author: p.authorDisplayName ?? 'Member',
+      authorAvatarUrl: p.authorAvatarUrl ?? null,
       time: fmtRelativeTime(p.createdAt),
       body: p.body,
       votes: netVotes(voteCounts),
@@ -358,7 +358,7 @@ const initialState: State = {
   },
   composer: {
     open: false, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
-    communityId: null, attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
+    attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
   profile: { activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null },
@@ -490,7 +490,7 @@ function reducer(state: State, action: Action): State {
         sidebar: { pinned: true },
         composer: {
           open: true, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
-          communityId: state.composer.communityId, attachments: [], genTitle: false, genTags: false,
+          attachments: [], genTitle: false, genTags: false,
           submitting: false, error: null,
         },
       };
@@ -500,8 +500,6 @@ function reducer(state: State, action: Action): State {
       return { ...state, composer: { ...state.composer, activeTab: action.tab } };
     case 'SET_COMPOSER_FIELD':
       return { ...state, composer: { ...state.composer, [action.field]: action.value } };
-    case 'SET_COMPOSER_COMMUNITY':
-      return { ...state, composer: { ...state.composer, communityId: action.communityId } };
     case 'SET_COMPOSER_GEN':
       return { ...state, composer: { ...state.composer, [action.field]: action.value } };
     case 'ADD_FILE':
@@ -619,7 +617,7 @@ function useForumStateInternal() {
         page: nextPage,
         limit: FEED_PAGE_SIZE,
       });
-      const posts = result.threads.map(t => threadToFeedPost(t, COMMUNITIES[0]?.id ?? forumId));
+      const posts = result.threads.map(t => threadToFeedPost(t));
       const hasMore = nextPage * result.limit < result.total;
       dispatch({ type: 'APPEND_POSTS', posts, hasMore });
     } catch {
@@ -696,6 +694,7 @@ function useForumStateInternal() {
       id: post.id,
       authorId: post.authorId,
       author: post.authorDisplayName ?? 'You',
+      authorAvatarUrl: post.authorAvatarUrl ?? null,
       time: 'now',
       body: post.body,
       votes: netVotes(voteCounts),
@@ -734,7 +733,6 @@ function useForumStateInternal() {
     (field: 'title' | 'tags' | 'body' | 'linkUrl', value: string) => dispatch({ type: 'SET_COMPOSER_FIELD', field, value }),
     [],
   );
-  const setComposerCommunity = useCallback((communityId: string) => dispatch({ type: 'SET_COMPOSER_COMMUNITY', communityId }), []);
   const removeFile = useCallback((id: number) => dispatch({ type: 'REMOVE_FILE', id }), []);
   const updateAttachmentMeta = useCallback((id: number, caption: string, attachmentUrl: string) =>
     dispatch({ type: 'UPDATE_ATTACHMENT_META', id, caption, attachmentUrl }), []);
@@ -756,7 +754,7 @@ function useForumStateInternal() {
     dispatch({ type: 'SUBMIT_COMPOSER_START' });
     try {
       const thread = await createThread(forumId, { title, body, tagIds: [], attachmentIds }, sessionToken);
-      const newPost = threadToFeedPost(thread, state.composer.communityId ?? COMMUNITIES[0]?.id ?? forumId);
+      const newPost = threadToFeedPost(thread);
       if (!newPost.imageUrl && previewImage) {
         newPost.imageUrl = previewImage;
         newPost.imageUrls = [previewImage];
@@ -950,7 +948,7 @@ function useForumStateInternal() {
       page: 1,
       limit: FEED_PAGE_SIZE,
     }).then(result => {
-      const posts = result.threads.map(t => threadToFeedPost(t, COMMUNITIES[0]?.id ?? forumId));
+      const posts = result.threads.map(t => threadToFeedPost(t));
       const hasMore = result.page * result.limit < result.total;
       dispatch({ type: 'SET_POSTS', posts, hasMore });
     });
@@ -970,7 +968,7 @@ function useForumStateInternal() {
   useEffect(() => {
     if (!sessionToken || !forumId) return;
     void apiListThreads(forumId, sessionToken, { pinned: true, limit: 5 }).then(result => {
-      const items = result.threads.map(t => threadToRailItem(t, COMMUNITIES[0]?.id ?? forumId));
+      const items = result.threads.map(t => threadToRailItem(t));
       dispatch({ type: 'SET_FEATURED_RAIL', items });
     });
   }, [sessionToken, forumId]);
@@ -980,7 +978,7 @@ function useForumStateInternal() {
   useEffect(() => {
     if (!sessionToken || !forumId || state.view !== 'feed') return;
     void apiListThreads(forumId, sessionToken, { sort: 'new', limit: 5 }).then(result => {
-      const items = result.threads.map(t => threadToRailItem(t, COMMUNITIES[0]?.id ?? forumId));
+      const items = result.threads.map(t => threadToRailItem(t));
       dispatch({ type: 'SET_LATEST_RAIL', items });
     });
   }, [sessionToken, forumId, state.view]);
@@ -991,7 +989,7 @@ function useForumStateInternal() {
     const threadId = state.thread.activePostId;
     if (!threadId || !sessionToken || !forumId) return;
     void getSimilarThreads(forumId, threadId, sessionToken, 5).then(result => {
-      const items = result.threads.map(t => relatedToRailItem(t, COMMUNITIES[0]?.id ?? forumId));
+      const items = result.threads.map(t => relatedToRailItem(t));
       dispatch({ type: 'SET_SIMILAR_RAIL', items });
     });
   }, [state.thread.activePostId, sessionToken, forumId]);
@@ -1002,7 +1000,7 @@ function useForumStateInternal() {
     const threadId = state.thread.activePostId;
     if (!threadId || !sessionToken || !forumId) return;
     void apiGetThread(forumId, threadId, sessionToken).then(({ thread, posts }) => {
-      const post = threadToFeedPost(thread, COMMUNITIES[0]?.id ?? forumId);
+      const post = threadToFeedPost(thread);
       const comments = postToCommentTree(posts);
       dispatch({ type: 'THREAD_LOADED', post, comments });
     });
@@ -1031,7 +1029,6 @@ function useForumStateInternal() {
     sortedComments,
     activePost,
     currentUserId: state.profile.id,
-    communities: COMMUNITIES,
     setView,
     openThread,
     toggleSidebarPin,
@@ -1060,7 +1057,6 @@ function useForumStateInternal() {
     closeComposer,
     setComposerTab,
     setComposerField,
-    setComposerCommunity,
     addFiles,
     removeFile,
     updateAttachmentMeta,
@@ -1097,4 +1093,4 @@ export function useForum(): ForumStateValue {
   return ctx;
 }
 
-export type { FeedPost, CommentNodeData, Community, RailItem };
+export type { FeedPost, CommentNodeData, RailItem };

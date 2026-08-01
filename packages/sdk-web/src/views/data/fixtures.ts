@@ -1,10 +1,8 @@
-export type Community = { id: string; name: string; letter: string; gradient: string };
-
 export type FeedPost = {
   id: string;
-  communityId: string;
   authorId?: string;
   author: string;
+  authorAvatarUrl?: string | null;
   time: string;
   title: string;
   body: string;
@@ -23,6 +21,7 @@ export type CommentNodeData = {
   id: string;
   authorId?: string;
   author: string;
+  authorAvatarUrl?: string | null;
   time: string;
   body: string;
   votes: number;
@@ -34,7 +33,9 @@ export type CommentNodeData = {
 export type RailItem = {
   id: string;
   title: string;
-  communityId: string;
+  authorId?: string;
+  author: string;
+  authorAvatarUrl?: string | null;
   time: string;
   votes: number;
   commentCount: number;
@@ -49,13 +50,6 @@ export type ProfilePost = {
   votes: number;
   commentCount: number;
 };
-
-export const COMMUNITIES: Community[] = [
-  { id: 'c1', name: 'r/productdesign', letter: 'P', gradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)' },
-  { id: 'c2', name: 'r/webdev', letter: 'W', gradient: 'linear-gradient(135deg,#ff6a3d,#ff5b7f)' },
-  { id: 'c3', name: 'r/writing', letter: 'W', gradient: 'linear-gradient(135deg,#5ee6d0,#3f7ee2)' },
-  { id: 'c4', name: 'r/opensource', letter: 'O', gradient: 'linear-gradient(135deg,#8b5cf6,#3f7ee2)' },
-];
 
 export const PROFILE_POSTS: ProfilePost[] = [];
 
