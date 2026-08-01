@@ -7,6 +7,7 @@ type PostRow = {
   thread_id: string;
   author_id: string;
   author_display_name: string;
+  author_avatar_url: string | null;
   parent_post_id: string | null;
   body: string;
   status: Post['status'];
@@ -46,6 +47,7 @@ function toPost(row: PostRow): Post {
     threadId: row.thread_id,
     authorId: row.author_id,
     authorDisplayName: row.author_display_name,
+    authorAvatarUrl: row.author_avatar_url,
     parentPostId: row.parent_post_id,
     body: row.body,
     status: row.status,
@@ -66,7 +68,7 @@ export async function getPostById(
 ): Promise<Post | null> {
   const rows = await db<PostRow[]>`
     SELECT
-      p.id, p.thread_id, p.author_id, u.display_name AS author_display_name,
+      p.id, p.thread_id, p.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
       p.parent_post_id, p.body,
       p.status, p.toxicity_score, p.is_accepted_answer,
       p.created_at, p.updated_at,
@@ -231,7 +233,7 @@ export async function listPostsByThread(
 ): Promise<Post[]> {
   const rows = await db<PostRow[]>`
     SELECT
-      p.id, p.thread_id, p.author_id, u.display_name AS author_display_name,
+      p.id, p.thread_id, p.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
       p.parent_post_id, p.body,
       p.status, p.toxicity_score, p.is_accepted_answer,
       p.created_at, p.updated_at,
