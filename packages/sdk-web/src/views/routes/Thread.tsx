@@ -7,7 +7,7 @@ import { useForum } from '../hooks/use-forum-state';
 
 export function Thread() {
   const forum = useForum();
-  const { state, communities, setView, openThread, summarize, suggest, surfaceRelated } = forum;
+  const { state, setView, openThread, summarize, suggest, surfaceRelated } = forum;
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   return (
@@ -26,7 +26,6 @@ export function Thread() {
             />
           )}
           <RightRail
-            communities={communities}
             sections={{ similar: state.rail.similar, featured: state.rail.featured }}
             onOpenPost={openThread}
           />

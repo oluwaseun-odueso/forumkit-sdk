@@ -9,7 +9,7 @@ import './feed.css';
 
 export function Feed() {
   const {
-    state, sortedPosts, communities,
+    state, sortedPosts,
     openThread, setFeedView, setFeedSort, setTopWindow, loadMorePosts,
     toggleSortMenu, toggleViewMenu, toggleTopWindowMenu,
     closeFeedMenus, setPostMenu, toggleSavePost, votePost,
@@ -21,7 +21,6 @@ export function Feed() {
     <Shell
       rail={
         <RightRail
-          communities={communities}
           sections={{ latest: state.rail.latest, featured: state.rail.featured }}
           onOpenPost={openThread}
         />
@@ -47,7 +46,6 @@ export function Feed() {
           <PostCard
             key={post.id}
             post={post}
-            community={communities.find(c => c.id === post.communityId)}
             view={state.feed.view}
             vote={post.myVote ?? 0}
             saved={state.feed.saved[post.id] ?? false}
