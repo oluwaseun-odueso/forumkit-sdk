@@ -48,6 +48,7 @@ export type Thread = {
   forumId: string;
   authorId: string;
   authorDisplayName?: string;
+  authorAvatarUrl?: string | null;
   title: string;
   body: string;
   status: ThreadStatus;
@@ -68,6 +69,7 @@ export type Post = {
   threadId: string;
   authorId: string;
   authorDisplayName?: string;
+  authorAvatarUrl?: string | null;
   parentPostId: string | null;       // null = top-level reply
   body: string;
   status: PostStatus;
@@ -279,6 +281,9 @@ export type RelatedThreadForRail = {
   voteCounts: VoteCounts;
   similarity: number;
   imageUrl: string | null;
+  authorId: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string | null;
 };
 
 export type AISummary = {
