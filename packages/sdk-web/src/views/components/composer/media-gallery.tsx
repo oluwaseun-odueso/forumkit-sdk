@@ -74,7 +74,9 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
 
         <div className="fk-media-edit-stage">
           {editing?.url
-            ? <img src={editing.url} alt={editing.name} className="fk-media-edit-img" />
+            ? editing.kind === 'video'
+              ? <video src={editing.url} className="fk-media-edit-img" controls muted />
+              : <img src={editing.url} alt={editing.name} className="fk-media-edit-img" />
             : <div className="fk-media-edit-placeholder">{editing?.kind}</div>
           }
           {safeEditIdx > 0 && (
@@ -141,7 +143,9 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
           {attachments.map((att, i) => (
             <div key={att.id} className="fk-media-gallery-item">
               {att.url
-                ? <img src={att.url} alt={att.name} className="fk-media-gallery-thumb" />
+                ? att.kind === 'video'
+                  ? <video src={att.url} className="fk-media-gallery-thumb" muted />
+                  : <img src={att.url} alt={att.name} className="fk-media-gallery-thumb" />
                 : <div className="fk-media-gallery-thumb fk-media-gallery-thumb--placeholder">{att.kind}</div>
               }
               <div className="fk-media-gallery-actions">
@@ -173,7 +177,9 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
     <div className="fk-media-carousel">
       <div className="fk-media-carousel-stage">
         {current?.url
-          ? <img src={current.url} alt={current.name} className="fk-media-carousel-img" />
+          ? current.kind === 'video'
+            ? <video src={current.url} className="fk-media-carousel-img" controls muted />
+            : <img src={current.url} alt={current.name} className="fk-media-carousel-img" />
           : <div className="fk-media-carousel-placeholder">{current?.kind}</div>
         }
         {safeCarouselIdx > 0 && (
