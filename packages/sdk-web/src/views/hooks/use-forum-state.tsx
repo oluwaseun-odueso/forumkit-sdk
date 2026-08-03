@@ -751,9 +751,11 @@ function useForumStateInternal() {
       .map(a => a.attachmentId)
       .filter((id): id is string => id !== null);
 
+    const tagNames = state.composer.tags.split(',').map(t => t.trim()).filter(Boolean);
+
     dispatch({ type: 'SUBMIT_COMPOSER_START' });
     try {
-      const thread = await createThread(forumId, { title, body, tagIds: [], attachmentIds }, sessionToken);
+      const thread = await createThread(forumId, { title, body, tagIds: [], tagNames, attachmentIds }, sessionToken);
       const newPost = threadToFeedPost(thread);
       if (!newPost.imageUrl && previewImage) {
         newPost.imageUrl = previewImage;
