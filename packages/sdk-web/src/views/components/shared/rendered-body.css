@@ -1,3 +1,8 @@
+.fk-rendered-body a {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .fk-rendered-body p {
   margin: 0 0 0.7em;
 }
