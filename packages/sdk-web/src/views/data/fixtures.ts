@@ -9,6 +9,7 @@ export type FeedPost = {
   thumbGradient: string;
   imageUrl?: string | null;
   imageUrls?: string[];
+  videoUrl?: string | null;
   domain: string | null;
   votes: number;
   voteCounts?: { up: number; down: number };

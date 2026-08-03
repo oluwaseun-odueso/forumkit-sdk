@@ -48,6 +48,21 @@
   margin-bottom: 2px;
 }
 
+.fk-post-card-video {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+  margin-bottom: 2px;
+  background: #000;
+}
+
+.fk-post-card-row-video {
+  border-radius: 14px;
+  background: #000;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .fk-post-card-more-badge {
   position: absolute;
   bottom: 6px;

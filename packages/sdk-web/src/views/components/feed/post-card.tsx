@@ -84,7 +84,7 @@ export default function PostCard({
         <>
           <h3 className="fk-post-card-title fk-post-card-title--card">{post.title}</h3>
           {renderSnippet()}
-          {images.length > 0 && (
+          {images.length > 0 ? (
             <div className="fk-post-card-cardimg" onClick={stop}>
               {images.length > 1 ? (
                 <Carousel
@@ -97,7 +97,9 @@ export default function PostCard({
                 <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
               )}
             </div>
-          )}
+          ) : post.videoUrl ? (
+            <video src={post.videoUrl} controls className="fk-post-card-video" onClick={stop} />
+          ) : null}
         </>
       ) : (
         <div className="fk-post-card-row">
@@ -105,7 +107,7 @@ export default function PostCard({
             <h3 className="fk-post-card-title fk-clamp-2">{post.title}</h3>
             {renderSnippet()}
           </div>
-          {images.length > 0 && (
+          {images.length > 0 ? (
             <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
               <Thumbnail
                 gradient={post.thumbGradient}
@@ -121,7 +123,9 @@ export default function PostCard({
                 <span className="fk-post-card-more-badge">+{images.length - 1}</span>
               )}
             </div>
-          )}
+          ) : post.videoUrl ? (
+            <video src={post.videoUrl} controls width={150} height={110} className="fk-post-card-row-video" onClick={stop} />
+          ) : null}
         </div>
       )}
 

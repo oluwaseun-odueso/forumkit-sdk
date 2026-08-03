@@ -239,6 +239,7 @@ function threadToFeedPost(thread: Thread): FeedPost {
   const imageUrls = (thread.attachments ?? [])
     .filter(a => a.mimeType.startsWith('image/'))
     .map(a => a.downloadUrl);
+  const videoUrl = (thread.attachments ?? []).find(a => a.mimeType.startsWith('video/'))?.downloadUrl ?? null;
   const voteCounts = thread.voteCounts ?? { up: 0, down: 0 };
   return {
     id: thread.id,
@@ -251,6 +252,7 @@ function threadToFeedPost(thread: Thread): FeedPost {
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
     imageUrl: imageUrls[0] ?? null,
     imageUrls,
+    videoUrl,
     domain: null,
     votes: netVotes(voteCounts),
     voteCounts,
