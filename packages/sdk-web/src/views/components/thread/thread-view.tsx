@@ -156,7 +156,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         }
         if (images.length > 1) {
           return (
-            <div style={{ position: 'relative', height: 340, borderRadius: 16, marginBottom: 16 }}>
+            <div style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 16, marginBottom: 16 }}>
               <Carousel
                 images={images}
                 index={carouselIndex}
@@ -170,9 +170,9 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           <Thumbnail
             gradient={activePost.thumbGradient}
             imageUrl={images[0] ?? null}
-            height={340}
+            height="auto"
             radius={16}
-            style={{ marginBottom: 16, cursor: 'pointer' }}
+            style={{ aspectRatio: '4 / 3', marginBottom: 16, cursor: 'pointer' }}
             onClick={() => setLightboxOpen(true)}
           />
         );

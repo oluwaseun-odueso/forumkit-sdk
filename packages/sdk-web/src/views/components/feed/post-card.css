@@ -42,7 +42,7 @@
 .fk-post-card-cardimg {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 4 / 3;
   border-radius: 16px;
   overflow: hidden;
   margin-bottom: 2px;
@@ -50,10 +50,11 @@
 
 .fk-post-card-video {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 4 / 3;
   border-radius: 16px;
   margin-bottom: 2px;
   background: #000;
+  object-fit: contain;
 }
 
 .fk-post-card-row-video {

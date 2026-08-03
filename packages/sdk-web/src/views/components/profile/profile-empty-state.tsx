@@ -19,7 +19,7 @@ const EMPTY_STATE_COPY: Record<string, { title: string; description: string }> =
   },
   Posts: {
     title: 'You don’t have any posts yet',
-    description: 'Once you post to a community, it’ll show up here. If you’d rather hide your posts, update your settings.',
+    description: 'Once you post, it’ll show up here. If you’d rather hide your posts, update your settings.',
   },
   Comments: {
     title: 'You don’t have any comments yet',
