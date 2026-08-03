@@ -25,6 +25,7 @@ export type Config = {
   databasePoolUrl: string;
   forumSecretKey: string;
   port: number;
+  publicApiUrl: string;
   logLevel: string;
   nodeEnv: string;
   sessionTtlMinutes: number;
@@ -51,6 +52,7 @@ export function loadConfig(): Config {
     databasePoolUrl: optional('DATABASE_POOL_URL', required('DATABASE_URL')),
     forumSecretKey: required('FORUM_SECRET_KEY'),
     port: optionalNumber('PORT', 3000),
+    publicApiUrl: optional('PUBLIC_API_URL', `http://localhost:${optionalNumber('PORT', 3000)}`),
     logLevel: optional('LOG_LEVEL', 'info'),
     nodeEnv: optional('NODE_ENV', 'development'),
     sessionTtlMinutes: optionalNumber('SESSION_TTL_MINUTES', 15),

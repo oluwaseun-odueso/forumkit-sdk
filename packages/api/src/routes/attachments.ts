@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
 import * as storageService from '../services/storage';
 import type { StorageError } from '../services/storage';
+import * as attachmentRepo from '../repositories/attachment';
+import { rawAttachmentUrl } from '../lib/attachment-url';
 import type { UploadUrlResponse } from '@forumkit/types';
 
 // ── Schemas ───────────────────────────────────────────────────────────
@@ -94,7 +96,7 @@ export async function attachmentsRoutes(app: FastifyInstance): Promise<void> {
    * POST /forums/:forumId/attachments/:id/confirm
    */
   app.post('/:forumId/attachments/:id/confirm', { preHandler: authenticate }, async (request, reply) => {
-    const { id } = request.params as { forumId: string; id: string };
+    const { forumId, id } = request.params as { forumId: string; id: string };
 
     const parsed = confirmBodySchema.safeParse(request.body ?? {});
     if (!parsed.success) {
@@ -116,8 +118,29 @@ export async function attachmentsRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!result.ok) return sendStorageError(result.code, reply);
 
-    const downloadUrl = await request.server.storage.getDownloadUrl(result.value.storageKey);
+    const downloadUrl = rawAttachmentUrl(request.server.config.publicApiUrl, forumId, result.value.id);
     return reply.status(200).send({ ...result.value, downloadUrl });
+  });
+
+  /**
+   * GET /forums/:forumId/attachments/:id/raw
+   *
+   * A stable, permanent URL — safe to embed directly in stored post content
+   * or return eagerly for every attachment on a page, unlike the presigned
+   * S3 URL it redirects to, which expires. Unauthenticated: this only
+   * formalises what's already true today (anyone holding a downloadUrl can
+   * already view it without further checks).
+   */
+  app.get('/:forumId/attachments/:id/raw', async (request, reply) => {
+    const { forumId, id } = request.params as { forumId: string; id: string };
+
+    const attachment = await attachmentRepo.getAttachmentById(request.server.db, id);
+    if (!attachment || attachment.forumId !== forumId || attachment.status !== 'confirmed') {
+      return reply.status(404).send({ error: 'attachment_not_found', message: 'Attachment not found', statusCode: 404 });
+    }
+
+    const signedUrl = await request.server.storage.getDownloadUrl(attachment.storageKey);
+    return reply.redirect(302, signedUrl);
   });
 
   /**

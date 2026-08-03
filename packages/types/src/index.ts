@@ -175,6 +175,7 @@ export type CreateThreadBody = {
   title: string;
   body: string;
   tagIds: string[];
+  tagNames?: string[] | undefined;
   attachmentIds?: string[] | undefined;
 };
 

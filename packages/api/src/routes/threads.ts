@@ -25,6 +25,7 @@ const createBodySchema = z.object({
   title: z.string().min(1).max(300),
   body: z.string().min(1),
   tagIds: z.array(z.string().uuid()).max(5).default([]),
+  tagNames: z.array(z.string().min(2).max(40)).max(5).optional(),
   attachmentIds: z.array(z.string().uuid()).max(10).optional(),
 });
 
@@ -110,7 +111,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await threadService.listThreads(
       request.server.db,
-      request.server.storage,
+      request.server.config.publicApiUrl,
       forumId,
       parsed.data,
       user.id,
@@ -168,7 +169,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
           request.server.db,
           request.server.ai.embed,
           request.server.ai.llm,
-          request.server.storage,
+          request.server.config.publicApiUrl,
           forumId,
           user.id,
           parsed.data,
@@ -238,7 +239,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await threadService.getThreadWithAttachments(
       request.server.db,
-      request.server.storage,
+      request.server.config.publicApiUrl,
       forumId,
       threadId,
       user.id,
@@ -270,7 +271,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await threadService.getSimilarThreadsForRail(
       request.server.db,
-      request.server.storage,
+      request.server.config.publicApiUrl,
       forumId,
       threadId,
       parsed.data.limit ?? 5,

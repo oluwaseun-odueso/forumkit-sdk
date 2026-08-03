@@ -1,7 +1,6 @@
 import type { DB } from '../db';
 import type { CreateThreadBody, ThreadListQuery, SimilarThread, RelatedThreadForRail, Post, UserRole, AttachmentSummary } from '@forumkit/types';
 import type { EmbedFn, LLMFn } from '@forumkit/ai';
-import type { StorageAdapter } from '@forumkit/storage';
 import { embedOne, suggestTags as aiSuggestTags } from '@forumkit/ai';
 import * as threadRepo from '../repositories/thread';
 import type { ThreadWithMetaData } from '../repositories/thread';
@@ -11,6 +10,7 @@ import * as attachmentRepo from '../repositories/attachment';
 import * as searchRepo from '../repositories/search';
 import type { Attachment } from '@forumkit/types';
 import { attachToExistingThread } from './storage';
+import { rawAttachmentUrl } from '../lib/attachment-url';
 import { ok, err, type Result } from '../lib/result';
 
 export type ThreadError = 'thread_not_found' | 'forbidden';
@@ -20,24 +20,23 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
-async function toAttachmentSummaries(
-  storage: StorageAdapter,
+function toAttachmentSummaries(
+  publicApiUrl: string,
+  forumId: string,
   attachments: Attachment[],
-): Promise<AttachmentSummary[]> {
-  return Promise.all(
-    attachments.map(async (a) => ({
-      id: a.id,
-      mimeType: a.mimeType,
-      width: a.width,
-      height: a.height,
-      downloadUrl: await storage.getDownloadUrl(a.storageKey),
-    })),
-  );
+): AttachmentSummary[] {
+  return attachments.map((a) => ({
+    id: a.id,
+    mimeType: a.mimeType,
+    width: a.width,
+    height: a.height,
+    downloadUrl: rawAttachmentUrl(publicApiUrl, forumId, a.id),
+  }));
 }
 
 export async function listThreads(
   db: DB,
-  storage: StorageAdapter,
+  publicApiUrl: string,
   forumId: string,
   query: ThreadListQuery,
   requesterId?: string | undefined,
@@ -68,12 +67,10 @@ export async function listThreads(
     attachmentsByThread.set(a.threadId, list);
   }
 
-  const threads = await Promise.all(
-    result.threads.map(async (t) => ({
-      ...t,
-      attachments: await toAttachmentSummaries(storage, attachmentsByThread.get(t.id) ?? []),
-    })),
-  );
+  const threads = result.threads.map((t) => ({
+    ...t,
+    attachments: toAttachmentSummaries(publicApiUrl, forumId, attachmentsByThread.get(t.id) ?? []),
+  }));
 
   return { threads, total: result.total, page, limit };
 }
@@ -101,7 +98,7 @@ export async function getThread(
 // used by the route that serves the full thread page to a client.
 export async function getThreadWithAttachments(
   db: DB,
-  storage: StorageAdapter,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   requesterId?: string | undefined,
@@ -113,7 +110,7 @@ export async function getThreadWithAttachments(
   const threadAttachments = await attachmentRepo.listAttachmentsByThread(db, threadId);
 
   return ok({
-    thread: { ...thread, attachments: await toAttachmentSummaries(storage, threadAttachments) },
+    thread: { ...thread, attachments: toAttachmentSummaries(publicApiUrl, forumId, threadAttachments) },
     posts,
   });
 }
@@ -204,7 +201,7 @@ export async function findDuplicates(
 // finished yet, it returns an empty list rather than blocking on one.
 export async function getSimilarThreadsForRail(
   db: DB,
-  storage: StorageAdapter,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   limit: number,
@@ -231,12 +228,10 @@ export async function getSimilarThreadsForRail(
     if (!firstImageByThread.has(a.threadId)) firstImageByThread.set(a.threadId, a);
   }
 
-  const withImages = await Promise.all(
-    related.map(async (r) => {
-      const image = firstImageByThread.get(r.id);
-      return { ...r, imageUrl: image ? await storage.getDownloadUrl(image.storageKey) : null };
-    }),
-  );
+  const withImages = related.map((r) => {
+    const image = firstImageByThread.get(r.id);
+    return { ...r, imageUrl: image ? rawAttachmentUrl(publicApiUrl, forumId, image.id) : null };
+  });
 
   return ok(withImages);
 }
@@ -245,7 +240,7 @@ export async function createThread(
   db: DB,
   embedFn: EmbedFn,
   llmFn: LLMFn,
-  storage: StorageAdapter,
+  publicApiUrl: string,
   forumId: string,
   authorId: string,
   body: CreateThreadBody,
@@ -264,12 +259,24 @@ export async function createThread(
     await attachToExistingThread(db, attachmentId, thread.id, authorId);
   }
 
+  // A direct user action, unlike suggestAndApplyTags below — resolved
+  // synchronously so the tag is guaranteed present in the response.
+  if (body.tagNames && body.tagNames.length > 0) {
+    const tags = await Promise.all(body.tagNames.map((name) => tagsRepo.upsertTagByName(db, forumId, name)));
+    const tagIds = tags.map((t) => t.id);
+    await db`
+      INSERT INTO thread_tags (thread_id, tag_id)
+      SELECT ${thread.id}, UNNEST(${tagIds}::uuid[])
+      ON CONFLICT DO NOTHING
+    `;
+  }
+
   // Fire-and-forget async jobs — never block the response
   void embedThread(db, embedFn, thread.id, thread.title, thread.body);
   void suggestAndApplyTags(db, llmFn, forumId, thread.id, body.title, body.body);
 
   const attachments = await attachmentRepo.listAttachmentsByThread(db, thread.id);
-  return { ...thread, attachments: await toAttachmentSummaries(storage, attachments) };
+  return { ...thread, attachments: toAttachmentSummaries(publicApiUrl, forumId, attachments) };
 }
 
 async function embedThread(
