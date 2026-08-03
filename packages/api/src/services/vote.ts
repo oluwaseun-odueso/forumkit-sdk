@@ -3,10 +3,10 @@ import type { VoteCounts, VoteDirection } from '@forumkit/types';
 import { ok, err } from '../lib/result';
 import type { Result } from '../lib/result';
 import * as voteRepo from '../repositories/vote';
-import * as postRepo from '../repositories/post';
+import * as commentRepo from '../repositories/comment';
 import * as threadRepo from '../repositories/thread';
 
-export type VoteError = 'thread_not_found' | 'post_not_found';
+export type VoteError = 'thread_not_found' | 'comment_not_found';
 
 type VoteResult = { voteCounts: VoteCounts; myVote: VoteDirection | null };
 
@@ -48,20 +48,20 @@ export async function removeVoteFromThread(
   return ok({ voteCounts, myVote: null });
 }
 
-// No threadId here, mirroring reactToPost/updatePost/deletePost/reportPost —
-// postId alone is enough to find/verify the post, and voting has no
+// No threadId here, mirroring reactToComment/updateComment/deleteComment/reportComment —
+// commentId alone is enough to find/verify the comment, and voting has no
 // thread-level invariant to protect (unlike acceptAnswer, which does check
-// post.threadId, since only one accepted answer may exist per thread).
-export async function voteOnPost(
+// comment.threadId, since only one accepted answer may exist per thread).
+export async function voteOnComment(
   db: DB,
-  postId: string,
+  commentId: string,
   userId: string,
   direction: VoteDirection,
 ): Promise<Result<VoteResult, VoteError>> {
-  const post = await postRepo.getPostById(db, postId);
-  if (!post) return err('post_not_found');
+  const comment = await commentRepo.getCommentById(db, commentId);
+  if (!comment) return err('comment_not_found');
 
-  const target = { kind: 'post' as const, id: postId };
+  const target = { kind: 'comment' as const, id: commentId };
   const current = await voteRepo.getUserVote(db, target, userId);
   if (current === direction) {
     await voteRepo.removeVote(db, target, userId);
@@ -73,15 +73,15 @@ export async function voteOnPost(
   return ok({ voteCounts, myVote: current === direction ? null : direction });
 }
 
-export async function removeVoteFromPost(
+export async function removeVoteFromComment(
   db: DB,
-  postId: string,
+  commentId: string,
   userId: string,
 ): Promise<Result<VoteResult, VoteError>> {
-  const post = await postRepo.getPostById(db, postId);
-  if (!post) return err('post_not_found');
+  const comment = await commentRepo.getCommentById(db, commentId);
+  if (!comment) return err('comment_not_found');
 
-  const target = { kind: 'post' as const, id: postId };
+  const target = { kind: 'comment' as const, id: commentId };
   await voteRepo.removeVote(db, target, userId);
   const voteCounts = await voteRepo.getVoteCounts(db, target);
   return ok({ voteCounts, myVote: null });

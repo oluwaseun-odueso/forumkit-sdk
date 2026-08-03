@@ -2,7 +2,7 @@
 
 export type UserRole = 'member' | 'moderator' | 'admin';
 export type ThreadStatus = 'open' | 'locked' | 'deleted';
-export type PostStatus = 'visible' | 'hidden' | 'deleted';
+export type CommentStatus = 'visible' | 'hidden' | 'deleted';
 export type ModerationStatus = 'pending' | 'approved' | 'removed';
 export type ReactionType = 'like' | 'helpful' | 'insightful' | 'funny';
 export type EmbeddingProvider = 'local' | 'openai';
@@ -56,7 +56,7 @@ export type Thread = {
   viewCount: number;
   tags: Tag[];
   attachments?: AttachmentSummary[];
-  postCount?: number;
+  commentCount?: number;
   voteCounts?: VoteCounts;
   myVote?: VoteDirection | null;
   isSaved?: boolean;
@@ -65,15 +65,15 @@ export type Thread = {
   // embedding is not included in API responses — internal only
 };
 
-export type Post = {
+export type Comment = {
   id: string;
   threadId: string;
   authorId: string;
   authorDisplayName?: string;
   authorAvatarUrl?: string | null;
-  parentPostId: string | null;       // null = top-level reply
+  parentCommentId: string | null;    // null = top-level reply
   body: string;
-  status: PostStatus;
+  status: CommentStatus;
   toxicityScore: number | null;      // null until moderation completes
   isAcceptedAnswer: boolean;
   reactionCounts: Partial<Record<ReactionType, number>>;
@@ -95,7 +95,7 @@ export type Tag = {
 export type Attachment = {
   id: string;
   forumId: string;
-  postId: string | null;             // null until attached to a post
+  commentId: string | null;          // null until attached to a comment
   threadId: string | null;           // null until attached to a thread
   uploaderId: string;
   storageKey: string;
@@ -107,7 +107,7 @@ export type Attachment = {
   createdAt: Date;
 };
 
-// Minimal, display-ready shape embedded in Thread/Post responses —
+// Minimal, display-ready shape embedded in Thread/Comment responses —
 // storageKey is internal only, never sent to clients directly.
 export type AttachmentSummary = {
   id: string;
@@ -124,7 +124,7 @@ export type VoteCounts = {
 
 export type Reaction = {
   id: string;
-  postId: string;
+  commentId: string;
   userId: string;
   type: ReactionType;
   createdAt: Date;
@@ -132,7 +132,7 @@ export type Reaction = {
 
 export type ModerationQueueItem = {
   id: string;
-  postId: string;
+  commentId: string;
   reporterId: string | null;
   reason: string;
   aiScore: number;
@@ -187,9 +187,9 @@ export type UpdateThreadBody = {
   tagIds?: string[];
 };
 
-export type CreatePostBody = {
+export type CreateCommentBody = {
   body: string;
-  parentPostId?: string;
+  parentCommentId?: string;
   attachmentIds?: string[];
 };
 
@@ -212,7 +212,10 @@ export type UpdateProfileBody = {
   avatarUrl?: string | null;
   bannerUrl?: string | null;
   socialLinks?: Array<{ platform: string; url: string }>;
-  themePreference?: 'light' | 'dark' | null;
+};
+
+export type UpdateThemePreferenceBody = {
+  themePreference: 'light' | 'dark' | null;
 };
 
 // ── Profile activity feed (Overview/Posts/Comments/Saved/Upvoted/Downvoted) ──
@@ -225,7 +228,7 @@ export type ProfileActivityItem =
   | { kind: 'thread'; thread: Thread }
   | {
       kind: 'comment';
-      post: Post;
+      comment: Comment;
       threadId: string;
       threadTitle: string;
       replyingTo?: { author: string; snippet: string };
@@ -245,7 +248,7 @@ export type UploadUrlResponse = {
   expiresAt: string;                 // ISO timestamp
 };
 
-export type UpdatePostBody = {
+export type UpdateCommentBody = {
   body: string;
 };
 
@@ -280,11 +283,11 @@ export type ErrorResponse = {
 // ── WebSocket messages ─────────────────────────────────────────────
 
 export type WSMessage =
-  | { type: 'post.created'; payload: Post }
-  | { type: 'post.updated'; payload: Post }
-  | { type: 'post.deleted'; payload: { postId: string } }
-  | { type: 'reaction.updated'; payload: { postId: string; reactionCounts: Partial<Record<ReactionType, number>> } }
-  | { type: 'vote.updated'; payload: { targetType: 'thread' | 'post'; targetId: string; voteCounts: VoteCounts } };
+  | { type: 'comment.created'; payload: Comment }
+  | { type: 'comment.updated'; payload: Comment }
+  | { type: 'comment.deleted'; payload: { commentId: string } }
+  | { type: 'reaction.updated'; payload: { commentId: string; reactionCounts: Partial<Record<ReactionType, number>> } }
+  | { type: 'vote.updated'; payload: { targetType: 'thread' | 'comment'; targetId: string; voteCounts: VoteCounts } };
 
 // ── AI feature types ───────────────────────────────────────────────
 
@@ -301,7 +304,7 @@ export type RelatedThreadForRail = {
   id: string;
   title: string;
   createdAt: Date;
-  postCount: number;
+  commentCount: number;
   voteCounts: VoteCounts;
   similarity: number;
   imageUrl: string | null;

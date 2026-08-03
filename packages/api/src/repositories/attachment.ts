@@ -4,7 +4,7 @@ import type { Attachment } from '@forumkit/types';
 type AttachmentRow = {
   id: string;
   forum_id: string;
-  post_id: string | null;
+  comment_id: string | null;
   thread_id: string | null;
   uploader_id: string;
   storage_key: string;
@@ -17,7 +17,7 @@ type AttachmentRow = {
 };
 
 const SELECT_COLUMNS = `
-  id, forum_id, post_id, thread_id, uploader_id, storage_key, mime_type,
+  id, forum_id, comment_id, thread_id, uploader_id, storage_key, mime_type,
   byte_size, width, height, status, created_at
 `;
 
@@ -25,7 +25,7 @@ function toAttachment(row: AttachmentRow): Attachment {
   return {
     id: row.id,
     forumId: row.forum_id,
-    postId: row.post_id,
+    commentId: row.comment_id,
     threadId: row.thread_id,
     uploaderId: row.uploader_id,
     storageKey: row.storage_key,
@@ -66,7 +66,7 @@ export async function getAttachmentById(db: DB, id: string): Promise<Attachment 
 
 // Flips a pending row to confirmed once the service layer has verified
 // the object actually exists in storage. Only confirmed attachments
-// can be linked to a post/thread or listed against one.
+// can be linked to a comment/thread or listed against one.
 export async function markConfirmed(
   db: DB,
   id: string,
@@ -82,19 +82,19 @@ export async function markConfirmed(
   return row ? toAttachment(row) : null;
 }
 
-// A single post can have many attachments (e.g. several images plus a
+// A single comment can have many attachments (e.g. several images plus a
 // video) — this links one attachment at a time; the service layer
-// calls it once per id in the post's attachmentIds.
-export async function attachToPost(db: DB, attachmentId: string, postId: string): Promise<void> {
+// calls it once per id in the comment's attachmentIds.
+export async function attachToComment(db: DB, attachmentId: string, commentId: string): Promise<void> {
   await db`
     UPDATE attachments
-    SET post_id = ${postId}
+    SET comment_id = ${commentId}
     WHERE id = ${attachmentId}
   `;
 }
 
-// Same as attachToPost, but for a thread's own body — threads carry
-// content directly (no post row required), so their media links here.
+// Same as attachToComment, but for a thread's own body — threads carry
+// content directly (no comment row required), so their media links here.
 export async function attachToThread(db: DB, attachmentId: string, threadId: string): Promise<void> {
   await db`
     UPDATE attachments
@@ -111,11 +111,11 @@ export async function softDeleteAttachment(db: DB, id: string): Promise<void> {
   `;
 }
 
-export async function listAttachmentsByPost(db: DB, postId: string): Promise<Attachment[]> {
+export async function listAttachmentsByComment(db: DB, commentId: string): Promise<Attachment[]> {
   const rows = await db<AttachmentRow[]>`
     SELECT ${db.unsafe(SELECT_COLUMNS)}
     FROM attachments
-    WHERE post_id = ${postId} AND status = 'confirmed'
+    WHERE comment_id = ${commentId} AND status = 'confirmed'
   `;
   return rows.map(toAttachment);
 }

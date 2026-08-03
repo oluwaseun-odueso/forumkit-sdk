@@ -8,14 +8,14 @@ import { ok, err, type Result } from '../lib/result';
 
 export type AICommandError = 'thread_not_found' | 'ai_unavailable';
 
-const MAX_POSTS = 20;
-const MAX_POST_CHARS = 1_000;
+const MAX_COMMENTS = 20;
+const MAX_COMMENT_CHARS = 1_000;
 
-function buildPostContext(posts: { body: string; status: string }[]): string[] {
-  return posts
+function buildCommentContext(comments: { body: string; status: string }[]): string[] {
+  return comments
     .filter((p) => p.status === 'visible')
-    .slice(0, MAX_POSTS)
-    .map((p) => p.body.slice(0, MAX_POST_CHARS));
+    .slice(0, MAX_COMMENTS)
+    .map((p) => p.body.slice(0, MAX_COMMENT_CHARS));
 }
 
 export async function summarise(
@@ -27,9 +27,9 @@ export async function summarise(
   const threadResult = await getThread(db, forumId, threadId);
   if (!threadResult.ok) return err('thread_not_found');
 
-  const { thread, posts } = threadResult.value;
-  const postBodies = buildPostContext(posts);
-  const summary = await summariseThread(thread.title, postBodies, llmFn);
+  const { thread, comments } = threadResult.value;
+  const commentBodies = buildCommentContext(comments);
+  const summary = await summariseThread(thread.title, commentBodies, llmFn);
   if (!summary) return err('ai_unavailable');
   return ok(summary);
 }
@@ -43,9 +43,9 @@ export async function suggest(
   const threadResult = await getThread(db, forumId, threadId);
   if (!threadResult.ok) return err('thread_not_found');
 
-  const { thread, posts } = threadResult.value;
-  const postBodies = buildPostContext(posts);
-  const suggestion = await suggestAnswer(thread.title, postBodies, llmFn);
+  const { thread, comments } = threadResult.value;
+  const commentBodies = buildCommentContext(comments);
+  const suggestion = await suggestAnswer(thread.title, commentBodies, llmFn);
   if (!suggestion) return err('ai_unavailable');
   return ok(suggestion);
 }

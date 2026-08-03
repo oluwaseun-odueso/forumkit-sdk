@@ -1,16 +1,16 @@
 import type { DB } from '../db';
-import type { ForumConfig, Post, ReactionType, Thread, VoteCounts, VoteDirection } from '@forumkit/types';
-import { POST_VOTE_COUNTS_SUBQUERY } from './vote';
+import type { ForumConfig, Comment, ReactionType, Thread, VoteCounts, VoteDirection } from '@forumkit/types';
+import { COMMENT_VOTE_COUNTS_SUBQUERY } from './vote';
 
-type PostRow = {
+type CommentRow = {
   id: string;
   thread_id: string;
   author_id: string;
   author_display_name: string;
   author_avatar_url: string | null;
-  parent_post_id: string | null;
+  parent_comment_id: string | null;
   body: string;
-  status: Post['status'];
+  status: Comment['status'];
   toxicity_score: number | null;
   is_accepted_answer: boolean;
   reaction_counts: Partial<Record<ReactionType, number>> | null;
@@ -21,10 +21,10 @@ type PostRow = {
   updated_at: Date;
 };
 
-type CreatePostInput = {
+type CreateCommentInput = {
   threadId: string;
   authorId: string;
-  parentPostId?: string | undefined;
+  parentCommentId?: string | undefined;
   body: string;
 };
 
@@ -35,21 +35,21 @@ const REACTION_COUNTS_SUBQUERY = `
      FROM (
        SELECT type, COUNT(*) AS cnt
        FROM reactions
-       WHERE post_id = p.id
+       WHERE comment_id = p.id
        GROUP BY type
      ) r),
     '{}'
   )::json AS reaction_counts
 `;
 
-function toPost(row: PostRow): Post {
+function toComment(row: CommentRow): Comment {
   return {
     id: row.id,
     threadId: row.thread_id,
     authorId: row.author_id,
     authorDisplayName: row.author_display_name,
     authorAvatarUrl: row.author_avatar_url,
-    parentPostId: row.parent_post_id,
+    parentCommentId: row.parent_comment_id,
     body: row.body,
     status: row.status,
     toxicityScore: row.toxicity_score,
@@ -63,84 +63,84 @@ function toPost(row: PostRow): Post {
   };
 }
 
-export async function getPostById(
+export async function getCommentById(
   db: DB,
-  postId: string,
+  commentId: string,
   requesterId?: string | undefined,
-): Promise<Post | null> {
-  const rows = await db<PostRow[]>`
+): Promise<Comment | null> {
+  const rows = await db<CommentRow[]>`
     SELECT
       p.id, p.thread_id, p.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
-      p.parent_post_id, p.body,
+      p.parent_comment_id, p.body,
       p.status, p.toxicity_score, p.is_accepted_answer,
       p.created_at, p.updated_at,
       ${db.unsafe(REACTION_COUNTS_SUBQUERY)},
-      ${db.unsafe(POST_VOTE_COUNTS_SUBQUERY)},
-      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
-      EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
-    FROM posts p
+      ${db.unsafe(COMMENT_VOTE_COUNTS_SUBQUERY)},
+      (SELECT direction FROM votes WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
+    FROM comments p
     JOIN users u ON u.id = p.author_id
-    WHERE p.id = ${postId}
+    WHERE p.id = ${commentId}
       AND p.status != 'deleted'
   `;
   const row = rows[0];
-  return row ? toPost(row) : null;
+  return row ? toComment(row) : null;
 }
 
-export async function createPost(db: DB, input: CreatePostInput): Promise<Post> {
+export async function createComment(db: DB, input: CreateCommentInput): Promise<Comment> {
   const [row] = await db<[{ id: string }]>`
-    INSERT INTO posts (thread_id, author_id, parent_post_id, body)
+    INSERT INTO comments (thread_id, author_id, parent_comment_id, body)
     VALUES (
       ${input.threadId},
       ${input.authorId},
-      ${input.parentPostId ?? null},
+      ${input.parentCommentId ?? null},
       ${input.body}
     )
     RETURNING id
   `;
-  if (!row) throw new Error('Post insert returned no row');
-  const post = await getPostById(db, row.id);
-  if (!post) throw new Error('Post not found after create');
-  return post;
+  if (!row) throw new Error('Comment insert returned no row');
+  const comment = await getCommentById(db, row.id);
+  if (!comment) throw new Error('Comment not found after create');
+  return comment;
 }
 
-export async function updatePost(db: DB, postId: string, body: string): Promise<Post | null> {
-  await db`UPDATE posts SET body = ${body} WHERE id = ${postId}`;
-  return getPostById(db, postId);
+export async function updateComment(db: DB, commentId: string, body: string): Promise<Comment | null> {
+  await db`UPDATE comments SET body = ${body} WHERE id = ${commentId}`;
+  return getCommentById(db, commentId);
 }
 
-export async function softDeletePost(db: DB, postId: string): Promise<void> {
-  await db`UPDATE posts SET status = 'deleted' WHERE id = ${postId}`;
+export async function softDeleteComment(db: DB, commentId: string): Promise<void> {
+  await db`UPDATE comments SET status = 'deleted' WHERE id = ${commentId}`;
 }
 
 export async function upsertReaction(
   db: DB,
-  postId: string,
+  commentId: string,
   userId: string,
   type: ReactionType,
 ): Promise<void> {
   await db`
-    INSERT INTO reactions (post_id, user_id, type)
-    VALUES (${postId}, ${userId}, ${type})
-    ON CONFLICT (post_id, user_id, type) DO NOTHING
+    INSERT INTO reactions (comment_id, user_id, type)
+    VALUES (${commentId}, ${userId}, ${type})
+    ON CONFLICT (comment_id, user_id, type) DO NOTHING
   `;
 }
 
 export async function deleteReaction(
   db: DB,
-  postId: string,
+  commentId: string,
   userId: string,
   type: ReactionType,
 ): Promise<void> {
   await db`
     DELETE FROM reactions
-    WHERE post_id = ${postId} AND user_id = ${userId} AND type = ${type}
+    WHERE comment_id = ${commentId} AND user_id = ${userId} AND type = ${type}
   `;
 }
 
 export async function getReactionCounts(
   db: DB,
-  postId: string,
+  commentId: string,
 ): Promise<Partial<Record<ReactionType, number>>> {
   const [row] = await db<[{ counts: Partial<Record<ReactionType, number>> | null }]>`
     SELECT COALESCE(
@@ -148,7 +148,7 @@ export async function getReactionCounts(
        FROM (
          SELECT type, COUNT(*) AS cnt
          FROM reactions
-         WHERE post_id = ${postId}
+         WHERE comment_id = ${commentId}
          GROUP BY type
        ) sub),
       '{}'
@@ -159,120 +159,120 @@ export async function getReactionCounts(
 
 export async function insertReport(
   db: DB,
-  postId: string,
+  commentId: string,
   reporterId: string,
   reason: string,
 ): Promise<void> {
   await db`
-    INSERT INTO moderation_queue (post_id, reporter_id, reason)
-    VALUES (${postId}, ${reporterId}, ${reason})
+    INSERT INTO moderation_queue (comment_id, reporter_id, reason)
+    VALUES (${commentId}, ${reporterId}, ${reason})
   `;
 }
 
 export async function setAcceptedAnswer(
   db: DB,
-  postId: string,
+  commentId: string,
   threadId: string,
-): Promise<Post> {
-  const post = await db.begin(async (sql) => {
+): Promise<Comment> {
+  const comment = await db.begin(async (sql) => {
     await sql`
-      UPDATE posts SET is_accepted_answer = FALSE
+      UPDATE comments SET is_accepted_answer = FALSE
       WHERE thread_id = ${threadId} AND is_accepted_answer = TRUE
     `;
     await sql`
-      UPDATE posts SET is_accepted_answer = TRUE
-      WHERE id = ${postId}
+      UPDATE comments SET is_accepted_answer = TRUE
+      WHERE id = ${commentId}
     `;
-    return getPostById(sql as unknown as DB, postId);
+    return getCommentById(sql as unknown as DB, commentId);
   });
-  if (!post) throw new Error('Post not found after setAcceptedAnswer');
-  return post;
+  if (!comment) throw new Error('Comment not found after setAcceptedAnswer');
+  return comment;
 }
 
-export async function updatePostEmbedding(
+export async function updateCommentEmbedding(
   db: DB,
-  postId: string,
+  commentId: string,
   embedding: number[],
 ): Promise<void> {
   await db`
-    UPDATE posts
+    UPDATE comments
     SET embedding = ${'[' + embedding.join(',') + ']'}::vector
-    WHERE id = ${postId}
+    WHERE id = ${commentId}
   `;
 }
 
-export async function updatePostToxicity(
+export async function updateCommentToxicity(
   db: DB,
-  postId: string,
+  commentId: string,
   score: number,
   hide: boolean,
 ): Promise<void> {
   if (hide) {
     await db`
-      UPDATE posts SET toxicity_score = ${score}, status = 'hidden'
-      WHERE id = ${postId}
+      UPDATE comments SET toxicity_score = ${score}, status = 'hidden'
+      WHERE id = ${commentId}
     `;
   } else {
-    await db`UPDATE posts SET toxicity_score = ${score} WHERE id = ${postId}`;
+    await db`UPDATE comments SET toxicity_score = ${score} WHERE id = ${commentId}`;
   }
 }
 
 export async function insertModerationQueueItem(
   db: DB,
-  postId: string,
+  commentId: string,
   aiScore: number,
   aiFlags: string[],
 ): Promise<void> {
   await db`
-    INSERT INTO moderation_queue (post_id, ai_score, ai_flags)
-    VALUES (${postId}, ${aiScore}, ${aiFlags})
+    INSERT INTO moderation_queue (comment_id, ai_score, ai_flags)
+    VALUES (${commentId}, ${aiScore}, ${aiFlags})
   `;
 }
 
-export async function listPostsByThread(
+export async function listCommentsByThread(
   db: DB,
   threadId: string,
   requesterId?: string | undefined,
-): Promise<Post[]> {
-  const rows = await db<PostRow[]>`
+): Promise<Comment[]> {
+  const rows = await db<CommentRow[]>`
     SELECT
       p.id, p.thread_id, p.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
-      p.parent_post_id, p.body,
+      p.parent_comment_id, p.body,
       p.status, p.toxicity_score, p.is_accepted_answer,
       p.created_at, p.updated_at,
       ${db.unsafe(REACTION_COUNTS_SUBQUERY)},
-      ${db.unsafe(POST_VOTE_COUNTS_SUBQUERY)},
-      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
-      EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
-    FROM posts p
+      ${db.unsafe(COMMENT_VOTE_COUNTS_SUBQUERY)},
+      (SELECT direction FROM votes WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
+    FROM comments p
     JOIN users u ON u.id = p.author_id
     WHERE p.thread_id = ${threadId}
       AND p.status != 'deleted'
     ORDER BY p.created_at ASC
   `;
-  return rows.map(toPost);
+  return rows.map(toComment);
 }
 
-// Extra context a bare Post doesn't carry, needed for the profile's Comments
+// Extra context a bare Comment doesn't carry, needed for the profile's Comments
 // tab (and for hydrating comment-kind ProfileActivityItems generally): which
 // thread it's in, and — if it's a reply to another reply rather than a
 // top-level reply to the thread — a minimal quoted snippet of what it's
 // replying to, so a comment like "Yeah, I agree!" isn't shown with zero context.
-export type PostWithThreadContext = Post & {
+export type CommentWithThreadContext = Comment & {
   threadId: string;
   threadTitle: string;
   replyingTo: { author: string; snippet: string } | null;
 };
 
-type PostContextRow = PostRow & {
+type CommentContextRow = CommentRow & {
   thread_title: string;
   parent_author_display_name: string | null;
   parent_body_snippet: string | null;
 };
 
-function toPostWithThreadContext(row: PostContextRow): PostWithThreadContext {
+function toCommentWithThreadContext(row: CommentContextRow): CommentWithThreadContext {
   return {
-    ...toPost(row),
+    ...toComment(row),
     threadId: row.thread_id,
     threadTitle: row.thread_title,
     replyingTo: row.parent_author_display_name && row.parent_body_snippet
@@ -281,45 +281,45 @@ function toPostWithThreadContext(row: PostContextRow): PostWithThreadContext {
   };
 }
 
-const POST_CONTEXT_SELECT = `
+const COMMENT_CONTEXT_SELECT = `
   p.id, p.thread_id, p.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
-  p.parent_post_id, p.body,
+  p.parent_comment_id, p.body,
   p.status, p.toxicity_score, p.is_accepted_answer,
   p.created_at, p.updated_at,
   t.title AS thread_title,
   pu.display_name AS parent_author_display_name,
   LEFT(parent.body, 140) AS parent_body_snippet,
   ${REACTION_COUNTS_SUBQUERY},
-  ${POST_VOTE_COUNTS_SUBQUERY}
+  ${COMMENT_VOTE_COUNTS_SUBQUERY}
 `;
 
-const POST_CONTEXT_JOINS = `
-  FROM posts p
+const COMMENT_CONTEXT_JOINS = `
+  FROM comments p
   JOIN users u ON u.id = p.author_id
   JOIN threads t ON t.id = p.thread_id
-  LEFT JOIN posts parent ON parent.id = p.parent_post_id
+  LEFT JOIN comments parent ON parent.id = p.parent_comment_id
   LEFT JOIN users pu ON pu.id = parent.author_id
 `;
 
 // Backs the profile's Comments tab — replies authored by a specific user,
 // newest first.
-export async function listPostsByAuthor(
+export async function listCommentsByAuthor(
   db: DB,
   forumId: string,
   authorId: string,
   page: number,
   limit: number,
   requesterId?: string | undefined,
-): Promise<{ posts: PostWithThreadContext[]; total: number }> {
+): Promise<{ comments: CommentWithThreadContext[]; total: number }> {
   const offset = (page - 1) * limit;
 
   const [rows, countRows] = await Promise.all([
-    db<PostContextRow[]>`
+    db<CommentContextRow[]>`
       SELECT
-        ${db.unsafe(POST_CONTEXT_SELECT)},
-        (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
-        EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
-      ${db.unsafe(POST_CONTEXT_JOINS)}
+        ${db.unsafe(COMMENT_CONTEXT_SELECT)},
+        (SELECT direction FROM votes WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+        EXISTS(SELECT 1 FROM saves WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
+      ${db.unsafe(COMMENT_CONTEXT_JOINS)}
       WHERE t.forum_id = ${forumId}
         AND p.author_id = ${authorId}
         AND p.status != 'deleted'
@@ -328,47 +328,47 @@ export async function listPostsByAuthor(
     `,
     db<[{ total: string }]>`
       SELECT COUNT(*) AS total
-      FROM posts p
+      FROM comments p
       JOIN threads t ON t.id = p.thread_id
       WHERE t.forum_id = ${forumId} AND p.author_id = ${authorId} AND p.status != 'deleted'
     `,
   ]);
 
-  return { posts: rows.map(toPostWithThreadContext), total: Number(countRows[0]?.total ?? 0) };
+  return { comments: rows.map(toCommentWithThreadContext), total: Number(countRows[0]?.total ?? 0) };
 }
 
-// Batch fetch by id, same shape as listPostsByAuthor — used to hydrate
+// Batch fetch by id, same shape as listCommentsByAuthor — used to hydrate
 // Upvoted/Downvoted/Saved results, which start from a list of ids (from
 // votes/saves) rather than an author-scoped query.
-export async function getPostsByIds(
+export async function getCommentsByIds(
   db: DB,
   ids: string[],
   requesterId?: string | undefined,
-): Promise<PostWithThreadContext[]> {
+): Promise<CommentWithThreadContext[]> {
   if (ids.length === 0) return [];
 
-  const rows = await db<PostContextRow[]>`
+  const rows = await db<CommentContextRow[]>`
     SELECT
-      ${db.unsafe(POST_CONTEXT_SELECT)},
-      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
-      EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
-    ${db.unsafe(POST_CONTEXT_JOINS)}
+      ${db.unsafe(COMMENT_CONTEXT_SELECT)},
+      (SELECT direction FROM votes WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE comment_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
+    ${db.unsafe(COMMENT_CONTEXT_JOINS)}
     WHERE p.id = ANY(${ids}::uuid[])
       AND p.status != 'deleted'
   `;
 
-  return rows.map(toPostWithThreadContext);
+  return rows.map(toCommentWithThreadContext);
 }
 
 // Comment karma: sum(upvotes) - sum(downvotes) across every reply the user
 // authored — same convention as getThreadKarma, the other half of the pair.
-export async function getPostKarma(db: DB, forumId: string, authorId: string): Promise<number> {
+export async function getCommentKarma(db: DB, forumId: string, authorId: string): Promise<number> {
   const rows = await db<{ karma: string }[]>`
     SELECT
       COALESCE(SUM(CASE WHEN v.direction = 1 THEN 1 WHEN v.direction = -1 THEN -1 ELSE 0 END), 0) AS karma
-    FROM posts p
+    FROM comments p
     JOIN threads t ON t.id = p.thread_id
-    LEFT JOIN votes v ON v.post_id = p.id
+    LEFT JOIN votes v ON v.comment_id = p.id
     WHERE t.forum_id = ${forumId} AND p.author_id = ${authorId} AND p.status != 'deleted'
   `;
   return Number(rows[0]?.karma ?? 0);

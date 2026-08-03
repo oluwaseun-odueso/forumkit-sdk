@@ -83,7 +83,7 @@ function sendThreadError(code: ThreadError | 'thread_not_found', reply: FastifyR
 function sendVoteError(code: voteService.VoteError, reply: FastifyReply): void {
   const map: Record<voteService.VoteError, [number, string]> = {
     thread_not_found: [404, 'Thread not found'],
-    post_not_found:   [404, 'Post not found'],
+    comment_not_found:   [404, 'Comment not found'],
   };
   const [status, message] = map[code];
   void reply.status(status).send({ error: code, message, statusCode: status });

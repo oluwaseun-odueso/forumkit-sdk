@@ -2,7 +2,7 @@ import type { DB } from '../db';
 import type { Tag, Thread, ThreadListQuery, SimilarThread, VoteCounts, VoteDirection, TopWindow } from '@forumkit/types';
 import { THREAD_VOTE_COUNTS_SUBQUERY } from './vote';
 
-export type ThreadWithMetaData = Thread & { postCount: number; reactionCount: number };
+export type ThreadWithMetaData = Thread & { commentCount: number };
 
 type ThreadRow = {
   id: string;
@@ -17,8 +17,7 @@ type ThreadRow = {
   view_count: number;
   created_at: Date;
   updated_at: Date;
-  post_count: string;
-  reaction_count: string;
+  comment_count: string;
   tags: (Tag & { forum_id: string })[] | null;
   vote_counts: VoteCounts;
   my_vote: VoteDirection | null;
@@ -76,8 +75,7 @@ function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
     status: row.status,
     pinned: row.pinned,
     viewCount: row.view_count,
-    postCount: Number(row.post_count),
-    reactionCount: Number(row.reaction_count),
+    commentCount: Number(row.comment_count),
     tags: (row.tags ?? []).map((t) => ({
       id: t.id,
       forumId: t.forum_id,
@@ -128,8 +126,7 @@ export async function listThreads(
         t.id, t.forum_id, t.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
         t.title, t.body,
         t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
-        COALESCE(pc.post_count, 0) AS post_count,
-        COALESCE(rc.reaction_count, 0) AS reaction_count,
+        COALESCE(cc.comment_count, 0) AS comment_count,
         COALESCE(
           JSON_AGG(
             JSONB_BUILD_OBJECT(
@@ -148,16 +145,16 @@ export async function listThreads(
       FROM threads t
       JOIN users u ON u.id = t.author_id
       LEFT JOIN (
-        SELECT thread_id, COUNT(*) AS post_count
-        FROM posts
+        SELECT thread_id, COUNT(*) AS comment_count
+        FROM comments
         WHERE status = 'visible'
         GROUP BY thread_id
-      ) pc ON pc.thread_id = t.id
+      ) cc ON cc.thread_id = t.id
       LEFT JOIN (
-        SELECT p.thread_id, COUNT(*) AS reaction_count
+        SELECT c.thread_id, COUNT(*) AS reaction_count
         FROM reactions r
-        JOIN posts p ON p.id = r.post_id
-        GROUP BY p.thread_id
+        JOIN comments c ON c.id = r.comment_id
+        GROUP BY c.thread_id
       ) rc ON rc.thread_id = t.id
       LEFT JOIN (
         SELECT thread_id,
@@ -176,7 +173,7 @@ export async function listThreads(
         ${pinnedFilter}
         ${risingFilter}
         ${topWindowFilter}
-      GROUP BY t.id, u.display_name, u.avatar_url, pc.post_count, rc.reaction_count, vc.up, vc.down
+      GROUP BY t.id, u.display_name, u.avatar_url, cc.comment_count, rc.reaction_count, vc.up, vc.down
       ORDER BY ${db.unsafe(SORT_CLAUSES[opts.sort])}
       LIMIT ${opts.limit} OFFSET ${offset}
     `,
@@ -209,8 +206,7 @@ export async function getThreadById(
       t.id, t.forum_id, t.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
       t.title, t.body,
       t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
-      COALESCE(pc.post_count, 0) AS post_count,
-      0 AS reaction_count,
+      COALESCE(cc.comment_count, 0) AS comment_count,
       COALESCE(
         JSON_AGG(
           JSONB_BUILD_OBJECT(
@@ -229,16 +225,16 @@ export async function getThreadById(
     FROM threads t
     JOIN users u ON u.id = t.author_id
     LEFT JOIN (
-      SELECT thread_id, COUNT(*) AS post_count
-      FROM posts
+      SELECT thread_id, COUNT(*) AS comment_count
+      FROM comments
       WHERE status = 'visible'
       GROUP BY thread_id
-    ) pc ON pc.thread_id = t.id
+    ) cc ON cc.thread_id = t.id
     LEFT JOIN thread_tags tt ON tt.thread_id = t.id
     LEFT JOIN tags tg ON tg.id = tt.tag_id
     WHERE t.id = ${threadId}
       AND t.status != 'deleted'
-    GROUP BY t.id, u.display_name, u.avatar_url, pc.post_count
+    GROUP BY t.id, u.display_name, u.avatar_url, cc.comment_count
   `;
 
   const row = rows[0];
@@ -265,7 +261,7 @@ export async function listThreadsByAuthor(
         t.id, t.forum_id, t.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
         t.title, t.body,
         t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
-        COALESCE(pc.post_count, 0) AS post_count,
+        COALESCE(cc.comment_count, 0) AS comment_count,
         '[]'::json AS tags,
         ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
         (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS my_vote,
@@ -273,11 +269,11 @@ export async function listThreadsByAuthor(
       FROM threads t
       JOIN users u ON u.id = t.author_id
       LEFT JOIN (
-        SELECT thread_id, COUNT(*) AS post_count
-        FROM posts
+        SELECT thread_id, COUNT(*) AS comment_count
+        FROM comments
         WHERE status = 'visible'
         GROUP BY thread_id
-      ) pc ON pc.thread_id = t.id
+      ) cc ON cc.thread_id = t.id
       WHERE t.forum_id = ${forumId}
         AND t.author_id = ${authorId}
         AND t.status != 'deleted'
@@ -308,7 +304,7 @@ export async function getThreadsByIds(
       t.id, t.forum_id, t.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
       t.title, t.body,
       t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
-      COALESCE(pc.post_count, 0) AS post_count,
+      COALESCE(cc.comment_count, 0) AS comment_count,
       COALESCE(
         JSON_AGG(
           JSONB_BUILD_OBJECT(
@@ -327,16 +323,16 @@ export async function getThreadsByIds(
     FROM threads t
     JOIN users u ON u.id = t.author_id
     LEFT JOIN (
-      SELECT thread_id, COUNT(*) AS post_count
-      FROM posts
+      SELECT thread_id, COUNT(*) AS comment_count
+      FROM comments
       WHERE status = 'visible'
       GROUP BY thread_id
-    ) pc ON pc.thread_id = t.id
+    ) cc ON cc.thread_id = t.id
     LEFT JOIN thread_tags tt ON tt.thread_id = t.id
     LEFT JOIN tags tg ON tg.id = tt.tag_id
     WHERE t.id = ANY(${ids}::uuid[])
       AND t.status != 'deleted'
-    GROUP BY t.id, u.display_name, u.avatar_url, pc.post_count
+    GROUP BY t.id, u.display_name, u.avatar_url, cc.comment_count
   `;
 
   return rows.map(toThreadWithMetaData);
@@ -448,7 +444,7 @@ export async function findSimilarThreads(
   embedding: number[],
   excludeId?: string | undefined,
 ): Promise<SimilarThread[]> {
-  const vecStr = '[' + embedding.join(',') + ']';
+  const vec = '[' + embedding.join(',') + ']';
   const excludeFilter = excludeId ? db`AND id != ${excludeId}` : db``;
 
   const rows = await db<{ id: string; title: string; similarity: number }[]>`

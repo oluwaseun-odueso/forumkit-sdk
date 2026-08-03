@@ -1,10 +1,10 @@
 import type { DB } from '../db';
-import type { CreateThreadBody, ThreadListQuery, SimilarThread, RelatedThreadForRail, Post, UserRole, AttachmentSummary } from '@forumkit/types';
+import type { CreateThreadBody, ThreadListQuery, SimilarThread, RelatedThreadForRail, Comment, UserRole, AttachmentSummary } from '@forumkit/types';
 import type { EmbedFn, LLMFn } from '@forumkit/ai';
 import { embedOne, suggestTags as aiSuggestTags } from '@forumkit/ai';
 import * as threadRepo from '../repositories/thread';
 import type { ThreadWithMetaData } from '../repositories/thread';
-import * as postRepo from '../repositories/post';
+import * as commentRepo from '../repositories/comment';
 import * as tagsRepo from '../repositories/tags';
 import * as attachmentRepo from '../repositories/attachment';
 import * as searchRepo from '../repositories/search';
@@ -75,23 +75,23 @@ export async function listThreads(
   return { threads, total: result.total, page, limit };
 }
 
-// Plain thread + posts, no attachment resolution — used by services/ai.ts,
-// which only reads title/body/posts and shouldn't need a storage adapter.
+// Plain thread + comments, no attachment resolution — used by services/ai.ts,
+// which only reads title/body/comments and shouldn't need a storage adapter.
 export async function getThread(
   db: DB,
   forumId: string,
   threadId: string,
   requesterId?: string | undefined,
-): Promise<Result<{ thread: ThreadWithMetaData; posts: Post[] }, 'thread_not_found'>> {
+): Promise<Result<{ thread: ThreadWithMetaData; comments: Comment[] }, 'thread_not_found'>> {
   const thread = await threadRepo.getThreadById(db, threadId, requesterId);
   if (!thread || thread.forumId !== forumId) return err('thread_not_found');
 
-  const posts = await postRepo.listPostsByThread(db, threadId, requesterId);
+  const comments = await commentRepo.listCommentsByThread(db, threadId, requesterId);
 
   // Fire-and-forget: view count increment never blocks the response
   void threadRepo.incrementViewCount(db, threadId);
 
-  return ok({ thread, posts });
+  return ok({ thread, comments });
 }
 
 // Same as getThread, enriched with resolved attachment download URLs —
@@ -102,16 +102,16 @@ export async function getThreadWithAttachments(
   forumId: string,
   threadId: string,
   requesterId?: string | undefined,
-): Promise<Result<{ thread: ThreadWithAttachments; posts: Post[] }, 'thread_not_found'>> {
+): Promise<Result<{ thread: ThreadWithAttachments; comments: Comment[] }, 'thread_not_found'>> {
   const result = await getThread(db, forumId, threadId, requesterId);
   if (!result.ok) return result;
 
-  const { thread, posts } = result.value;
+  const { thread, comments } = result.value;
   const threadAttachments = await attachmentRepo.listAttachmentsByThread(db, threadId);
 
   return ok({
     thread: { ...thread, attachments: toAttachmentSummaries(publicApiUrl, forumId, threadAttachments) },
-    posts,
+    comments,
   });
 }
 

@@ -3,7 +3,7 @@ import type { ModerationQueueItem, ModerationStatus } from '@forumkit/types';
 
 type ModerationRow = {
   id: string;
-  post_id: string;
+  comment_id: string;
   reporter_id: string | null;
   reason: string;
   ai_score: number;
@@ -18,7 +18,7 @@ type ModerationRow = {
 function toModerationItem(row: ModerationRow): ModerationQueueItem {
   return {
     id: row.id,
-    postId: row.post_id,
+    commentId: row.comment_id,
     reporterId: row.reporter_id,
     reason: row.reason,
     aiScore: row.ai_score,
@@ -38,7 +38,7 @@ export async function listPendingQueue(
 
   const rows = await db<ModerationRow[]>`
     SELECT
-      id, post_id, reporter_id, reason, ai_score, ai_flags,
+      id, comment_id, reporter_id, reason, ai_score, ai_flags,
       status, reviewer_id, created_at, reviewed_at,
       COUNT(*) OVER() AS total_count
     FROM moderation_queue
@@ -59,7 +59,7 @@ export async function getModerationItem(
 ): Promise<ModerationQueueItem | null> {
   const rows = await db<ModerationRow[]>`
     SELECT
-      id, post_id, reporter_id, reason, ai_score, ai_flags,
+      id, comment_id, reporter_id, reason, ai_score, ai_flags,
       status, reviewer_id, created_at, reviewed_at,
       0 AS total_count
     FROM moderation_queue
@@ -85,7 +85,7 @@ export async function resolveItem(
       WHERE id = ${itemId}
         AND status = 'pending'
       RETURNING
-        id, post_id, reporter_id, reason, ai_score, ai_flags,
+        id, comment_id, reporter_id, reason, ai_score, ai_flags,
         status, reviewer_id, created_at, reviewed_at,
         0 AS total_count
     `;
@@ -94,7 +94,7 @@ export async function resolveItem(
     if (!row) return null;
 
     if (action === 'removed') {
-      await sql`UPDATE posts SET status = 'hidden' WHERE id = ${row.post_id}`;
+      await sql`UPDATE comments SET status = 'hidden' WHERE id = ${row.comment_id}`;
     }
 
     return toModerationItem(row);

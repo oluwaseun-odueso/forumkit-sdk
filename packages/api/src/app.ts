@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 import { authRoutes } from './routes/auth';
 import { forumsRoutes } from './routes/forums';
 import { threadsRoutes } from './routes/threads';
-import { postsRoutes } from './routes/posts';
+import { commentsRoutes } from './routes/comments';
 import { searchRoutes } from './routes/search';
 import { aiRoutes, composeAiRoutes } from './routes/ai';
 import { moderationRoutes } from './routes/moderation';
@@ -50,7 +50,7 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   await app.register(authRoutes, { prefix: '/auth' });
   await app.register(forumsRoutes, { prefix: '/forums' });
   await app.register(threadsRoutes, { prefix: '/forums' });
-  await app.register(postsRoutes, { prefix: '/threads' });
+  await app.register(commentsRoutes, { prefix: '/threads' });
   await app.register(searchRoutes, { prefix: '/forums' });
   await app.register(aiRoutes, { prefix: '/threads' });
   await app.register(composeAiRoutes, { prefix: '/forums' });

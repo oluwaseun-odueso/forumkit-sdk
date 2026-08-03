@@ -3,7 +3,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 jest.mock('../repositories/attachment');
 
 import * as repo from '../repositories/attachment';
-import { requestUpload, confirmUpload, attachToExistingPost, deleteAttachment } from './storage';
+import { requestUpload, confirmUpload, attachToExistingComment, deleteAttachment } from './storage';
 import type { StorageAdapter } from '@forumkit/storage';
 import type { Attachment } from '@forumkit/types';
 import type { DB } from '../db';
@@ -13,7 +13,7 @@ const db = {} as DB; // repository calls are mocked below; the service never tou
 const baseAttachment: Attachment = {
   id: 'att-1',
   forumId: 'forum-1',
-  postId: null,
+  commentId: null,
   threadId: null,
   uploaderId: 'user-1',
   storageKey: 'forum-1/abc.png',
@@ -115,25 +115,25 @@ describe('confirmUpload', () => {
   });
 });
 
-describe('attachToExistingPost', () => {
+describe('attachToExistingComment', () => {
   it('refuses to link an attachment that has not been confirmed yet', async () => {
     mockedRepo.getAttachmentById.mockResolvedValue(baseAttachment); // status: pending
-    const result = await attachToExistingPost(db, 'att-1', 'post-1', 'user-1');
+    const result = await attachToExistingComment(db, 'att-1', 'comment-1', 'user-1');
     expect(result).toEqual({ ok: false, code: 'not_pending' });
   });
 
   it('links a confirmed attachment owned by the requester', async () => {
     mockedRepo.getAttachmentById.mockResolvedValue({ ...baseAttachment, status: 'confirmed' });
 
-    const result = await attachToExistingPost(db, 'att-1', 'post-1', 'user-1');
+    const result = await attachToExistingComment(db, 'att-1', 'comment-1', 'user-1');
 
     expect(result).toEqual({ ok: true, value: undefined });
-    expect(mockedRepo.attachToPost).toHaveBeenCalledWith(db, 'att-1', 'post-1');
+    expect(mockedRepo.attachToComment).toHaveBeenCalledWith(db, 'att-1', 'comment-1');
   });
 
   it('refuses to link someone else\'s attachment', async () => {
     mockedRepo.getAttachmentById.mockResolvedValue({ ...baseAttachment, status: 'confirmed' });
-    const result = await attachToExistingPost(db, 'att-1', 'post-1', 'someone-else');
+    const result = await attachToExistingComment(db, 'att-1', 'comment-1', 'someone-else');
     expect(result).toEqual({ ok: false, code: 'forbidden' });
   });
 });

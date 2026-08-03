@@ -77,15 +77,15 @@ export async function confirmUpload(
   return ok(updated);
 }
 
-// Links a confirmed attachment to a post — called once per id, whether
-// that's right after post creation (attachmentIds on CreatePostBody)
-// or when adding media to an existing post later. A post can have many
+// Links a confirmed attachment to a comment — called once per id, whether
+// that's right after comment creation (attachmentIds on CreateCommentBody)
+// or when adding media to an existing comment later. A comment can have many
 // attachments (several images plus a video), so this operates on one
 // attachment at a time and the caller loops.
-export async function attachToExistingPost(
+export async function attachToExistingComment(
   db: DB,
   attachmentId: string,
-  postId: string,
+  commentId: string,
   requesterId: string,
 ): Promise<Result<void, StorageError>> {
   const attachment = await repo.getAttachmentById(db, attachmentId);
@@ -93,12 +93,12 @@ export async function attachToExistingPost(
   if (attachment.uploaderId !== requesterId) return err('forbidden');
   if (attachment.status !== 'confirmed') return err('not_pending');
 
-  await repo.attachToPost(db, attachmentId, postId);
+  await repo.attachToComment(db, attachmentId, commentId);
   return ok(undefined);
 }
 
-// Same as attachToExistingPost, but for a thread's own body — threads
-// carry content directly (no post row required), so their media links
+// Same as attachToExistingComment, but for a thread's own body — threads
+// carry content directly (no comment row required), so their media links
 // here instead. Called once per id in the thread's attachmentIds.
 export async function attachToExistingThread(
   db: DB,

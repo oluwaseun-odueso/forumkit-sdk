@@ -94,7 +94,7 @@ export async function findRelatedThreads(
 }
 
 // Same cosine-similarity query as findRelatedThreads, but enriched with the
-// vote-counts/post-count fields needed to build a full right-rail RailItem
+// vote-counts/comment-count fields needed to build a full right-rail RailItem
 // (votes/comment-count/time) rather than just a bare title.
 export async function findRelatedThreadsForRail(
   db: DB,
@@ -109,7 +109,7 @@ export async function findRelatedThreadsForRail(
     id: string;
     title: string;
     created_at: Date;
-    post_count: string;
+    comment_count: string;
     vote_counts: RelatedThreadForRail['voteCounts'];
     similarity: number;
     author_id: string;
@@ -125,17 +125,17 @@ export async function findRelatedThreadsForRail(
       t.author_id,
       u.display_name AS author_display_name,
       u.avatar_url AS author_avatar_url,
-      COALESCE(pc.post_count, 0) AS post_count,
+      COALESCE(cc.comment_count, 0) AS comment_count,
       ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
       (1 - (t.embedding <=> ${vec}::vector))::float AS similarity
     FROM threads t
     JOIN users u ON u.id = t.author_id
     LEFT JOIN (
-      SELECT thread_id, COUNT(*) AS post_count
-      FROM posts
+      SELECT thread_id, COUNT(*) AS comment_count
+      FROM comments
       WHERE status = 'visible'
       GROUP BY thread_id
-    ) pc ON pc.thread_id = t.id
+    ) cc ON cc.thread_id = t.id
     WHERE t.forum_id = ${forumId}
       AND t.status != 'deleted'
       AND t.embedding IS NOT NULL
@@ -148,7 +148,7 @@ export async function findRelatedThreadsForRail(
     id: r.id,
     title: r.title,
     createdAt: r.created_at,
-    postCount: Number(r.post_count),
+    commentCount: Number(r.comment_count),
     voteCounts: r.vote_counts,
     similarity: Number(r.similarity),
     imageUrl: null, // resolved by the service layer, which has the storage adapter
