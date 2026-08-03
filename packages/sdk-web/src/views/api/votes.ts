@@ -37,13 +37,13 @@ export async function removeVoteFromThread(forumId: string, threadId: string, to
   return unwrap(res);
 }
 
-export async function voteOnPost(
+export async function voteOnComment(
   threadId: string,
-  postId: string,
+  commentId: string,
   direction: VoteDirection,
   token?: string,
 ): Promise<VoteResult> {
-  const res = await fetch(`${API_BASE}/threads/${threadId}/posts/${postId}/vote`, {
+  const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/vote`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ direction }),
@@ -51,8 +51,8 @@ export async function voteOnPost(
   return unwrap(res);
 }
 
-export async function removeVoteFromPost(threadId: string, postId: string, token?: string): Promise<VoteResult> {
-  const res = await fetch(`${API_BASE}/threads/${threadId}/posts/${postId}/vote`, {
+export async function removeVoteFromComment(threadId: string, commentId: string, token?: string): Promise<VoteResult> {
+  const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/vote`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
   });

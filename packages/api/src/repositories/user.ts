@@ -13,7 +13,7 @@ type UserProfileRow = {
 };
 
 // Karma isn't selected here — it's a cross-table sum over the user's own
-// threads/posts (see thread.ts/post.ts's getThreadKarma/getPostKarma),
+// threads/comments (see thread.ts/comment.ts's getThreadKarma/getCommentKarma),
 // composed alongside this in the route handler rather than reached into
 // from a users-table-scoped repository function.
 function toProfile(row: UserProfileRow): Omit<UserProfile, 'postKarma' | 'commentKarma'> {

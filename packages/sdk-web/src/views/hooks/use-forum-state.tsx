@@ -2,7 +2,7 @@ import { createContext, useContext, useReducer, useCallback, useEffect, type Rea
 import {
   type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
-import type { SimilarThread, Thread, Post, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow } from '@forumkit/types';
+import type { SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
 import { getMyProfile, updateMyProfile } from '../api/profile';
@@ -11,8 +11,8 @@ import {
   createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
   getSimilarThreads, type ListThreadsParams,
 } from '../api/threads';
-import { createReply, updateReply } from '../api/posts';
-import { voteOnThread, removeVoteFromThread, voteOnPost, removeVoteFromPost } from '../api/votes';
+import { createReply, updateReply } from '../api/comments';
+import { voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment } from '../api/votes';
 import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -257,7 +257,7 @@ function threadToFeedPost(thread: Thread): FeedPost {
     votes: netVotes(voteCounts),
     voteCounts,
     myVote: thread.myVote ?? null,
-    commentCount: thread.postCount ?? 0,
+    commentCount: thread.commentCount ?? 0,
     saved: false,
   };
 }
@@ -276,7 +276,7 @@ function threadToRailItem(thread: Thread): RailItem {
     authorAvatarUrl: thread.authorAvatarUrl ?? null,
     time: fmtRelativeTime(thread.createdAt),
     votes: netVotes(voteCounts),
-    commentCount: thread.postCount ?? 0,
+    commentCount: thread.commentCount ?? 0,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
     imageUrl: firstImage?.downloadUrl ?? null,
   };
@@ -292,19 +292,19 @@ function relatedToRailItem(t: RelatedThreadForRail): RailItem {
     authorAvatarUrl: t.authorAvatarUrl,
     time: fmtRelativeTime(t.createdAt),
     votes: netVotes(t.voteCounts),
-    commentCount: t.postCount,
+    commentCount: t.commentCount,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
     imageUrl: t.imageUrl,
   };
 }
 
-// Backend flat Post[] (already created_at ASC) -> a nested CommentNodeData
-// tree, built from parentPostId. The server never builds this tree itself.
-function postToCommentTree(posts: Post[]): CommentNodeData[] {
+// Backend flat Comment[] (already created_at ASC) -> a nested CommentNodeData
+// tree, built from parentCommentId. The server never builds this tree itself.
+function commentsToCommentTree(comments: Comment[]): CommentNodeData[] {
   const byId = new Map<string, CommentNodeData>();
   const roots: CommentNodeData[] = [];
 
-  for (const p of posts) {
+  for (const p of comments) {
     const voteCounts = p.voteCounts ?? { up: 0, down: 0 };
     byId.set(p.id, {
       id: p.id,
@@ -320,10 +320,10 @@ function postToCommentTree(posts: Post[]): CommentNodeData[] {
     });
   }
 
-  for (const p of posts) {
+  for (const p of comments) {
     const node = byId.get(p.id);
     if (!node) continue;
-    const parent = p.parentPostId ? byId.get(p.parentPostId) : undefined;
+    const parent = p.parentCommentId ? byId.get(p.parentCommentId) : undefined;
     if (parent) parent.replies.push(node);
     else roots.push(node);
   }
@@ -674,8 +674,8 @@ function useForumStateInternal() {
 
     try {
       const result = newMyVote === null
-        ? await removeVoteFromPost(threadId, commentId, sessionToken)
-        : await voteOnPost(threadId, commentId, newMyVote, sessionToken);
+        ? await removeVoteFromComment(threadId, commentId, sessionToken)
+        : await voteOnComment(threadId, commentId, newMyVote, sessionToken);
       dispatch({ type: 'SET_COMMENT_VOTE', commentId, voteCounts: result.voteCounts, myVote: result.myVote });
     } catch {
       dispatch({ type: 'SET_COMMENT_VOTE', commentId, voteCounts: previousVoteCounts, myVote: previousMyVote });
@@ -690,18 +690,18 @@ function useForumStateInternal() {
     const threadId = state.thread.activePostId;
     const trimmed = body.trim();
     if (!threadId || !trimmed) return;
-    const post = await createReply(threadId, { body: trimmed, parentPostId: parentId ?? undefined }, sessionToken);
-    const voteCounts = post.voteCounts ?? { up: 0, down: 0 };
+    const raw = await createReply(threadId, { body: trimmed, parentCommentId: parentId ?? undefined }, sessionToken);
+    const voteCounts = raw.voteCounts ?? { up: 0, down: 0 };
     const comment: CommentNodeData = {
-      id: post.id,
-      authorId: post.authorId,
-      author: post.authorDisplayName ?? 'You',
-      authorAvatarUrl: post.authorAvatarUrl ?? null,
+      id: raw.id,
+      authorId: raw.authorId,
+      author: raw.authorDisplayName ?? 'You',
+      authorAvatarUrl: raw.authorAvatarUrl ?? null,
       time: 'now',
-      body: post.body,
+      body: raw.body,
       votes: netVotes(voteCounts),
       voteCounts,
-      myVote: post.myVote ?? null,
+      myVote: raw.myVote ?? null,
       replies: [],
     };
     dispatch({ type: 'REPLY_SUBMITTED', parentId, comment });
@@ -717,8 +717,8 @@ function useForumStateInternal() {
   const editComment = useCallback(async (commentId: string, body: string): Promise<void> => {
     const threadId = state.thread.activePostId;
     if (!threadId) return;
-    const post = await updateReply(threadId, commentId, body, sessionToken);
-    dispatch({ type: 'COMMENT_EDITED', commentId, body: post.body });
+    const updated = await updateReply(threadId, commentId, body, sessionToken);
+    dispatch({ type: 'COMMENT_EDITED', commentId, body: updated.body });
   }, [state.thread.activePostId, sessionToken]);
 
   const editPost = useCallback(async (title: string, body: string): Promise<void> => {
@@ -1003,9 +1003,9 @@ function useForumStateInternal() {
   useEffect(() => {
     const threadId = state.thread.activePostId;
     if (!threadId || !sessionToken || !forumId) return;
-    void apiGetThread(forumId, threadId, sessionToken).then(({ thread, posts }) => {
+    void apiGetThread(forumId, threadId, sessionToken).then(({ thread, comments: rawComments }) => {
       const post = threadToFeedPost(thread);
-      const comments = postToCommentTree(posts);
+      const comments = commentsToCommentTree(rawComments);
       dispatch({ type: 'THREAD_LOADED', post, comments });
     });
   }, [state.thread.activePostId, sessionToken, forumId]);

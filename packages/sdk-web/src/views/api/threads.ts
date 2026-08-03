@@ -1,4 +1,4 @@
-import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Post, TopWindow, RelatedThreadForRail } from '@forumkit/types';
+import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Comment, TopWindow, RelatedThreadForRail } from '@forumkit/types';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -68,7 +68,7 @@ export async function getSimilarThreads(
   return (await res.json()) as { threads: RelatedThreadForRail[] };
 }
 
-export type GetThreadResult = { thread: Thread; posts: Post[] };
+export type GetThreadResult = { thread: Thread; comments: Comment[] };
 
 export async function getThread(forumId: string, threadId: string, token?: string): Promise<GetThreadResult> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
