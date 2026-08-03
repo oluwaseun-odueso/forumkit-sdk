@@ -80,13 +80,13 @@ export async function findRelatedThreads(
     SELECT
       t.id,
       t.title,
-      (1 - (t.embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
+      (1 - (t.embedding <=> ${vec}::vector))::float AS similarity
     FROM threads t
     WHERE t.forum_id = ${forumId}
       AND t.status != 'deleted'
       AND t.embedding IS NOT NULL
       AND t.id != ${excludeThreadId}
-    ORDER BY t.embedding <=> ${db.unsafe(vec)}::vector
+    ORDER BY t.embedding <=> ${vec}::vector
     LIMIT ${limit}
   `;
 
@@ -127,7 +127,7 @@ export async function findRelatedThreadsForRail(
       u.avatar_url AS author_avatar_url,
       COALESCE(pc.post_count, 0) AS post_count,
       ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
-      (1 - (t.embedding <=> ${db.unsafe(vec)}::vector))::float AS similarity
+      (1 - (t.embedding <=> ${vec}::vector))::float AS similarity
     FROM threads t
     JOIN users u ON u.id = t.author_id
     LEFT JOIN (
@@ -140,7 +140,7 @@ export async function findRelatedThreadsForRail(
       AND t.status != 'deleted'
       AND t.embedding IS NOT NULL
       AND t.id != ${excludeThreadId}
-    ORDER BY t.embedding <=> ${db.unsafe(vec)}::vector
+    ORDER BY t.embedding <=> ${vec}::vector
     LIMIT ${limit}
   `;
 
@@ -172,14 +172,14 @@ export async function semanticSearch(
       t.id                                                              AS thread_id,
       t.title,
       LEFT(t.body, 200)                                                 AS body_snippet,
-      (1 - (t.embedding <=> ${vecStr}::vector))::float                  AS rank,
+      (1 - (t.embedding <=> ${vec}::vector))::float          AS rank,
       t.created_at,
       COUNT(*) OVER()                                                   AS total_count
     FROM threads t
     WHERE t.forum_id = ${forumId}
       AND t.status != 'deleted'
       AND t.embedding IS NOT NULL
-    ORDER BY t.embedding <=> ${vecStr}::vector
+    ORDER BY t.embedding <=> ${vec}::vector
     LIMIT ${opts.limit} OFFSET ${offset}
   `;
 

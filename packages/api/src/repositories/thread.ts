@@ -341,13 +341,13 @@ export async function findSimilarThreads(
     SELECT
       id,
       title,
-      (1 - (embedding <=> ${vecStr}::vector))::float AS similarity
+      (1 - (embedding <=> ${vec}::vector))::float AS similarity
     FROM threads
     WHERE forum_id = ${forumId}
       AND status != 'deleted'
       AND embedding IS NOT NULL
       ${excludeFilter}
-    ORDER BY embedding <=> ${vecStr}::vector
+    ORDER BY embedding <=> ${vec}::vector
     LIMIT 3
   `;
 
