@@ -59,6 +59,7 @@ export type Thread = {
   postCount?: number;
   voteCounts?: VoteCounts;
   myVote?: VoteDirection | null;
+  isSaved?: boolean;
   createdAt: Date;
   updatedAt: Date;
   // embedding is not included in API responses — internal only
@@ -78,6 +79,7 @@ export type Post = {
   reactionCounts: Partial<Record<ReactionType, number>>;
   voteCounts?: VoteCounts;
   myVote?: VoteDirection | null;
+  isSaved?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -198,6 +200,10 @@ export type UserProfile = {
   avatarUrl: string | null;
   bannerUrl: string | null;
   socialLinks: Array<{ platform: string; url: string }>;
+  joinedAt: Date;
+  postKarma: number;
+  commentKarma: number;
+  themePreference: 'light' | 'dark' | null;
 };
 
 export type UpdateProfileBody = {
@@ -206,7 +212,24 @@ export type UpdateProfileBody = {
   avatarUrl?: string | null;
   bannerUrl?: string | null;
   socialLinks?: Array<{ platform: string; url: string }>;
+  themePreference?: 'light' | 'dark' | null;
 };
+
+// ── Profile activity feed (Overview/Posts/Comments/Saved/Upvoted/Downvoted) ──
+
+export type ProfileActivityScope = 'overview' | 'posts' | 'comments' | 'saved' | 'upvoted' | 'downvoted';
+export type ProfileActivitySort = 'new' | 'top';
+export type ProfileActivityContentType = 'all' | 'posts' | 'comments';
+
+export type ProfileActivityItem =
+  | { kind: 'thread'; thread: Thread }
+  | {
+      kind: 'comment';
+      post: Post;
+      threadId: string;
+      threadTitle: string;
+      replyingTo?: { author: string; snippet: string };
+    };
 
 export type UploadUrlRequest = {
   filename: string;

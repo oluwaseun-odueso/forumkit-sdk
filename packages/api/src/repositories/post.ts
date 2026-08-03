@@ -16,6 +16,7 @@ type PostRow = {
   reaction_counts: Partial<Record<ReactionType, number>> | null;
   vote_counts: VoteCounts;
   my_vote: VoteDirection | null;
+  is_saved: boolean;
   created_at: Date;
   updated_at: Date;
 };
@@ -56,6 +57,7 @@ function toPost(row: PostRow): Post {
     reactionCounts: row.reaction_counts ?? {},
     voteCounts: row.vote_counts,
     myVote: row.my_vote,
+    isSaved: row.is_saved,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -74,7 +76,8 @@ export async function getPostById(
       p.created_at, p.updated_at,
       ${db.unsafe(REACTION_COUNTS_SUBQUERY)},
       ${db.unsafe(POST_VOTE_COUNTS_SUBQUERY)},
-      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote
+      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
     FROM posts p
     JOIN users u ON u.id = p.author_id
     WHERE p.id = ${postId}
@@ -239,7 +242,8 @@ export async function listPostsByThread(
       p.created_at, p.updated_at,
       ${db.unsafe(REACTION_COUNTS_SUBQUERY)},
       ${db.unsafe(POST_VOTE_COUNTS_SUBQUERY)},
-      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote
+      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
     FROM posts p
     JOIN users u ON u.id = p.author_id
     WHERE p.thread_id = ${threadId}
@@ -247,6 +251,127 @@ export async function listPostsByThread(
     ORDER BY p.created_at ASC
   `;
   return rows.map(toPost);
+}
+
+// Extra context a bare Post doesn't carry, needed for the profile's Comments
+// tab (and for hydrating comment-kind ProfileActivityItems generally): which
+// thread it's in, and — if it's a reply to another reply rather than a
+// top-level reply to the thread — a minimal quoted snippet of what it's
+// replying to, so a comment like "Yeah, I agree!" isn't shown with zero context.
+export type PostWithThreadContext = Post & {
+  threadId: string;
+  threadTitle: string;
+  replyingTo: { author: string; snippet: string } | null;
+};
+
+type PostContextRow = PostRow & {
+  thread_title: string;
+  parent_author_display_name: string | null;
+  parent_body_snippet: string | null;
+};
+
+function toPostWithThreadContext(row: PostContextRow): PostWithThreadContext {
+  return {
+    ...toPost(row),
+    threadId: row.thread_id,
+    threadTitle: row.thread_title,
+    replyingTo: row.parent_author_display_name && row.parent_body_snippet
+      ? { author: row.parent_author_display_name, snippet: row.parent_body_snippet }
+      : null,
+  };
+}
+
+const POST_CONTEXT_SELECT = `
+  p.id, p.thread_id, p.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
+  p.parent_post_id, p.body,
+  p.status, p.toxicity_score, p.is_accepted_answer,
+  p.created_at, p.updated_at,
+  t.title AS thread_title,
+  pu.display_name AS parent_author_display_name,
+  LEFT(parent.body, 140) AS parent_body_snippet,
+  ${REACTION_COUNTS_SUBQUERY},
+  ${POST_VOTE_COUNTS_SUBQUERY}
+`;
+
+const POST_CONTEXT_JOINS = `
+  FROM posts p
+  JOIN users u ON u.id = p.author_id
+  JOIN threads t ON t.id = p.thread_id
+  LEFT JOIN posts parent ON parent.id = p.parent_post_id
+  LEFT JOIN users pu ON pu.id = parent.author_id
+`;
+
+// Backs the profile's Comments tab — replies authored by a specific user,
+// newest first.
+export async function listPostsByAuthor(
+  db: DB,
+  forumId: string,
+  authorId: string,
+  page: number,
+  limit: number,
+  requesterId?: string | undefined,
+): Promise<{ posts: PostWithThreadContext[]; total: number }> {
+  const offset = (page - 1) * limit;
+
+  const [rows, countRows] = await Promise.all([
+    db<PostContextRow[]>`
+      SELECT
+        ${db.unsafe(POST_CONTEXT_SELECT)},
+        (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+        EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
+      ${db.unsafe(POST_CONTEXT_JOINS)}
+      WHERE t.forum_id = ${forumId}
+        AND p.author_id = ${authorId}
+        AND p.status != 'deleted'
+      ORDER BY p.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db<[{ total: string }]>`
+      SELECT COUNT(*) AS total
+      FROM posts p
+      JOIN threads t ON t.id = p.thread_id
+      WHERE t.forum_id = ${forumId} AND p.author_id = ${authorId} AND p.status != 'deleted'
+    `,
+  ]);
+
+  return { posts: rows.map(toPostWithThreadContext), total: Number(countRows[0]?.total ?? 0) };
+}
+
+// Batch fetch by id, same shape as listPostsByAuthor — used to hydrate
+// Upvoted/Downvoted/Saved results, which start from a list of ids (from
+// votes/saves) rather than an author-scoped query.
+export async function getPostsByIds(
+  db: DB,
+  ids: string[],
+  requesterId?: string | undefined,
+): Promise<PostWithThreadContext[]> {
+  if (ids.length === 0) return [];
+
+  const rows = await db<PostContextRow[]>`
+    SELECT
+      ${db.unsafe(POST_CONTEXT_SELECT)},
+      (SELECT direction FROM votes WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE post_id = p.id AND user_id = ${requesterId ?? null}) AS is_saved
+    ${db.unsafe(POST_CONTEXT_JOINS)}
+    WHERE p.id = ANY(${ids}::uuid[])
+      AND p.status != 'deleted'
+  `;
+
+  return rows.map(toPostWithThreadContext);
+}
+
+// Comment karma: sum(upvotes) - sum(downvotes) across every reply the user
+// authored — same convention as getThreadKarma, the other half of the pair.
+export async function getPostKarma(db: DB, forumId: string, authorId: string): Promise<number> {
+  const rows = await db<{ karma: string }[]>`
+    SELECT
+      COALESCE(SUM(CASE WHEN v.direction = 1 THEN 1 WHEN v.direction = -1 THEN -1 ELSE 0 END), 0) AS karma
+    FROM posts p
+    JOIN threads t ON t.id = p.thread_id
+    LEFT JOIN votes v ON v.post_id = p.id
+    WHERE t.forum_id = ${forumId} AND p.author_id = ${authorId} AND p.status != 'deleted'
+  `;
+  return Number(rows[0]?.karma ?? 0);
 }
 
 export async function getForumConfigByThreadId(

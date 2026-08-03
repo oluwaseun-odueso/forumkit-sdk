@@ -22,6 +22,7 @@ type ThreadRow = {
   tags: (Tag & { forum_id: string })[] | null;
   vote_counts: VoteCounts;
   my_vote: VoteDirection | null;
+  is_saved: boolean;
 };
 
 type CreateThreadInput = {
@@ -86,6 +87,7 @@ function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
     })),
     voteCounts: row.vote_counts,
     myVote: row.my_vote,
+    isSaved: row.is_saved,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -141,7 +143,8 @@ export async function listThreads(
           '[]'::json
         ) AS tags,
         ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
-        (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${opts.requesterId ?? null}) AS my_vote
+        (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${opts.requesterId ?? null}) AS my_vote,
+        EXISTS(SELECT 1 FROM saves WHERE thread_id = t.id AND user_id = ${opts.requesterId ?? null}) AS is_saved
       FROM threads t
       JOIN users u ON u.id = t.author_id
       LEFT JOIN (
@@ -221,7 +224,8 @@ export async function getThreadById(
         '[]'::json
       ) AS tags,
       ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
-      (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS my_vote
+      (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS is_saved
     FROM threads t
     JOIN users u ON u.id = t.author_id
     LEFT JOIN (
@@ -239,6 +243,116 @@ export async function getThreadById(
 
   const row = rows[0];
   return row ? toThreadWithMetaData(row) : null;
+}
+
+// Backs the profile's Posts tab — threads authored by a specific user,
+// newest first. Same row shape as listThreads, filtered by author instead
+// of forum-wide scope/sort. page/limit flow in from the route's query
+// string, same as listThreads.
+export async function listThreadsByAuthor(
+  db: DB,
+  forumId: string,
+  authorId: string,
+  page: number,
+  limit: number,
+  requesterId?: string | undefined,
+): Promise<{ threads: ThreadWithMetaData[]; total: number }> {
+  const offset = (page - 1) * limit;
+
+  const [rows, countRows] = await Promise.all([
+    db<ThreadRow[]>`
+      SELECT
+        t.id, t.forum_id, t.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
+        t.title, t.body,
+        t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
+        COALESCE(pc.post_count, 0) AS post_count,
+        '[]'::json AS tags,
+        ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+        (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS my_vote,
+        EXISTS(SELECT 1 FROM saves WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS is_saved
+      FROM threads t
+      JOIN users u ON u.id = t.author_id
+      LEFT JOIN (
+        SELECT thread_id, COUNT(*) AS post_count
+        FROM posts
+        WHERE status = 'visible'
+        GROUP BY thread_id
+      ) pc ON pc.thread_id = t.id
+      WHERE t.forum_id = ${forumId}
+        AND t.author_id = ${authorId}
+        AND t.status != 'deleted'
+      ORDER BY t.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `,
+    db<[{ total: string }]>`
+      SELECT COUNT(*) AS total FROM threads
+      WHERE forum_id = ${forumId} AND author_id = ${authorId} AND status != 'deleted'
+    `,
+  ]);
+
+  return { threads: rows.map(toThreadWithMetaData), total: Number(countRows[0]?.total ?? 0) };
+}
+
+// Batch fetch by id, same row shape as listThreads/getThreadById — used to
+// hydrate Upvoted/Downvoted/Saved results, which start from a list of ids
+// (from votes/saves) rather than a forum-wide scope query.
+export async function getThreadsByIds(
+  db: DB,
+  ids: string[],
+  requesterId?: string | undefined,
+): Promise<ThreadWithMetaData[]> {
+  if (ids.length === 0) return [];
+
+  const rows = await db<ThreadRow[]>`
+    SELECT
+      t.id, t.forum_id, t.author_id, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
+      t.title, t.body,
+      t.status, t.pinned, t.view_count, t.created_at, t.updated_at,
+      COALESCE(pc.post_count, 0) AS post_count,
+      COALESCE(
+        JSON_AGG(
+          JSONB_BUILD_OBJECT(
+            'id',          tg.id,
+            'forum_id',    tg.forum_id,
+            'name',        tg.name,
+            'description', tg.description,
+            'color',       tg.color
+          )
+        ) FILTER (WHERE tg.id IS NOT NULL),
+        '[]'::json
+      ) AS tags,
+      ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+      (SELECT direction FROM votes WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS my_vote,
+      EXISTS(SELECT 1 FROM saves WHERE thread_id = t.id AND user_id = ${requesterId ?? null}) AS is_saved
+    FROM threads t
+    JOIN users u ON u.id = t.author_id
+    LEFT JOIN (
+      SELECT thread_id, COUNT(*) AS post_count
+      FROM posts
+      WHERE status = 'visible'
+      GROUP BY thread_id
+    ) pc ON pc.thread_id = t.id
+    LEFT JOIN thread_tags tt ON tt.thread_id = t.id
+    LEFT JOIN tags tg ON tg.id = tt.tag_id
+    WHERE t.id = ANY(${ids}::uuid[])
+      AND t.status != 'deleted'
+    GROUP BY t.id, u.display_name, u.avatar_url, pc.post_count
+  `;
+
+  return rows.map(toThreadWithMetaData);
+}
+
+// Post karma: sum(upvotes) - sum(downvotes) across every thread the user
+// authored — the same convention Reddit uses for the same number.
+export async function getThreadKarma(db: DB, forumId: string, authorId: string): Promise<number> {
+  const rows = await db<{ karma: string }[]>`
+    SELECT
+      COALESCE(SUM(CASE WHEN v.direction = 1 THEN 1 WHEN v.direction = -1 THEN -1 ELSE 0 END), 0) AS karma
+    FROM threads t
+    LEFT JOIN votes v ON v.thread_id = t.id
+    WHERE t.forum_id = ${forumId} AND t.author_id = ${authorId} AND t.status != 'deleted'
+  `;
+  return Number(rows[0]?.karma ?? 0);
 }
 
 export async function createThread(

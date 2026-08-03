@@ -88,3 +88,48 @@ export async function getVoteCounts(db: DB, target: VoteTarget): Promise<VoteCou
   const row = rows[0];
   return { up: Number(row?.up ?? 0), down: Number(row?.down ?? 0) };
 }
+
+export type VotedIdRow = { id: string; votedAt: Date };
+
+// Backs the profile's Upvoted/Downvoted tabs. Capped rather than exhaustive
+// (see services/profile-activity.ts) — at this app's expected scale
+// (a self-hosted community forum, not Reddit-scale) a bounded recent-history
+// list is the right tradeoff against a full cross-table SQL UNION.
+export async function listVotedThreadIds(
+  db: DB,
+  forumId: string,
+  userId: string,
+  direction: VoteDirection,
+  limit: number,
+): Promise<VotedIdRow[]> {
+  const rows = await db<{ thread_id: string; updated_at: Date }[]>`
+    SELECT v.thread_id, v.updated_at
+    FROM votes v
+    JOIN threads t ON t.id = v.thread_id
+    WHERE v.user_id = ${userId} AND v.direction = ${direction}
+      AND t.forum_id = ${forumId} AND t.status != 'deleted'
+    ORDER BY v.updated_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({ id: r.thread_id, votedAt: r.updated_at }));
+}
+
+export async function listVotedPostIds(
+  db: DB,
+  forumId: string,
+  userId: string,
+  direction: VoteDirection,
+  limit: number,
+): Promise<VotedIdRow[]> {
+  const rows = await db<{ post_id: string; updated_at: Date }[]>`
+    SELECT v.post_id, v.updated_at
+    FROM votes v
+    JOIN posts p ON p.id = v.post_id
+    JOIN threads t ON t.id = p.thread_id
+    WHERE v.user_id = ${userId} AND v.direction = ${direction}
+      AND t.forum_id = ${forumId} AND p.status != 'deleted'
+    ORDER BY v.updated_at DESC
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({ id: r.post_id, votedAt: r.updated_at }));
+}
