@@ -5,13 +5,13 @@ import {
 import type { SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow } from '@forumkit/types';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
-import { getMyProfile, updateMyProfile } from '../api/profile';
+import { getMyProfile, updateMyProfile, updateThemePreference, getProfileActivity } from '../api/profile';
 import { getForum } from '../api/forums';
 import {
   createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
-  getSimilarThreads, type ListThreadsParams,
+  getSimilarThreads, saveThread, unsaveThread, type ListThreadsParams,
 } from '../api/threads';
-import { createReply, updateReply } from '../api/comments';
+import { createReply, updateReply, saveComment, unsaveComment } from '../api/comments';
 import { voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment } from '../api/votes';
 import { useSession } from './use-session';
 
@@ -81,7 +81,6 @@ type FeedState = {
   page: number;
   hasMore: boolean;
   loadingMore: boolean;
-  saved: Record<string, boolean>;
   openPostMenuId: string | null;
   sortMenuOpen: boolean;
   viewMenuOpen: boolean;
@@ -141,7 +140,8 @@ type Action =
   | { type: 'TOGGLE_TOP_WINDOW_MENU' }
   | { type: 'CLOSE_FEED_MENUS' }
   | { type: 'SET_POST_MENU'; postId: string | null }
-  | { type: 'TOGGLE_SAVE_POST'; postId: string }
+  | { type: 'SET_POST_SAVED'; postId: string; saved: boolean }
+  | { type: 'SET_COMMENT_SAVED'; commentId: string; saved: boolean }
   | { type: 'SET_POST_VOTE'; postId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_VOTE'; commentId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_SORT'; sort: CommentSort }
@@ -258,7 +258,7 @@ function threadToFeedPost(thread: Thread): FeedPost {
     voteCounts,
     myVote: thread.myVote ?? null,
     commentCount: thread.commentCount ?? 0,
-    saved: false,
+    saved: thread.isSaved ?? false,
   };
 }
 
@@ -316,6 +316,7 @@ function commentsToCommentTree(comments: Comment[]): CommentNodeData[] {
       votes: netVotes(voteCounts),
       voteCounts,
       myVote: p.myVote ?? null,
+      isSaved: p.isSaved ?? false,
       replies: [],
     });
   }
@@ -350,7 +351,7 @@ const initialState: State = {
   accountMenu: { open: false },
   feed: {
     view: 'compact', sort: 'Best', scope: 'home', tagName: null, topWindow: DEFAULT_TOP_WINDOW,
-    page: 1, hasMore: false, loadingMore: false, saved: {},
+    page: 1, hasMore: false, loadingMore: false,
     openPostMenuId: null, sortMenuOpen: false, viewMenuOpen: false, topWindowMenuOpen: false,
   },
   rail: { latest: [], similar: [], featured: [] },
@@ -429,14 +430,15 @@ function reducer(state: State, action: Action): State {
       return { ...state, feed: { ...state.feed, sortMenuOpen: false, viewMenuOpen: false, topWindowMenuOpen: false, openPostMenuId: null } };
     case 'SET_POST_MENU':
       return { ...state, feed: { ...state.feed, openPostMenuId: action.postId } };
-    case 'TOGGLE_SAVE_POST':
+    case 'SET_POST_SAVED':
       return {
         ...state,
-        feed: {
-          ...state.feed,
-          saved: { ...state.feed.saved, [action.postId]: !state.feed.saved[action.postId] },
-          openPostMenuId: null,
-        },
+        posts: state.posts.map(p => p.id === action.postId ? { ...p, saved: action.saved } : p),
+      };
+    case 'SET_COMMENT_SAVED':
+      return {
+        ...state,
+        comments: mapComment(state.comments, action.commentId, c => ({ ...c, isSaved: action.saved })),
       };
     case 'SET_POST_VOTE':
       return {
@@ -635,7 +637,20 @@ function useForumStateInternal() {
   const toggleTopWindowMenu = useCallback(() => dispatch({ type: 'TOGGLE_TOP_WINDOW_MENU' }), []);
   const closeFeedMenus = useCallback(() => dispatch({ type: 'CLOSE_FEED_MENUS' }), []);
   const setPostMenu = useCallback((postId: string | null) => dispatch({ type: 'SET_POST_MENU', postId }), []);
-  const toggleSavePost = useCallback((postId: string) => dispatch({ type: 'TOGGLE_SAVE_POST', postId }), []);
+
+  const toggleSavePost = useCallback(async (postId: string) => {
+    const post = state.posts.find(p => p.id === postId);
+    if (!post) return;
+    const previousSaved = post.saved;
+    const nextSaved = !previousSaved;
+    dispatch({ type: 'SET_POST_SAVED', postId, saved: nextSaved });
+    try {
+      if (nextSaved) await saveThread(forumId, postId, sessionToken);
+      else await unsaveThread(forumId, postId, sessionToken);
+    } catch {
+      dispatch({ type: 'SET_POST_SAVED', postId, saved: previousSaved });
+    }
+  }, [state.posts, forumId, sessionToken]);
 
   const votePost = useCallback(async (postId: string, dir: VoteDir) => {
     const post = state.posts.find(p => p.id === postId);
@@ -682,6 +697,31 @@ function useForumStateInternal() {
     }
   }, [state.thread.activePostId, state.comments, sessionToken]);
 
+  const toggleSaveComment = useCallback(async (commentId: string) => {
+    const threadId = state.thread.activePostId;
+    if (!threadId) return;
+
+    function findComment(list: CommentNodeData[]): CommentNodeData | undefined {
+      for (const c of list) {
+        if (c.id === commentId) return c;
+        const found = findComment(c.replies);
+        if (found) return found;
+      }
+      return undefined;
+    }
+    const comment = findComment(state.comments);
+    if (!comment) return;
+    const previousSaved = comment.isSaved;
+    const nextSaved = !previousSaved;
+    dispatch({ type: 'SET_COMMENT_SAVED', commentId, saved: nextSaved });
+    try {
+      if (nextSaved) await saveComment(threadId, commentId, sessionToken);
+      else await unsaveComment(threadId, commentId, sessionToken);
+    } catch {
+      dispatch({ type: 'SET_COMMENT_SAVED', commentId, saved: previousSaved });
+    }
+  }, [state.thread.activePostId, state.comments, sessionToken]);
+
   const setCommentSort = useCallback((sort: CommentSort) => dispatch({ type: 'SET_COMMENT_SORT', sort }), []);
   const toggleCommentCollapsed = useCallback((commentId: string) => dispatch({ type: 'TOGGLE_COMMENT_COLLAPSED', commentId }), []);
   const setCommentInput = useCallback((value: string) => dispatch({ type: 'SET_COMMENT_INPUT', value }), []);
@@ -702,6 +742,7 @@ function useForumStateInternal() {
       votes: netVotes(voteCounts),
       voteCounts,
       myVote: raw.myVote ?? null,
+      isSaved: raw.isSaved ?? false,
       replies: [],
     };
     dispatch({ type: 'REPLY_SUBMITTED', parentId, comment });
@@ -1050,6 +1091,7 @@ function useForumStateInternal() {
     toggleSavePost,
     votePost,
     voteComment,
+    toggleSaveComment,
     setCommentSort,
     toggleCommentCollapsed,
     setCommentInput,

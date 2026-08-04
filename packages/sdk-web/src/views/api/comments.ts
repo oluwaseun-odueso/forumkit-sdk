@@ -40,3 +40,19 @@ export async function updateReply(threadId: string, commentId: string, body: str
   });
   return unwrap(res);
 }
+
+export async function saveComment(threadId: string, commentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function unsaveComment(threadId: string, commentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/save`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}

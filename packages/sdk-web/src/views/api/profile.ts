@@ -1,4 +1,7 @@
-import type { UserProfile, UpdateProfileBody } from '@forumkit/types';
+import type {
+  UserProfile, UpdateProfileBody, ProfileActivityItem,
+  ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
+} from '@forumkit/types';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -35,4 +38,35 @@ export async function updateMyProfile(
     throw new Error(data.message ?? `HTTP ${res.status}`);
   }
   return (await res.json()) as UserProfile;
+}
+
+export async function updateThemePreference(
+  forumId: string,
+  themePreference: 'light' | 'dark' | null,
+  token?: string,
+): Promise<void> {
+  await fetch(`${API_BASE}/forums/${forumId}/me/theme`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ themePreference }),
+  });
+}
+
+export type ProfileActivityResult = { items: ProfileActivityItem[]; total: number; page: number; limit: number };
+
+export async function getProfileActivity(
+  forumId: string,
+  scope: ProfileActivityScope,
+  page: number,
+  limit: number,
+  sort: ProfileActivitySort,
+  contentType: ProfileActivityContentType,
+  token?: string,
+): Promise<ProfileActivityResult> {
+  const qs = new URLSearchParams({ scope, page: String(page), limit: String(limit), sort, contentType });
+  const res = await fetch(`${API_BASE}/forums/${forumId}/me/activity?${qs.toString()}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as ProfileActivityResult;
 }

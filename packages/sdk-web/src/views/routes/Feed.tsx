@@ -48,7 +48,7 @@ export function Feed() {
             post={post}
             view={state.feed.view}
             vote={post.myVote ?? 0}
-            saved={state.feed.saved[post.id] ?? false}
+            saved={post.saved}
             menuOpen={state.feed.openPostMenuId === post.id}
             onOpen={() => openThread(post.id)}
             onVote={dir => votePost(post.id, dir)}
