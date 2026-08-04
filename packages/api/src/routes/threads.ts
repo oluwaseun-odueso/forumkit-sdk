@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authenticate, requireRole } from '../middleware/auth';
 import * as threadService from '../services/thread';
 import * as voteService from '../services/vote';
+import * as saveService from '../services/save';
 import type { ThreadError } from '../services/thread';
 import type { HostJWTPayload } from '@forumkit/types';
 import { broadcast } from '../lib/ws-rooms';
@@ -84,6 +85,15 @@ function sendVoteError(code: voteService.VoteError, reply: FastifyReply): void {
   const map: Record<voteService.VoteError, [number, string]> = {
     thread_not_found: [404, 'Thread not found'],
     comment_not_found:   [404, 'Comment not found'],
+  };
+  const [status, message] = map[code];
+  void reply.status(status).send({ error: code, message, statusCode: status });
+}
+
+function sendSaveError(code: saveService.SaveError, reply: FastifyReply): void {
+  const map: Record<saveService.SaveError, [number, string]> = {
+    thread_not_found: [404, 'Thread not found'],
+    comment_not_found: [404, 'Comment not found'],
   };
   const [status, message] = map[code];
   void reply.status(status).send({ error: code, message, statusCode: status });
@@ -498,6 +508,49 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
         payload: { targetType: 'thread', targetId: threadId, voteCounts: result.value.voteCounts },
       });
       return reply.status(200).send(result.value);
+    },
+  );
+
+  /**
+   * POST /forums/:forumId/threads/:threadId/save
+   */
+  app.post(
+    '/:forumId/threads/:threadId/save',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await saveService.saveThread(request.server.db, threadId, user.id);
+      if (!result.ok) {
+        sendSaveError(result.code, reply);
+        return;
+      }
+      return reply.status(200).send({ saved: true });
+    },
+  );
+
+  /**
+   * DELETE /forums/:forumId/threads/:threadId/save
+   * Unsaves the thread.
+   */
+  app.delete(
+    '/:forumId/threads/:threadId/save',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await saveService.unsaveThread(request.server.db, threadId, user.id);
+      if (!result.ok) {
+        sendSaveError(result.code, reply);
+        return;
+      }
+      return reply.status(200).send({ saved: false });
     },
   );
 }

@@ -20,7 +20,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
-function toAttachmentSummaries(
+export function toAttachmentSummaries(
   publicApiUrl: string,
   forumId: string,
   attachments: Attachment[],

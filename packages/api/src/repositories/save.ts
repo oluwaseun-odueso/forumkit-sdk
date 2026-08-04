@@ -38,7 +38,7 @@ export async function unsave(db: DB, target: SaveTarget, userId: string): Promis
 export type SavedIdRow = { id: string; savedAt: Date };
 
 // Returns saved-thread ids alongside when they were saved, so the profile
-// activity service can merge/sort threads and posts by save time.
+// activity service can merge/sort threads and comments by save time.
 export async function listSavedThreadIds(db: DB, userId: string, forumId: string): Promise<SavedIdRow[]> {
   const rows = await db<{ thread_id: string; created_at: Date }[]>`
     SELECT s.thread_id, s.created_at

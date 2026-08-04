@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth';
 import * as commentService from '../services/comment';
 import type { CommentError } from '../services/comment';
 import * as voteService from '../services/vote';
+import * as saveService from '../services/save';
 import { broadcast, joinRoom, leaveRoom } from '../lib/ws-rooms';
 import type { ReactionType } from '@forumkit/types';
 
@@ -59,6 +60,15 @@ function sendVoteError(code: voteService.VoteError, reply: FastifyReply): void {
   const map: Record<voteService.VoteError, [number, string]> = {
     thread_not_found: [404, 'Thread not found'],
     comment_not_found:   [404, 'Comment not found'],
+  };
+  const [status, message] = map[code];
+  void reply.status(status).send({ error: code, message, statusCode: status });
+}
+
+function sendSaveError(code: saveService.SaveError, reply: FastifyReply): void {
+  const map: Record<saveService.SaveError, [number, string]> = {
+    thread_not_found: [404, 'Thread not found'],
+    comment_not_found: [404, 'Comment not found'],
   };
   const [status, message] = map[code];
   void reply.status(status).send({ error: code, message, statusCode: status });
@@ -250,6 +260,37 @@ export async function commentsRoutes(app: FastifyInstance): Promise<void> {
 
     broadcast(tid, { type: 'vote.updated', payload: { targetType: 'comment', targetId: cid, voteCounts: result.value.voteCounts } });
     return reply.status(200).send(result.value);
+  });
+
+  /**
+   * POST /threads/:tid/comments/:cid/save
+   */
+  app.post('/:tid/comments/:cid/save', { preHandler: authenticate }, async (request, reply) => {
+    const { cid } = request.params as { tid: string; cid: string };
+
+    const user = await resolveUser(request);
+    if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
+
+    const result = await saveService.saveComment(request.server.db, cid, user.id);
+    if (!result.ok) return sendSaveError(result.code, reply);
+
+    return reply.status(200).send({ saved: true });
+  });
+
+  /**
+   * DELETE /threads/:tid/comments/:cid/save
+   * Unsaves the comment.
+   */
+  app.delete('/:tid/comments/:cid/save', { preHandler: authenticate }, async (request, reply) => {
+    const { cid } = request.params as { tid: string; cid: string };
+
+    const user = await resolveUser(request);
+    if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
+
+    const result = await saveService.unsaveComment(request.server.db, cid, user.id);
+    if (!result.ok) return sendSaveError(result.code, reply);
+
+    return reply.status(200).send({ saved: false });
   });
 
   /**
