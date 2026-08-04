@@ -7,6 +7,7 @@ export function Compose() {
   const {
     state, forumId, sessionToken, closeComposer, setComposerTab, setComposerField,
     addFiles, removeFile, updateAttachmentMeta, suggestComposeMeta, submitComposer,
+    saveDraft, openDraftsList,
   } = useForum();
 
   return (
@@ -24,6 +25,8 @@ export function Compose() {
           onUpdateMeta={updateAttachmentMeta}
           onSuggestMeta={suggestComposeMeta}
           onSubmit={submitComposer}
+          onSaveDraft={() => saveDraft()}
+          onOpenDraftsList={openDraftsList}
         />
       </div>
     </Shell>

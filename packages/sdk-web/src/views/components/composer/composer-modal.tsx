@@ -26,15 +26,20 @@ type ComposerModalProps = {
   onUpdateMeta: (id: number, caption: string, attachmentUrl: string) => void;
   onSuggestMeta: () => void;
   onSubmit: () => void;
+  onSaveDraft: () => void;
+  onOpenDraftsList: () => void;
 };
 
 export default function ComposerModal({
   composer, forumId, sessionToken, onClose, onSetTab, onSetField,
-  onAddFiles, onRemoveFile, onUpdateMeta, onSuggestMeta, onSubmit,
+  onAddFiles, onRemoveFile, onUpdateMeta, onSuggestMeta, onSubmit, onSaveDraft, onOpenDraftsList,
 }: ComposerModalProps) {
   const hasTitle = composer.title.trim().length > 0;
   const hasUploadsInFlight = composer.attachments.some(a => a.uploadStatus === 'uploading');
-  const canSaveDraft = hasTitle && composer.activeTab !== 'images';
+  // Mirrors the backend's actual draft requirement (title + body both
+  // non-empty, matching thread creation) — not tab-specific, since body is a
+  // single field that persists across tab switches.
+  const canSaveDraft = hasTitle && composer.body.trim().length > 0 && !composer.savingDraft;
   const canPost =
     hasTitle &&
     !composer.submitting &&
@@ -47,7 +52,7 @@ export default function ComposerModal({
       <div className="fk-composer-header">
         <h2 className="fk-composer-heading">Create post</h2>
         <div className="fk-composer-header-actions">
-          <span className="fk-composer-drafts">Drafts</span>
+          <button type="button" className="fk-composer-drafts" onClick={onOpenDraftsList}>Drafts</button>
           <button type="button" className="fk-composer-close" aria-label="Close" onClick={onClose}>
             <CloseIcon />
           </button>
@@ -138,7 +143,9 @@ export default function ComposerModal({
       {composer.error && <p className="fk-composer-error">{composer.error}</p>}
 
       <div className="fk-composer-footer">
-        <PillButton variant="surface" disabled={!canSaveDraft}>Save Draft</PillButton>
+        <PillButton variant="surface" onClick={onSaveDraft} disabled={!canSaveDraft}>
+          {composer.savingDraft ? 'Saving…' : 'Save Draft'}
+        </PillButton>
         <PillButton variant="accent" onClick={onSubmit} disabled={!canPost}>
           {composer.submitting ? 'Posting…' : hasUploadsInFlight ? 'Uploading…' : 'Post'}
         </PillButton>
