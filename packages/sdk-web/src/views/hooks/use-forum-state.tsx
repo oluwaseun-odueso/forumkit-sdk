@@ -2,7 +2,11 @@ import { createContext, useContext, useReducer, useCallback, useEffect, type Rea
 import {
   type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
-import type { SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow } from '@forumkit/types';
+import type {
+  SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow,
+  ProfileActivityItem, ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
+} from '@forumkit/types';
+import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
 import { getMyProfile, updateMyProfile, updateThemePreference, getProfileActivity } from '../api/profile';
@@ -101,6 +105,16 @@ type ProfileState = {
   socialLinks: SocialLink[];
   avatarUrl: string | null;
   bannerUrl: string | null;
+  joinedAt: string | null;
+  postKarma: number;
+  commentKarma: number;
+  themePreference: 'light' | 'dark' | null;
+  activityItems: ProfileActivityItem[];
+  activityTotal: number;
+  activityPage: number;
+  activityLoading: boolean;
+  activitySort: ProfileActivitySort;
+  activityContentType: ProfileActivityContentType;
 };
 
 type State = {
@@ -166,7 +180,17 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
   | { type: 'SET_POSTS'; posts: FeedPost[]; hasMore: boolean }
   | { type: 'SET_PROFILE_TAB'; tab: string }
-  | { type: 'UPDATE_PROFILE'; id: string; displayName: string; bio: string; socialLinks: SocialLink[]; avatarUrl: string | null; bannerUrl: string | null }
+  | {
+      type: 'UPDATE_PROFILE'; id: string; displayName: string; bio: string; socialLinks: SocialLink[];
+      avatarUrl: string | null; bannerUrl: string | null; joinedAt: string | null; postKarma: number;
+      commentKarma: number; themePreference: 'light' | 'dark' | null;
+    }
+  | { type: 'SET_THEME_PREFERENCE'; themePreference: 'light' | 'dark' | null }
+  | { type: 'SET_PROFILE_ACTIVITY'; items: ProfileActivityItem[]; total: number; page: number }
+  | { type: 'APPEND_PROFILE_ACTIVITY'; items: ProfileActivityItem[]; total: number; page: number }
+  | { type: 'SET_PROFILE_ACTIVITY_LOADING'; loading: boolean }
+  | { type: 'SET_PROFILE_SORT'; sort: ProfileActivitySort }
+  | { type: 'SET_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
   | { type: 'ASST_SUGGEST'; text: string }
@@ -341,6 +365,17 @@ const FEED_SORT_TO_QUERY: Record<FeedSort, NonNullable<ListThreadsParams['sort']
   Best: 'best', Hot: 'hot', New: 'new', Top: 'top', Rising: 'rising',
 };
 
+const PROFILE_ACTIVITY_PAGE_SIZE = 20;
+
+// Maps profile-tabs.tsx's display labels to the backend's lowercase scope
+// enum — 'Posts' means "threads I authored" here, matching the tab's own
+// label and the rest of this page's "Post" = thread convention (Create
+// Post, Post Karma), not the backend's Comment entity.
+const PROFILE_TAB_TO_SCOPE: Record<string, ProfileActivityScope | undefined> = {
+  Overview: 'overview', Posts: 'posts', Comments: 'comments',
+  Saved: 'saved', Upvoted: 'upvoted', Downvoted: 'downvoted',
+};
+
 // ─── Initial state ───────────────────────────────────────────────────────────
 
 const initialState: State = {
@@ -364,7 +399,12 @@ const initialState: State = {
     attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
-  profile: { activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null },
+  profile: {
+    activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null,
+    joinedAt: null, postKarma: 0, commentKarma: 0, themePreference: null,
+    activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
+    activitySort: 'new', activityContentType: 'all',
+  },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -560,14 +600,45 @@ function reducer(state: State, action: Action): State {
       // an append (see APPEND_POSTS for the "load more" case).
       return { ...state, posts: action.posts, feed: { ...state.feed, page: 1, hasMore: action.hasMore } };
     case 'SET_PROFILE_TAB':
-      return { ...state, profile: { ...state.profile, activeTab: action.tab } };
+      return {
+        ...state,
+        profile: { ...state.profile, activeTab: action.tab, activityItems: [], activityPage: 1 },
+      };
     case 'UPDATE_PROFILE':
       return {
         ...state,
         profile: {
           ...state.profile, id: action.id, displayName: action.displayName, bio: action.bio,
           socialLinks: action.socialLinks, avatarUrl: action.avatarUrl, bannerUrl: action.bannerUrl,
+          joinedAt: action.joinedAt, postKarma: action.postKarma, commentKarma: action.commentKarma,
+          themePreference: action.themePreference,
         },
+      };
+    case 'SET_THEME_PREFERENCE':
+      return { ...state, profile: { ...state.profile, themePreference: action.themePreference } };
+    case 'SET_PROFILE_ACTIVITY':
+      return {
+        ...state,
+        profile: { ...state.profile, activityItems: action.items, activityTotal: action.total, activityPage: action.page },
+      };
+    case 'APPEND_PROFILE_ACTIVITY':
+      return {
+        ...state,
+        profile: {
+          ...state.profile,
+          activityItems: [...state.profile.activityItems, ...action.items],
+          activityTotal: action.total,
+          activityPage: action.page,
+        },
+      };
+    case 'SET_PROFILE_ACTIVITY_LOADING':
+      return { ...state, profile: { ...state.profile, activityLoading: action.loading } };
+    case 'SET_PROFILE_SORT':
+      return { ...state, profile: { ...state.profile, activitySort: action.sort, activityItems: [], activityPage: 1 } };
+    case 'SET_PROFILE_CONTENT_TYPE':
+      return {
+        ...state,
+        profile: { ...state.profile, activityContentType: action.contentType, activityItems: [], activityPage: 1 },
       };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
@@ -596,6 +667,7 @@ function useForumStateInternal() {
   const session = useSession();
   const forumId = session.forumId;
   const sessionToken = session.sessionToken ?? undefined;
+  const themeHost = useContext(ThemeHostContext);
 
   const setView = useCallback((view: View) => dispatch({ type: 'SET_VIEW', view }), []);
   const openThread = useCallback((postId: string) => dispatch({ type: 'OPEN_THREAD', postId }), []);
@@ -812,6 +884,23 @@ function useForumStateInternal() {
     }
   }, [state.composer, forumId, sessionToken]);
   const setProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_PROFILE_TAB', tab }), []);
+  const setProfileSort = useCallback((sort: ProfileActivitySort) => dispatch({ type: 'SET_PROFILE_SORT', sort }), []);
+  const setProfileContentType = useCallback(
+    (contentType: ProfileActivityContentType) => dispatch({ type: 'SET_PROFILE_CONTENT_TYPE', contentType }),
+    [],
+  );
+
+  // Shared by the account menu's inline toggle and the Settings modal's
+  // Preferences section — one callback, one source of truth
+  // (state.profile.themePreference), so flipping it from either place
+  // stays in sync with the other immediately.
+  const toggleTheme = useCallback(async () => {
+    const next = state.profile.themePreference === 'light' ? 'dark' : 'light';
+    dispatch({ type: 'SET_THEME_PREFERENCE', themePreference: next });
+    themeHost.setThemeAttr(next);
+    try { localStorage.setItem('fk_theme', next); } catch { /* storage unavailable */ }
+    if (forumId) await updateThemePreference(forumId, next, sessionToken);
+  }, [state.profile.themePreference, themeHost, forumId, sessionToken]);
 
   type SaveProfileFields = {
     displayName: string;
@@ -864,6 +953,10 @@ function useForumStateInternal() {
       socialLinks: clientLinks,
       avatarUrl: profile.avatarUrl,
       bannerUrl: profile.bannerUrl,
+      joinedAt: profile.joinedAt as unknown as string,
+      postKarma: profile.postKarma,
+      commentKarma: profile.commentKarma,
+      themePreference: profile.themePreference,
     });
   }, [state.profile.avatarUrl, state.profile.bannerUrl, forumId, sessionToken]);
 
@@ -974,10 +1067,60 @@ function useForumStateInternal() {
         socialLinks: clientLinks,
         avatarUrl: profile.avatarUrl,
         bannerUrl: profile.bannerUrl,
+        joinedAt: profile.joinedAt as unknown as string,
+        postKarma: profile.postKarma,
+        commentKarma: profile.commentKarma,
+        themePreference: profile.themePreference,
       });
+      // A saved server preference overrides whatever the host app initialised
+      // ForumKit with — same localStorage key use-theme.ts already reads, so
+      // top-nav's own theme toggle picks this up on its next mount too.
+      if (profile.themePreference) {
+        try { localStorage.setItem('fk_theme', profile.themePreference); } catch { /* storage unavailable */ }
+        themeHost.setThemeAttr(profile.themePreference);
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionToken]);
+
+  // ─── Profile activity: (re)load whenever the tab/sort/content-filter changes ─
+  // Same "always fetch page 1 and replace" pattern as feed init below —
+  // ACTIVITY_PAGE_SIZE items at a time, more loaded via loadMoreProfileActivity.
+  useEffect(() => {
+    if (!sessionToken || !forumId || state.view !== 'profile') return;
+    const scope = PROFILE_TAB_TO_SCOPE[state.profile.activeTab];
+    if (!scope) return;
+    dispatch({ type: 'SET_PROFILE_ACTIVITY_LOADING', loading: true });
+    void getProfileActivity(
+      forumId, scope, 1, PROFILE_ACTIVITY_PAGE_SIZE, state.profile.activitySort, state.profile.activityContentType, sessionToken,
+    ).then(result => {
+      dispatch({ type: 'SET_PROFILE_ACTIVITY', items: result.items, total: result.total, page: 1 });
+    }).finally(() => {
+      dispatch({ type: 'SET_PROFILE_ACTIVITY_LOADING', loading: false });
+    });
+  }, [
+    sessionToken, forumId, state.view, state.profile.activeTab,
+    state.profile.activitySort, state.profile.activityContentType,
+  ]);
+
+  const loadMoreProfileActivity = useCallback(async () => {
+    if (!sessionToken || !forumId) return;
+    const scope = PROFILE_TAB_TO_SCOPE[state.profile.activeTab];
+    if (!scope) return;
+    const nextPage = state.profile.activityPage + 1;
+    dispatch({ type: 'SET_PROFILE_ACTIVITY_LOADING', loading: true });
+    try {
+      const result = await getProfileActivity(
+        forumId, scope, nextPage, PROFILE_ACTIVITY_PAGE_SIZE, state.profile.activitySort, state.profile.activityContentType, sessionToken,
+      );
+      dispatch({ type: 'APPEND_PROFILE_ACTIVITY', items: result.items, total: result.total, page: nextPage });
+    } finally {
+      dispatch({ type: 'SET_PROFILE_ACTIVITY_LOADING', loading: false });
+    }
+  }, [
+    sessionToken, forumId, state.profile.activeTab, state.profile.activityPage,
+    state.profile.activitySort, state.profile.activityContentType,
+  ]);
 
   // ─── Feed init: (re)load real threads whenever the sort/scope/window changes ─
   // Ranking is now computed server-side (see repositories/thread.ts
@@ -1108,6 +1251,10 @@ function useForumStateInternal() {
     updateAttachmentMeta,
     submitComposer,
     setProfileTab,
+    setProfileSort,
+    setProfileContentType,
+    loadMoreProfileActivity,
+    toggleTheme,
     saveProfile,
     summarize,
     suggest,
