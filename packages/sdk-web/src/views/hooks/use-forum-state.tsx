@@ -109,7 +109,7 @@ type ProfileState = {
   postKarma: number;
   commentKarma: number;
   themePreference: 'light' | 'dark' | null;
-  activityItems: ProfileActivityItem[];
+  activityItems: ActivityItemView[];
   activityTotal: number;
   activityPage: number;
   activityLoading: boolean;
@@ -130,6 +130,7 @@ type State = {
   composer: ComposeState;
   asst: AsstState;
   profile: ProfileState;
+  settings: { open: boolean };
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
@@ -167,6 +168,8 @@ type Action =
   | { type: 'POST_EDITED'; postId: string; title: string; body: string }
   | { type: 'OPEN_COMPOSER' }
   | { type: 'CLOSE_COMPOSER' }
+  | { type: 'OPEN_SETTINGS' }
+  | { type: 'CLOSE_SETTINGS' }
   | { type: 'SET_COMPOSER_TAB'; tab: ComposerTab }
   | { type: 'SET_COMPOSER_FIELD'; field: 'title' | 'tags' | 'body' | 'linkUrl'; value: string }
   | { type: 'SET_COMPOSER_GEN'; field: 'genTitle' | 'genTags'; value: boolean }
@@ -186,8 +189,8 @@ type Action =
       commentKarma: number; themePreference: 'light' | 'dark' | null;
     }
   | { type: 'SET_THEME_PREFERENCE'; themePreference: 'light' | 'dark' | null }
-  | { type: 'SET_PROFILE_ACTIVITY'; items: ProfileActivityItem[]; total: number; page: number }
-  | { type: 'APPEND_PROFILE_ACTIVITY'; items: ProfileActivityItem[]; total: number; page: number }
+  | { type: 'SET_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
+  | { type: 'APPEND_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
   | { type: 'SET_PROFILE_ACTIVITY_LOADING'; loading: boolean }
   | { type: 'SET_PROFILE_SORT'; sort: ProfileActivitySort }
   | { type: 'SET_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
@@ -209,6 +212,21 @@ function mapComment(
     if (next.replies.length > 0) next.replies = mapComment(next.replies, id, fn);
     return next;
   });
+}
+
+// Profile activity items live in a separate array from the main feed
+// (state.profile.activityItems vs. state.posts) — a thread can appear in
+// both at once (e.g. your own post, shown in both the feed and your
+// Profile's Posts tab). Voting/saving needs to keep both in sync rather
+// than only updating whichever array happened to be the lookup source.
+function mapActivityThread(
+  items: ActivityItemView[],
+  threadId: string,
+  fn: (t: FeedPost) => FeedPost,
+): ActivityItemView[] {
+  return items.map(item => item.kind === 'thread' && item.thread.id === threadId
+    ? { ...item, thread: fn(item.thread) }
+    : item);
 }
 
 // Recursively inserts a new reply into the tree at parentId, or prepends it
@@ -284,6 +302,20 @@ function threadToFeedPost(thread: Thread): FeedPost {
     commentCount: thread.commentCount ?? 0,
     saved: thread.isSaved ?? false,
   };
+}
+
+// The wire shape (ProfileActivityItem, from @forumkit/types) carries a raw
+// backend Thread for its 'thread' variant — PostCard needs a FeedPost, so
+// this is the frontend-side view converted once right after fetching,
+// reusing the same threadToFeedPost mapper the main feed already uses.
+export type ActivityItemView =
+  | { kind: 'thread'; thread: FeedPost }
+  | { kind: 'comment'; comment: Comment; threadId: string; threadTitle: string; replyingTo?: { author: string; snippet: string } | undefined };
+
+function toActivityItemView(item: ProfileActivityItem): ActivityItemView {
+  return item.kind === 'thread'
+    ? { kind: 'thread', thread: threadToFeedPost(item.thread) }
+    : { kind: 'comment', comment: item.comment, threadId: item.threadId, threadTitle: item.threadTitle, replyingTo: item.replyingTo };
 }
 
 // Backend Thread -> a right-rail RailItem (Latest/Featured cards). Real
@@ -405,6 +437,7 @@ const initialState: State = {
     activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
     activitySort: 'new', activityContentType: 'all',
   },
+  settings: { open: false },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -474,6 +507,10 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         posts: state.posts.map(p => p.id === action.postId ? { ...p, saved: action.saved } : p),
+        profile: {
+          ...state.profile,
+          activityItems: mapActivityThread(state.profile.activityItems, action.postId, t => ({ ...t, saved: action.saved })),
+        },
       };
     case 'SET_COMMENT_SAVED':
       return {
@@ -486,6 +523,12 @@ function reducer(state: State, action: Action): State {
         posts: state.posts.map(p => p.id === action.postId
           ? { ...p, voteCounts: action.voteCounts, myVote: action.myVote, votes: netVotes(action.voteCounts) }
           : p),
+        profile: {
+          ...state.profile,
+          activityItems: mapActivityThread(state.profile.activityItems, action.postId, t => (
+            { ...t, voteCounts: action.voteCounts, myVote: action.myVote, votes: netVotes(action.voteCounts) }
+          )),
+        },
       };
     case 'SET_COMMENT_VOTE':
       return {
@@ -540,6 +583,10 @@ function reducer(state: State, action: Action): State {
       };
     case 'CLOSE_COMPOSER':
       return { ...state, view: 'feed', composer: { ...state.composer, open: false } };
+    case 'OPEN_SETTINGS':
+      return { ...state, settings: { open: true } };
+    case 'CLOSE_SETTINGS':
+      return { ...state, settings: { open: false } };
     case 'SET_COMPOSER_TAB':
       return { ...state, composer: { ...state.composer, activeTab: action.tab } };
     case 'SET_COMPOSER_FIELD':
@@ -710,8 +757,18 @@ function useForumStateInternal() {
   const closeFeedMenus = useCallback(() => dispatch({ type: 'CLOSE_FEED_MENUS' }), []);
   const setPostMenu = useCallback((postId: string | null) => dispatch({ type: 'SET_POST_MENU', postId }), []);
 
+  // A thread rendered on the Profile page's activity tabs may not be in
+  // state.posts at all (e.g. someone else's thread you saved/upvoted) —
+  // look in both places rather than assuming the main feed already has it.
+  // Both arrays are populated only from this same signed-in user's own
+  // authenticated requests, so there's no cross-user data involved here.
+  function findFeedPost(postId: string): FeedPost | undefined {
+    return state.posts.find(p => p.id === postId)
+      ?? state.profile.activityItems.find((i): i is ActivityItemView & { kind: 'thread' } => i.kind === 'thread' && i.thread.id === postId)?.thread;
+  }
+
   const toggleSavePost = useCallback(async (postId: string) => {
-    const post = state.posts.find(p => p.id === postId);
+    const post = findFeedPost(postId);
     if (!post) return;
     const previousSaved = post.saved;
     const nextSaved = !previousSaved;
@@ -722,10 +779,10 @@ function useForumStateInternal() {
     } catch {
       dispatch({ type: 'SET_POST_SAVED', postId, saved: previousSaved });
     }
-  }, [state.posts, forumId, sessionToken]);
+  }, [state.posts, state.profile.activityItems, forumId, sessionToken]);
 
   const votePost = useCallback(async (postId: string, dir: VoteDir) => {
-    const post = state.posts.find(p => p.id === postId);
+    const post = findFeedPost(postId);
     if (!post || dir === 0) return;
     const previousVoteCounts = post.voteCounts ?? { up: 0, down: 0 };
     const previousMyVote = post.myVote ?? null;
@@ -739,7 +796,7 @@ function useForumStateInternal() {
     } catch {
       dispatch({ type: 'SET_POST_VOTE', postId, voteCounts: previousVoteCounts, myVote: previousMyVote });
     }
-  }, [state.posts, forumId, sessionToken]);
+  }, [state.posts, state.profile.activityItems, forumId, sessionToken]);
 
   const voteComment = useCallback(async (commentId: string, dir: VoteDir) => {
     const threadId = state.thread.activePostId;
@@ -843,6 +900,8 @@ function useForumStateInternal() {
 
   const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER' }), []);
   const closeComposer = useCallback(() => dispatch({ type: 'CLOSE_COMPOSER' }), []);
+  const openSettings = useCallback(() => dispatch({ type: 'OPEN_SETTINGS' }), []);
+  const closeSettings = useCallback(() => dispatch({ type: 'CLOSE_SETTINGS' }), []);
   const setComposerTab = useCallback((tab: ComposerTab) => dispatch({ type: 'SET_COMPOSER_TAB', tab }), []);
   const setComposerField = useCallback(
     (field: 'title' | 'tags' | 'body' | 'linkUrl', value: string) => dispatch({ type: 'SET_COMPOSER_FIELD', field, value }),
@@ -1094,7 +1153,7 @@ function useForumStateInternal() {
     void getProfileActivity(
       forumId, scope, 1, PROFILE_ACTIVITY_PAGE_SIZE, state.profile.activitySort, state.profile.activityContentType, sessionToken,
     ).then(result => {
-      dispatch({ type: 'SET_PROFILE_ACTIVITY', items: result.items, total: result.total, page: 1 });
+      dispatch({ type: 'SET_PROFILE_ACTIVITY', items: result.items.map(toActivityItemView), total: result.total, page: 1 });
     }).finally(() => {
       dispatch({ type: 'SET_PROFILE_ACTIVITY_LOADING', loading: false });
     });
@@ -1113,7 +1172,7 @@ function useForumStateInternal() {
       const result = await getProfileActivity(
         forumId, scope, nextPage, PROFILE_ACTIVITY_PAGE_SIZE, state.profile.activitySort, state.profile.activityContentType, sessionToken,
       );
-      dispatch({ type: 'APPEND_PROFILE_ACTIVITY', items: result.items, total: result.total, page: nextPage });
+      dispatch({ type: 'APPEND_PROFILE_ACTIVITY', items: result.items.map(toActivityItemView), total: result.total, page: nextPage });
     } finally {
       dispatch({ type: 'SET_PROFILE_ACTIVITY_LOADING', loading: false });
     }
@@ -1244,6 +1303,8 @@ function useForumStateInternal() {
     editPost,
     openComposer,
     closeComposer,
+    openSettings,
+    closeSettings,
     setComposerTab,
     setComposerField,
     addFiles,

@@ -1,14 +1,22 @@
 import { CameraIcon } from '../shared/icons';
+import Avatar from '../shared/avatar';
+import { authorAvatar } from '../../lib/author-avatar';
 import './profile-header.css';
 
-const USER_GRADIENT = 'radial-gradient(120% 95% at 30% 25%, #f0c9a8, #b97d52 68%, #6f4630)';
+type ProfileHeaderProps = {
+  username: string;
+  handle: string;
+  avatarUrl: string | null;
+  onEditAvatar: () => void;
+};
 
-export default function ProfileHeader({ username, handle }: { username: string; handle: string }) {
+export default function ProfileHeader({ username, handle, avatarUrl, onEditAvatar }: ProfileHeaderProps) {
+  const avatar = authorAvatar(handle, username);
   return (
     <div className="fk-profile-header">
       <div className="fk-profile-avatar-wrap">
-        <div className="fk-profile-avatar" style={{ background: USER_GRADIENT }} />
-        <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar">
+        <Avatar size={88} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} style={{ borderRadius: '50%' }} />
+        <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar" onClick={onEditAvatar}>
           <CameraIcon />
         </button>
       </div>
