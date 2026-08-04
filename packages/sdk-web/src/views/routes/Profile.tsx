@@ -23,12 +23,6 @@ const CONTENT_TYPE_LABEL: Record<string, string> = {
   comments: 'Showing comments only',
 };
 
-function formatCakeDay(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${d.toLocaleDateString('en-US', { month: 'short' })} '${String(d.getFullYear()).slice(-2)}`;
-}
-
 export function Profile() {
   const {
     state, setProfileTab, setProfileSort, setProfileContentType, loadMoreProfileActivity,
@@ -53,7 +47,6 @@ export function Profile() {
           handle={username}
           postKarma={profile.postKarma}
           commentKarma={profile.commentKarma}
-          cakeDay={formatCakeDay(profile.joinedAt)}
         />
       }
     >

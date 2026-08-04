@@ -13,7 +13,6 @@ type ProfileRightRailProps = {
   handle: string;
   postKarma: number;
   commentKarma: number;
-  cakeDay: string;
 };
 
 const PLATFORM_ICON: Record<SocialLink['platform'], React.ComponentType<{ size?: number }>> = {
@@ -31,7 +30,7 @@ function cleanUrl(url: string): string {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
-export default function ProfileRightRail({ username, handle, postKarma, commentKarma, cakeDay }: ProfileRightRailProps) {
+export default function ProfileRightRail({ username, handle, postKarma, commentKarma }: ProfileRightRailProps) {
   const { state, openSettings } = useForum();
   const { socialLinks } = state.profile;
 
@@ -45,7 +44,6 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
           <div className="fk-profile-stats">
             <div><div className="fk-profile-stat-value">{postKarma.toLocaleString()}</div><div className="fk-profile-stat-label">Post Karma</div></div>
             <div><div className="fk-profile-stat-value">{commentKarma.toLocaleString()}</div><div className="fk-profile-stat-label">Comment Karma</div></div>
-            <div><div className="fk-profile-stat-value">{cakeDay}</div><div className="fk-profile-stat-label">Cake Day</div></div>
           </div>
           <div className="fk-profile-card-actions">
             <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={openSettings}>Edit Profile</PillButton>
