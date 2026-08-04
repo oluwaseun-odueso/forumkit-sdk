@@ -28,7 +28,7 @@ export default function DraftsListModal({ items, loading, onClose, onResume, onD
   }
 
   return (
-    <Modal onClose={onClose} maxWidth={480}>
+    <Modal onClose={onClose} maxWidth={560} blurBackground>
       <div className="fk-drafts-modal-header">
         <h3 className="fk-drafts-modal-title">Drafts</h3>
         <button type="button" className="fk-drafts-modal-close" onClick={onClose}>
@@ -41,8 +41,8 @@ export default function DraftsListModal({ items, loading, onClose, onResume, onD
           <div className="fk-drafts-modal-loading"><MascotIcon size={36} /></div>
         ) : items.length === 0 ? (
           <div className="fk-drafts-modal-empty">
-            <DraftIcon size={28} />
-            <p>No drafts yet. Save one from the composer to see it here.</p>
+            <DraftIcon size={48} />
+            <p>Nothing saved yet — anything you start writing can land here so you never lose it.</p>
           </div>
         ) : (
           items.map((draft) => (
