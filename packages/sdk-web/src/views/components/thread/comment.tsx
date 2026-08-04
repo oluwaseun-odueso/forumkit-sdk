@@ -15,6 +15,7 @@ type CommentProps = {
   onVote: (id: string, dir: VoteDir) => void;
   onReply: (parentId: string, body: string) => Promise<void>;
   onEdit: (commentId: string, body: string) => Promise<void>;
+  onSave: (commentId: string) => void;
 };
 
 /**
@@ -22,7 +23,7 @@ type CommentProps = {
  * "link chain" connector line with a +/− toggle sitting on the line itself.
  */
 export default function Comment({
-  comment, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit,
+  comment, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave,
 }: CommentProps) {
   const isCollapsed = collapsed[comment.id] ?? false;
   const size = depth === 0 ? 'md' : 'sm';
@@ -146,6 +147,9 @@ export default function Comment({
             {isMine && !editOpen && (
               <button type="button" className="fk-comment-action" onClick={() => setEditOpen(true)}>Edit</button>
             )}
+            <button type="button" className="fk-comment-action" onClick={() => onSave(comment.id)}>
+              {comment.isSaved ? 'Saved' : 'Save'}
+            </button>
             {depth === 0 && <span className="fk-comment-action">Share</span>}
           </div>
 
@@ -186,6 +190,7 @@ export default function Comment({
               onVote={onVote}
               onReply={onReply}
               onEdit={onEdit}
+              onSave={onSave}
             />
           ))}
         </div>

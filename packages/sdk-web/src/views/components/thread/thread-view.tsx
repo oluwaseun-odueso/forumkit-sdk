@@ -32,7 +32,7 @@ function filterComments(list: CommentNodeData[], q: string): CommentNodeData[] {
 export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {
     state, activePost, sortedComments, currentUserId,
-    votePost, voteComment, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
+    votePost, voteComment, toggleSaveComment, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
     submitReply, editComment, editPost,
     summarize, suggest,
   } = forum;
@@ -273,6 +273,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           onVote={voteComment}
           onReply={submitReply}
           onEdit={editComment}
+          onSave={toggleSaveComment}
         />
       ))}
     </div>
