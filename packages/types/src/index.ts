@@ -252,6 +252,46 @@ export type UpdateCommentBody = {
   body: string;
 };
 
+// ── Composer drafts ─────────────────────────────────────────────────
+
+// Mirrors the composer's persistable fields — excludes transient UI state
+// (upload/generation-in-progress flags, local preview data: URLs) since
+// those can't or shouldn't survive a resume.
+export type DraftContent = {
+  activeTab: 'text' | 'images' | 'link';
+  tags: string;
+  body: string;
+  linkUrl: string;
+  attachments: Array<{
+    attachmentId: string;
+    attachmentUrl: string;
+    caption: string;
+    kind: 'image' | 'video' | 'file';
+    name: string;
+    sizeLabel: string;
+  }>;
+};
+
+export type Draft = {
+  id: string;
+  userId: string;
+  forumId: string;
+  title: string;
+  content: DraftContent;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CreateDraftBody = {
+  title: string;
+  content: DraftContent;
+};
+
+export type UpdateDraftBody = {
+  title?: string;
+  content?: DraftContent;
+};
+
 export type TopWindow = 'hour' | 'day' | 'week' | 'month' | 'year' | 'all';
 
 export type ThreadListQuery = {
