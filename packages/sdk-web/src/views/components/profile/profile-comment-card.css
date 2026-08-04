@@ -1,0 +1,68 @@
+.fk-profile-comment-card {
+  padding: 14px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  border-top: 1px solid var(--border);
+}
+
+.fk-profile-comment-card:hover {
+  background: var(--hover);
+}
+
+.fk-profile-comment-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.fk-profile-comment-card-author {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-profile-comment-card-time {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.fk-profile-comment-card-context {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.fk-profile-comment-card-thread-title {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.fk-profile-comment-card-replying-to {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.fk-profile-comment-card-body {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+
+.fk-profile-comment-card-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fk-profile-comment-card-stats span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
