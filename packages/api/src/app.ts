@@ -18,6 +18,7 @@ import { aiRoutes, composeAiRoutes } from './routes/ai';
 import { moderationRoutes } from './routes/moderation';
 import { attachmentsRoutes } from './routes/attachments';
 import { usersRoutes } from './routes/users';
+import { draftsRoutes } from './routes/drafts';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
   const app = Fastify({
@@ -57,6 +58,7 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   await app.register(moderationRoutes, { prefix: '/moderation' });
   await app.register(attachmentsRoutes, { prefix: '/forums' });
   await app.register(usersRoutes, { prefix: '/forums' });
+  await app.register(draftsRoutes, { prefix: '/forums' });
 
   // ── Health check ─────────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
