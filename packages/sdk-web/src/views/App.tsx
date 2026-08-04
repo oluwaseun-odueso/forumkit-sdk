@@ -7,9 +7,13 @@ import { Thread } from './routes/Thread';
 import { Profile } from './routes/Profile';
 import { Compose } from './routes/Compose';
 import EditProfileModal from './components/profile/edit-profile-modal';
+import DraftsListModal from './components/composer/drafts-list-modal';
 
 function Router() {
-  const { state, closeSettings, saveProfile, toggleTheme } = useForum();
+  const {
+    state, closeSettings, saveProfile, toggleTheme,
+    closeDraftsList, resumeDraft, deleteDraftFromList,
+  } = useForum();
   const { profile } = state;
 
   return (
@@ -29,6 +33,15 @@ function Router() {
           onToggleTheme={toggleTheme}
           onSave={saveProfile}
           onClose={closeSettings}
+        />
+      )}
+      {state.draftsModal.open && (
+        <DraftsListModal
+          items={state.draftsModal.items}
+          loading={state.draftsModal.loading}
+          onClose={closeDraftsList}
+          onResume={resumeDraft}
+          onDelete={deleteDraftFromList}
         />
       )}
     </>

@@ -9,12 +9,11 @@ type AccountMenuProps = {
   open: boolean;
   onClose: () => void;
   onViewProfile: () => void;
-  onOpenDrafts?: (() => void) | undefined;
   showViewProfile?: boolean;
 };
 
-export default function AccountMenu({ open, onClose, onViewProfile, onOpenDrafts, showViewProfile = true }: AccountMenuProps) {
-  const { state, openSettings, toggleTheme, logOut, canLogOut } = useForum();
+export default function AccountMenu({ open, onClose, onViewProfile, showViewProfile = true }: AccountMenuProps) {
+  const { state, openSettings, toggleTheme, logOut, canLogOut, openDraftsList } = useForum();
   const { profile } = state;
   const username = profile.displayName || 'You';
   const avatar = authorAvatar(profile.id ?? username, username);
@@ -22,7 +21,7 @@ export default function AccountMenu({ open, onClose, onViewProfile, onOpenDrafts
 
   const menuItems = [
     { label: 'Edit Avatar', icon: <ShirtIcon />, onClick: () => { openSettings(); onClose(); } },
-    { label: 'Drafts', icon: <DraftIcon />, onClick: () => { onOpenDrafts?.(); onClose(); } },
+    { label: 'Drafts', icon: <DraftIcon />, onClick: () => { openDraftsList(); onClose(); } },
     {
       label: 'Display Mode',
       icon: isDark ? <MoonIcon /> : <SunIcon />,
