@@ -63,7 +63,7 @@ export async function listDraftsByUser(db: DB, forumId: string, userId: string):
 export async function updateDraft(
   db: DB,
   draftId: string,
-  fields: { title?: string; content?: DraftContent },
+  fields: { title?: string | undefined; content?: DraftContent | undefined },
 ): Promise<Draft | null> {
   const existing = await getDraftById(db, draftId);
   if (!existing) return null;
