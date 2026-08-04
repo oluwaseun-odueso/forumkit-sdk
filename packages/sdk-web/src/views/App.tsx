@@ -6,9 +6,11 @@ import { Feed } from './routes/Feed';
 import { Thread } from './routes/Thread';
 import { Profile } from './routes/Profile';
 import { Compose } from './routes/Compose';
+import EditProfileModal from './components/profile/edit-profile-modal';
 
 function Router() {
-  const { state } = useForum();
+  const { state, closeSettings, saveProfile, toggleTheme } = useForum();
+  const { profile } = state;
 
   return (
     <>
@@ -16,6 +18,19 @@ function Router() {
       {state.view === 'thread' && <Thread />}
       {state.view === 'profile' && <Profile />}
       {state.view === 'compose' && <Compose />}
+      {state.settings.open && (
+        <EditProfileModal
+          displayName={profile.displayName}
+          bio={profile.bio}
+          socialLinks={profile.socialLinks}
+          avatarUrl={profile.avatarUrl}
+          bannerUrl={profile.bannerUrl}
+          themePreference={profile.themePreference}
+          onToggleTheme={toggleTheme}
+          onSave={saveProfile}
+          onClose={closeSettings}
+        />
+      )}
     </>
   );
 }

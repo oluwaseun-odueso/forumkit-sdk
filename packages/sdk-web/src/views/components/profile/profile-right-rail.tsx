@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForum } from '../../hooks/use-forum-state';
 import type { SocialLink } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
@@ -7,7 +6,6 @@ import {
   EllipsisIcon, ExternalLinkIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
 } from '../shared/icons';
-import EditProfileModal from './edit-profile-modal';
 import './profile-right-rail.css';
 
 type ProfileRightRailProps = {
@@ -34,9 +32,8 @@ function cleanUrl(url: string): string {
 }
 
 export default function ProfileRightRail({ username, handle, postKarma, commentKarma, cakeDay }: ProfileRightRailProps) {
-  const { state, saveProfile } = useForum();
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const { socialLinks, displayName, bio, avatarUrl, bannerUrl } = state.profile;
+  const { state, openSettings } = useForum();
+  const { socialLinks } = state.profile;
 
   return (
     <aside className="fk-profile-rail">
@@ -51,7 +48,7 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
             <div><div className="fk-profile-stat-value">{cakeDay}</div><div className="fk-profile-stat-label">Cake Day</div></div>
           </div>
           <div className="fk-profile-card-actions">
-            <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setEditModalOpen(true)}>Edit Profile</PillButton>
+            <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={openSettings}>Edit Profile</PillButton>
             <IconButton label="More options" size={42}><EllipsisIcon /></IconButton>
           </div>
         </div>
@@ -60,7 +57,7 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
       <div className="fk-profile-card">
         <div className="fk-profile-card-head">
           <span className="fk-profile-card-title">Social Links</span>
-          <button type="button" className="fk-profile-card-link fk-profile-card-link--accent" onClick={() => setEditModalOpen(true)}>
+          <button type="button" className="fk-profile-card-link fk-profile-card-link--accent" onClick={openSettings}>
             Manage
           </button>
         </div>
@@ -85,22 +82,10 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
           );
         })}
 
-        <button type="button" className="fk-social-link-add" onClick={() => setEditModalOpen(true)}>
+        <button type="button" className="fk-social-link-add" onClick={openSettings}>
           + Add a link
         </button>
       </div>
-
-      {editModalOpen && (
-        <EditProfileModal
-          displayName={displayName}
-          bio={bio}
-          socialLinks={socialLinks}
-          avatarUrl={avatarUrl}
-          bannerUrl={bannerUrl}
-          onSave={saveProfile}
-          onClose={() => setEditModalOpen(false)}
-        />
-      )}
     </aside>
   );
 }

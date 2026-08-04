@@ -3,7 +3,7 @@ import type { SocialLink } from '../../hooks/use-forum-state';
 import { resizeImage } from '../../utils/resize-image';
 import PillButton from '../shared/pill-button';
 import {
-  CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon,
+  CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon, SunIcon, MoonIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
 } from '../shared/icons';
 import './edit-profile-modal.css';
@@ -65,6 +65,8 @@ type EditProfileModalProps = {
   socialLinks: SocialLink[];
   avatarUrl: string | null;
   bannerUrl: string | null;
+  themePreference: 'light' | 'dark' | null;
+  onToggleTheme: () => void;
   onSave: (payload: SavePayload) => Promise<void>;
   onClose: () => void;
 };
@@ -72,8 +74,9 @@ type EditProfileModalProps = {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EditProfileModal({
-  displayName, bio, socialLinks, avatarUrl, bannerUrl, onSave, onClose,
+  displayName, bio, socialLinks, avatarUrl, bannerUrl, themePreference, onToggleTheme, onSave, onClose,
 }: EditProfileModalProps) {
+  const isDark = themePreference !== 'light';
   const [draftName, setDraftName] = useState(displayName);
   const [draftBio, setDraftBio] = useState(bio);
   const [draftLinks, setDraftLinks] = useState<DraftLink[]>(() =>
@@ -184,11 +187,13 @@ export default function EditProfileModal({
 
         <div className="fk-edit-modal-body">
           <div className="fk-edit-modal-title-row">
-            <h3 className="fk-edit-modal-title">Edit Profile</h3>
+            <h3 className="fk-edit-modal-title">Settings</h3>
             <button type="button" className="fk-edit-modal-close" onClick={onClose}>
               <CloseIcon size={18} />
             </button>
           </div>
+
+          <span className="fk-edit-modal-section-label">Profile</span>
 
           <div className="fk-edit-modal-field">
             <label className="fk-edit-modal-label">Display name</label>
@@ -279,6 +284,20 @@ export default function EditProfileModal({
               })}
             </div>
           )}
+
+          <hr className="fk-edit-modal-divider" />
+
+          <span className="fk-edit-modal-section-label">Preferences</span>
+
+          <div className="fk-edit-modal-preference-row">
+            <div>
+              <div className="fk-edit-modal-preference-label">Display Mode</div>
+              <div className="fk-edit-modal-preference-sub">{isDark ? 'Dark' : 'Light'}</div>
+            </div>
+            <button type="button" className="fk-edit-modal-theme-toggle" onClick={onToggleTheme} aria-label="Toggle display mode">
+              {isDark ? <MoonIcon size={17} /> : <SunIcon size={17} />}
+            </button>
+          </div>
 
           {saveError && <p className="fk-edit-modal-save-error">{saveError}</p>}
         </div>

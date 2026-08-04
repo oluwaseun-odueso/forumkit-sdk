@@ -186,6 +186,52 @@
   margin: 20px 0;
 }
 
+.fk-edit-modal-section-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 14px;
+}
+
+.fk-edit-modal-preference-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.fk-edit-modal-preference-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fk-edit-modal-preference-sub {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+.fk-edit-modal-theme-toggle {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.fk-edit-modal-theme-toggle:hover {
+  background: var(--hover-2);
+}
+
 .fk-edit-modal-links-head {
   display: flex;
   align-items: center;
