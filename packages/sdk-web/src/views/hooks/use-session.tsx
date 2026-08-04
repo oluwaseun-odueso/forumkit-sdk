@@ -3,33 +3,33 @@ import type { ForumKitConfig } from '@forumkit/types';
 import { createSession } from '../api/auth';
 
 type SessionState =
-  | { status: 'loading'; forumId: string; apiUrl: string; sessionToken: null; error: null }
-  | { status: 'ready'; forumId: string; apiUrl: string; sessionToken: string; error: null }
-  | { status: 'error'; forumId: string; apiUrl: string; sessionToken: null; error: string };
+  | { status: 'loading'; forumId: string; apiUrl: string; sessionToken: null; error: null; onLogout: (() => void) | undefined }
+  | { status: 'ready'; forumId: string; apiUrl: string; sessionToken: string; error: null; onLogout: (() => void) | undefined }
+  | { status: 'error'; forumId: string; apiUrl: string; sessionToken: null; error: string; onLogout: (() => void) | undefined };
 
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ config, children }: { config: ForumKitConfig; children: ReactNode }) {
   const apiUrl = config.apiUrl ?? '';
   const [state, setState] = useState<SessionState>({
-    status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null,
+    status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null, onLogout: config.onLogout,
   });
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null });
+    setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null, onLogout: config.onLogout });
     createSession(apiUrl, config.token)
       .then(result => {
         if (cancelled) return;
-        setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, error: null });
+        setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, error: null, onLogout: config.onLogout });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : 'Failed to create session';
-        setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message });
+        setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message, onLogout: config.onLogout });
       });
     return () => { cancelled = true; };
-  }, [config.forumId, config.token, apiUrl]);
+  }, [config.forumId, config.token, apiUrl, config.onLogout]);
 
   return (
     <SessionContext.Provider value={state}>

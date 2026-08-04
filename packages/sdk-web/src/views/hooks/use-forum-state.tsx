@@ -961,6 +961,16 @@ function useForumStateInternal() {
     if (forumId) await updateThemePreference(forumId, next, sessionToken);
   }, [state.profile.themePreference, themeHost, forumId, sessionToken]);
 
+  // ForumKit never owns credentials (JWT identity delegation — see
+  // CLAUDE.md); it can't log anyone out itself. The host app opts in by
+  // providing ForumKitConfig.onLogout — canLogOut lets the account menu
+  // hide "Log Out" entirely when no host callback was ever wired up,
+  // rather than showing a button that would silently do nothing.
+  const canLogOut = !!session.onLogout;
+  const logOut = useCallback(() => {
+    session.onLogout?.();
+  }, [session.onLogout]);
+
   type SaveProfileFields = {
     displayName: string;
     bio: string;
@@ -1316,6 +1326,8 @@ function useForumStateInternal() {
     setProfileContentType,
     loadMoreProfileActivity,
     toggleTheme,
+    logOut,
+    canLogOut,
     saveProfile,
     summarize,
     suggest,

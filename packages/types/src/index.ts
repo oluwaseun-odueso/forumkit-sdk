@@ -349,4 +349,7 @@ export type ForumKitConfig = {
   token: string;                     // signed JWT from host application
   theme?: ThemeTokens;
   apiUrl?: string;                   // defaults to same origin
+  onLogout?: () => void;             // host owns the real sign-out flow; if provided, the
+                                      // account menu shows a "Log Out" item that calls this.
+                                      // Omitted entirely (no dead button) if not provided.
 };
