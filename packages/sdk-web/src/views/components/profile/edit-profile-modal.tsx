@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import type { SocialLink } from '../../hooks/use-forum-state';
 import { resizeImage } from '../../utils/resize-image';
 import PillButton from '../shared/pill-button';
+import Modal from '../shared/modal';
 import {
   CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon, SunIcon, MoonIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
@@ -155,37 +156,33 @@ export default function EditProfileModal({
   }
 
   return (
-    <div
-      className="fk-edit-modal-backdrop"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="fk-edit-modal">
-        <div
-          className="fk-edit-modal-banner"
-          style={bannerPreview ? { backgroundImage: `url(${bannerPreview})`, cursor: 'zoom-in' } : undefined}
-          onClick={bannerPreview ? () => window.open(bannerPreview!, '_blank') : undefined}
+    <Modal onClose={onClose} maxWidth={600}>
+      <div
+        className="fk-edit-modal-banner"
+        style={bannerPreview ? { backgroundImage: `url(${bannerPreview})`, cursor: 'zoom-in' } : undefined}
+        onClick={bannerPreview ? () => window.open(bannerPreview!, '_blank') : undefined}
+      >
+        <button
+          type="button"
+          className="fk-edit-modal-change-banner"
+          onClick={e => { e.stopPropagation(); bannerInputRef.current?.click(); }}
         >
-          <button
-            type="button"
-            className="fk-edit-modal-change-banner"
-            onClick={e => { e.stopPropagation(); bannerInputRef.current?.click(); }}
-          >
-            <CameraIcon size={13} />
-            Change Banner
-          </button>
-          <input ref={bannerInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleBannerFile} />
+          <CameraIcon size={13} />
+          Change Banner
+        </button>
+        <input ref={bannerInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleBannerFile} />
 
-          <div
-            className="fk-edit-modal-avatar"
-            onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
-          >
-            {avatarPreview ? <img src={avatarPreview} alt="Avatar preview" className="fk-edit-modal-avatar-img" /> : null}
-            <span className="fk-edit-modal-avatar-badge"><CameraIcon size={13} /></span>
-          </div>
-          <input ref={avatarInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleAvatarFile} />
+        <div
+          className="fk-edit-modal-avatar"
+          onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
+        >
+          {avatarPreview ? <img src={avatarPreview} alt="Avatar preview" className="fk-edit-modal-avatar-img" /> : null}
+          <span className="fk-edit-modal-avatar-badge"><CameraIcon size={13} /></span>
         </div>
+        <input ref={avatarInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleAvatarFile} />
+      </div>
 
-        <div className="fk-edit-modal-body">
+      <div className="fk-edit-modal-body">
           <div className="fk-edit-modal-title-row">
             <h3 className="fk-edit-modal-title">Settings</h3>
             <button type="button" className="fk-edit-modal-close" onClick={onClose}>
@@ -302,13 +299,12 @@ export default function EditProfileModal({
           {saveError && <p className="fk-edit-modal-save-error">{saveError}</p>}
         </div>
 
-        <div className="fk-edit-modal-footer">
-          <PillButton variant="surface" onClick={onClose} disabled={saving}>Cancel</PillButton>
-          <PillButton variant="accent" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
-          </PillButton>
-        </div>
+      <div className="fk-edit-modal-footer">
+        <PillButton variant="surface" onClick={onClose} disabled={saving}>Cancel</PillButton>
+        <PillButton variant="accent" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </PillButton>
       </div>
-    </div>
+    </Modal>
   );
 }
