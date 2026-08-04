@@ -5,6 +5,7 @@ import {
 import type {
   SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow,
   ProfileActivityItem, ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
+  Draft, DraftContent,
 } from '@forumkit/types';
 import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
@@ -17,6 +18,10 @@ import {
 } from '../api/threads';
 import { createReply, updateReply, saveComment, unsaveComment } from '../api/comments';
 import { voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment } from '../api/votes';
+import {
+  listDrafts as apiListDrafts, createDraft as apiCreateDraft, updateDraft as apiUpdateDraft,
+  deleteDraft as apiDeleteDraft,
+} from '../api/drafts';
 import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -59,6 +64,14 @@ type ComposeState = {
   genTags: boolean;
   submitting: boolean;
   error: string | null;
+  draftId: string | null;
+  savingDraft: boolean;
+};
+
+type DraftsModalState = {
+  open: boolean;
+  items: Draft[];
+  loading: boolean;
 };
 
 type AsstState = {
@@ -131,6 +144,7 @@ type State = {
   asst: AsstState;
   profile: ProfileState;
   settings: { open: boolean };
+  draftsModal: DraftsModalState;
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
@@ -181,6 +195,16 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_START' }
   | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
+  | { type: 'SAVE_DRAFT_START' }
+  | { type: 'SAVE_DRAFT_SUCCESS'; draftId: string }
+  | { type: 'SAVE_DRAFT_ERROR'; message: string }
+  | { type: 'SAVE_DRAFT_RESET' }
+  | { type: 'RESUME_DRAFT'; draft: Draft }
+  | { type: 'OPEN_DRAFTS_MODAL' }
+  | { type: 'CLOSE_DRAFTS_MODAL' }
+  | { type: 'SET_DRAFTS_LIST'; items: Draft[] }
+  | { type: 'SET_DRAFTS_LOADING'; loading: boolean }
+  | { type: 'REMOVE_DRAFT_FROM_LIST'; draftId: string }
   | { type: 'SET_POSTS'; posts: FeedPost[]; hasMore: boolean }
   | { type: 'SET_PROFILE_TAB'; tab: string }
   | {
@@ -429,6 +453,7 @@ const initialState: State = {
   composer: {
     open: false, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
     attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
+    draftId: null, savingDraft: false,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
   profile: {
@@ -438,6 +463,7 @@ const initialState: State = {
     activitySort: 'new', activityContentType: 'all',
   },
   settings: { open: false },
+  draftsModal: { open: false, items: [], loading: false },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -578,7 +604,7 @@ function reducer(state: State, action: Action): State {
         composer: {
           open: true, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
           attachments: [], genTitle: false, genTags: false,
-          submitting: false, error: null,
+          submitting: false, error: null, draftId: null, savingDraft: false,
         },
       };
     case 'CLOSE_COMPOSER':
@@ -641,6 +667,57 @@ function reducer(state: State, action: Action): State {
       };
     case 'SUBMIT_COMPOSER_ERROR':
       return { ...state, composer: { ...state.composer, submitting: false, error: action.message } };
+    case 'SAVE_DRAFT_START':
+      return { ...state, composer: { ...state.composer, savingDraft: true, error: null } };
+    case 'SAVE_DRAFT_SUCCESS':
+      return { ...state, composer: { ...state.composer, savingDraft: false, draftId: action.draftId } };
+    case 'SAVE_DRAFT_ERROR':
+      return { ...state, composer: { ...state.composer, savingDraft: false, error: action.message } };
+    case 'SAVE_DRAFT_RESET':
+      return { ...state, composer: { ...state.composer, savingDraft: false } };
+    case 'RESUME_DRAFT': {
+      const content = action.draft.content;
+      return {
+        ...state,
+        view: 'compose',
+        sidebar: { pinned: true },
+        draftsModal: { ...state.draftsModal, open: false },
+        composer: {
+          open: true,
+          activeTab: content.activeTab,
+          title: action.draft.title,
+          tags: content.tags,
+          body: content.body,
+          linkUrl: content.linkUrl,
+          attachments: content.attachments.map((a) => ({
+            id: nextFileId(),
+            name: a.name,
+            kind: a.kind,
+            sizeLabel: a.sizeLabel,
+            url: a.attachmentUrl,
+            caption: a.caption,
+            attachmentUrl: a.attachmentUrl,
+            attachmentId: a.attachmentId,
+            uploadStatus: 'uploaded' as const,
+          })),
+          genTitle: false, genTags: false, submitting: false, error: null,
+          draftId: action.draft.id, savingDraft: false,
+        },
+      };
+    }
+    case 'OPEN_DRAFTS_MODAL':
+      return { ...state, draftsModal: { ...state.draftsModal, open: true } };
+    case 'CLOSE_DRAFTS_MODAL':
+      return { ...state, draftsModal: { ...state.draftsModal, open: false } };
+    case 'SET_DRAFTS_LIST':
+      return { ...state, draftsModal: { ...state.draftsModal, items: action.items } };
+    case 'SET_DRAFTS_LOADING':
+      return { ...state, draftsModal: { ...state.draftsModal, loading: action.loading } };
+    case 'REMOVE_DRAFT_FROM_LIST':
+      return {
+        ...state,
+        draftsModal: { ...state.draftsModal, items: state.draftsModal.items.filter((d) => d.id !== action.draftId) },
+      };
     case 'SET_POSTS':
       // Always the "sort/scope/filter changed" path (or the very first
       // load) — resets pagination to page 1 since it's a full replace, not
@@ -937,11 +1014,93 @@ function useForumStateInternal() {
       }
       newPost.domain = isLink ? linkUrl || null : null;
       dispatch({ type: 'SUBMIT_COMPOSER_SUCCESS', post: newPost });
+      // The draft this post came from is now a real thread — leaving it
+      // around would just show up as a duplicate in the drafts list.
+      if (state.composer.draftId) {
+        apiDeleteDraft(forumId, state.composer.draftId, sessionToken).catch(() => {});
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit post';
       dispatch({ type: 'SUBMIT_COMPOSER_ERROR', message });
     }
   }, [state.composer, forumId, sessionToken]);
+
+  // Mirrors submitComposer's body/attachmentIds construction, but keeps the
+  // full attachment metadata (not just ids) and the raw comma-separated tags
+  // string — a draft is a scratch copy of composer state, not a wire body.
+  function buildDraftContent(composer: ComposeState): DraftContent {
+    return {
+      activeTab: composer.activeTab,
+      tags: composer.tags,
+      body: composer.body,
+      linkUrl: composer.linkUrl,
+      attachments: composer.attachments
+        .filter((a): a is AttachmentFile & { attachmentId: string } => a.attachmentId !== null)
+        .map((a) => ({
+          attachmentId: a.attachmentId,
+          attachmentUrl: a.attachmentUrl,
+          caption: a.caption,
+          kind: a.kind,
+          name: a.name,
+          sizeLabel: a.sizeLabel,
+        })),
+    };
+  }
+
+  const saveDraft = useCallback(async (silent = false) => {
+    const title = state.composer.title.trim();
+    const content = buildDraftContent(state.composer);
+    if (!title || !content.body.trim()) {
+      if (!silent) dispatch({ type: 'SAVE_DRAFT_ERROR', message: 'A draft needs a title and body before it can be saved' });
+      return;
+    }
+
+    dispatch({ type: 'SAVE_DRAFT_START' });
+    try {
+      const draft = state.composer.draftId
+        ? await apiUpdateDraft(forumId, state.composer.draftId, { title, content }, sessionToken)
+        : await apiCreateDraft(forumId, title, content, sessionToken);
+      dispatch({ type: 'SAVE_DRAFT_SUCCESS', draftId: draft.id });
+    } catch (err) {
+      if (silent) {
+        dispatch({ type: 'SAVE_DRAFT_RESET' });
+      } else {
+        const message = err instanceof Error ? err.message : 'Failed to save draft';
+        dispatch({ type: 'SAVE_DRAFT_ERROR', message });
+      }
+    }
+  }, [state.composer, forumId, sessionToken]);
+
+  const resumeDraft = useCallback((draft: Draft) => dispatch({ type: 'RESUME_DRAFT', draft }), []);
+
+  const openDraftsList = useCallback(() => dispatch({ type: 'OPEN_DRAFTS_MODAL' }), []);
+  const closeDraftsList = useCallback(() => dispatch({ type: 'CLOSE_DRAFTS_MODAL' }), []);
+
+  const deleteDraftFromList = useCallback(async (draftId: string) => {
+    await apiDeleteDraft(forumId, draftId, sessionToken);
+    dispatch({ type: 'REMOVE_DRAFT_FROM_LIST', draftId });
+  }, [forumId, sessionToken]);
+
+  // Loads the list lazily, only once the drafts modal is actually opened.
+  useEffect(() => {
+    if (!state.draftsModal.open || !sessionToken) return;
+    let cancelled = false;
+    dispatch({ type: 'SET_DRAFTS_LOADING', loading: true });
+    apiListDrafts(forumId, sessionToken)
+      .then((items) => { if (!cancelled) dispatch({ type: 'SET_DRAFTS_LIST', items }); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) dispatch({ type: 'SET_DRAFTS_LOADING', loading: false }); });
+    return () => { cancelled = true; };
+  }, [state.draftsModal.open, forumId, sessionToken]);
+
+  // Periodic autosave while the composer is open — silent on failure so a
+  // transient network blip doesn't interrupt someone mid-sentence.
+  useEffect(() => {
+    if (!state.composer.open) return;
+    const interval = window.setInterval(() => { void saveDraft(true); }, 20000);
+    return () => window.clearInterval(interval);
+  }, [state.composer.open, saveDraft]);
+
   const setProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_PROFILE_TAB', tab }), []);
   const setProfileSort = useCallback((sort: ProfileActivitySort) => dispatch({ type: 'SET_PROFILE_SORT', sort }), []);
   const setProfileContentType = useCallback(
@@ -1321,6 +1480,11 @@ function useForumStateInternal() {
     removeFile,
     updateAttachmentMeta,
     submitComposer,
+    saveDraft,
+    resumeDraft,
+    openDraftsList,
+    closeDraftsList,
+    deleteDraftFromList,
     setProfileTab,
     setProfileSort,
     setProfileContentType,
