@@ -30,6 +30,8 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
         onAsk={onAsk}
         compact={compactSearch}
         scopeTag={scopeTag}
+        avatarUrl={state.profile.avatarUrl}
+        displayName={state.profile.displayName}
       />
       <div className="fk-shell-body">
         <Sidebar

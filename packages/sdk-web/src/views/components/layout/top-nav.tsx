@@ -5,9 +5,8 @@ import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
 import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, MessagesIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
 import { useTheme } from '../../hooks/use-theme';
+import { authorAvatar } from '../../lib/author-avatar';
 import './top-nav.css';
-
-const USER_GRADIENT = 'radial-gradient(120% 95% at 30% 25%, #f0c9a8, #b97d52 70%, #7a4f34)';
 
 type TopNavProps = {
   onHome: () => void;
@@ -16,11 +15,14 @@ type TopNavProps = {
   onAsk?: (() => void) | undefined;
   compact?: boolean | undefined;
   scopeTag?: string | undefined;
+  avatarUrl: string | null;
+  displayName: string;
 };
 
 /** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */
-export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, compact, scopeTag }: TopNavProps) {
+export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, compact, scopeTag, avatarUrl, displayName }: TopNavProps) {
   const { theme, toggleTheme } = useTheme();
+  const { gradient, letter } = authorAvatar(displayName || undefined, displayName || 'You');
   const [menuOpen, setMenuOpen] = useState(false);
   const [tagActive, setTagActive] = useState(true);
 
@@ -85,7 +87,7 @@ export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, c
           onClick={() => setMenuOpen(o => !o)}
           style={{ outlineColor: menuOpen ? 'var(--accent)' : 'transparent' }}
         >
-          <Avatar size={36} gradient={USER_GRADIENT} online />
+          <Avatar size={36} gradient={gradient} letter={letter} imageUrl={avatarUrl} online />
         </button>
       </div>
 
