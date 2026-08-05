@@ -39,6 +39,7 @@ function Router() {
         <DraftsListModal
           items={state.draftsModal.items}
           loading={state.draftsModal.loading}
+          highlightedDraftId={state.draftsModal.highlightedDraftId}
           onClose={closeDraftsList}
           onResume={resumeDraft}
           onDelete={deleteDraftFromList}

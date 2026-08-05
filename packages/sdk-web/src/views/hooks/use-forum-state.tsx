@@ -72,6 +72,7 @@ type DraftsModalState = {
   open: boolean;
   items: Draft[];
   loading: boolean;
+  highlightedDraftId: string | null;
 };
 
 type AsstState = {
@@ -196,7 +197,7 @@ type Action =
   | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
   | { type: 'SUBMIT_COMPOSER_ERROR'; message: string }
   | { type: 'SAVE_DRAFT_START' }
-  | { type: 'SAVE_DRAFT_SUCCESS'; draftId: string }
+  | { type: 'SAVE_DRAFT_SUCCESS'; draftId: string; silent: boolean }
   | { type: 'SAVE_DRAFT_ERROR'; message: string }
   | { type: 'SAVE_DRAFT_RESET' }
   | { type: 'RESUME_DRAFT'; draft: Draft }
@@ -463,7 +464,7 @@ const initialState: State = {
     activitySort: 'new', activityContentType: 'all',
   },
   settings: { open: false },
-  draftsModal: { open: false, items: [], loading: false },
+  draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -670,7 +671,15 @@ function reducer(state: State, action: Action): State {
     case 'SAVE_DRAFT_START':
       return { ...state, composer: { ...state.composer, savingDraft: true, error: null } };
     case 'SAVE_DRAFT_SUCCESS':
-      return { ...state, composer: { ...state.composer, savingDraft: false, draftId: action.draftId } };
+      if (action.silent) {
+        return { ...state, composer: { ...state.composer, savingDraft: false, draftId: action.draftId } };
+      }
+      return {
+        ...state,
+        view: 'feed',
+        composer: { ...state.composer, open: false, savingDraft: false, draftId: action.draftId },
+        draftsModal: { ...state.draftsModal, open: true, highlightedDraftId: action.draftId },
+      };
     case 'SAVE_DRAFT_ERROR':
       return { ...state, composer: { ...state.composer, savingDraft: false, error: action.message } };
     case 'SAVE_DRAFT_RESET':
@@ -681,7 +690,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         view: 'compose',
         sidebar: { pinned: true },
-        draftsModal: { ...state.draftsModal, open: false },
+        draftsModal: { ...state.draftsModal, open: false, highlightedDraftId: null },
         composer: {
           open: true,
           activeTab: content.activeTab,
@@ -708,7 +717,7 @@ function reducer(state: State, action: Action): State {
     case 'OPEN_DRAFTS_MODAL':
       return { ...state, draftsModal: { ...state.draftsModal, open: true } };
     case 'CLOSE_DRAFTS_MODAL':
-      return { ...state, draftsModal: { ...state.draftsModal, open: false } };
+      return { ...state, draftsModal: { ...state.draftsModal, open: false, highlightedDraftId: null } };
     case 'SET_DRAFTS_LIST':
       return { ...state, draftsModal: { ...state.draftsModal, items: action.items } };
     case 'SET_DRAFTS_LOADING':
@@ -1060,7 +1069,7 @@ function useForumStateInternal() {
       const draft = state.composer.draftId
         ? await apiUpdateDraft(forumId, state.composer.draftId, { title, content }, sessionToken)
         : await apiCreateDraft(forumId, title, content, sessionToken);
-      dispatch({ type: 'SAVE_DRAFT_SUCCESS', draftId: draft.id });
+      dispatch({ type: 'SAVE_DRAFT_SUCCESS', draftId: draft.id, silent });
     } catch (err) {
       if (silent) {
         dispatch({ type: 'SAVE_DRAFT_RESET' });
