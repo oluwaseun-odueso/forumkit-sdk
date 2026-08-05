@@ -76,6 +76,27 @@
   background: var(--hover-2);
 }
 
+.fk-drafts-modal-row--highlighted {
+  background: var(--hover-2);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.fk-drafts-modal-row-thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fk-drafts-modal-row-thumb img,
+.fk-drafts-modal-row-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .fk-drafts-modal-row-main {
   display: flex;
   flex-direction: column;
