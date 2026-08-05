@@ -32,7 +32,7 @@ export async function voteOnThread(
 export async function removeVoteFromThread(forumId: string, threadId: string, token?: string): Promise<VoteResult> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/vote`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: authHeaders(token),
   });
   return unwrap(res);
 }
@@ -54,7 +54,7 @@ export async function voteOnComment(
 export async function removeVoteFromComment(threadId: string, commentId: string, token?: string): Promise<VoteResult> {
   const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/vote`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: authHeaders(token),
   });
   return unwrap(res);
 }

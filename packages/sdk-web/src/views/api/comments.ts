@@ -44,7 +44,7 @@ export async function updateReply(threadId: string, commentId: string, body: str
 export async function saveComment(threadId: string, commentId: string, token?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/save`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: authHeaders(token),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
@@ -52,7 +52,7 @@ export async function saveComment(threadId: string, commentId: string, token?: s
 export async function unsaveComment(threadId: string, commentId: string, token?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/save`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: authHeaders(token),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

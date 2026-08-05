@@ -105,7 +105,7 @@ export async function updateThread(
 export async function saveThread(forumId: string, threadId: string, token?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/save`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: authHeaders(token),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
@@ -113,7 +113,7 @@ export async function saveThread(forumId: string, threadId: string, token?: stri
 export async function unsaveThread(forumId: string, threadId: string, token?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/save`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: authHeaders(token),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

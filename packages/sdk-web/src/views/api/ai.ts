@@ -13,7 +13,7 @@ export async function callSummarise(threadId: string, token?: string): Promise<s
   try {
     const res = await fetch(`${API_BASE}/threads/${threadId}/ai/summarise`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      headers: authHeaders(token),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { summary?: { keyPoints?: string[] } };
@@ -29,7 +29,7 @@ export async function callSuggest(threadId: string, token?: string): Promise<str
   try {
     const res = await fetch(`${API_BASE}/threads/${threadId}/ai/suggest`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      headers: authHeaders(token),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { suggestion?: AISuggestion };
@@ -44,7 +44,7 @@ export async function callSurfaceRelated(threadId: string, token?: string): Prom
   try {
     const res = await fetch(`${API_BASE}/threads/${threadId}/ai/surface-related`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      headers: authHeaders(token),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { related?: SimilarThread[] };
