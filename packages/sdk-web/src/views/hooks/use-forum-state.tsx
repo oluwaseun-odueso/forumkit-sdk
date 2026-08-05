@@ -1158,7 +1158,7 @@ function useForumStateInternal() {
 
     if (fields.avatarBlob) {
       const avatarFile = new File([fields.avatarBlob], 'avatar.jpg', { type: 'image/jpeg' });
-      const up = await requestUploadUrl(forumId, 'avatar.jpg', 'image/jpeg', avatarFile.size, sessionToken);
+      const up = await requestUploadUrl({ forumId, filename: 'avatar.jpg', mimeType: 'image/jpeg', byteSize: avatarFile.size, purpose: 'avatar', token: sessionToken });
       await putFile(up.uploadUrl, up.uploadHeaders, avatarFile);
       const att = await confirmUpload(forumId, up.attachmentId, { width: 400, height: 400 }, sessionToken);
       avatarUrl = att.downloadUrl;
@@ -1166,7 +1166,7 @@ function useForumStateInternal() {
 
     if (fields.bannerBlob) {
       const bannerFile = new File([fields.bannerBlob], 'banner.jpg', { type: 'image/jpeg' });
-      const up = await requestUploadUrl(forumId, 'banner.jpg', 'image/jpeg', bannerFile.size, sessionToken);
+      const up = await requestUploadUrl({ forumId, filename: 'banner.jpg', mimeType: 'image/jpeg', byteSize: bannerFile.size, purpose: 'banner', token: sessionToken });
       await putFile(up.uploadUrl, up.uploadHeaders, bannerFile);
       const att = await confirmUpload(forumId, up.attachmentId, { width: 1200, height: 300 }, sessionToken);
       bannerUrl = att.downloadUrl;
@@ -1205,7 +1205,7 @@ function useForumStateInternal() {
   const uploadAttachment = useCallback(async (id: number, file: File, kind: AttachmentFile['kind']) => {
     dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploading' });
     try {
-      const upload = await requestUploadUrl(forumId, file.name, file.type, file.size, sessionToken);
+      const upload = await requestUploadUrl({ forumId, filename: file.name, mimeType: file.type, byteSize: file.size, purpose: 'attachment', token: sessionToken });
       await putFile(upload.uploadUrl, upload.uploadHeaders, file);
 
       let width: number | null = null;

@@ -48,7 +48,7 @@ beforeEach(() => {
 
 describe('requestUpload', () => {
   const config = { storageMaxFileSizeBytes: 1000, storageAllowedMimeTypes: ['image/png'] };
-  const input = { forumId: 'forum-1', uploaderId: 'user-1', filename: 'a.png', mimeType: 'image/png', byteSize: 10 };
+  const input = { forumId: 'forum-1', uploaderId: 'user-1', filename: 'a.png', mimeType: 'image/png', byteSize: 10, purpose: 'attachment' as const };
 
   it('rejects a disallowed mime type', async () => {
     const result = await requestUpload(db, fakeAdapter(), config, { ...input, mimeType: 'image/gif' });
@@ -69,7 +69,7 @@ describe('requestUpload', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.attachment).toEqual(baseAttachment);
     expect(adapter.getUploadUrl).toHaveBeenCalledWith({
-      storageKey: expect.stringContaining('forum-1/'),
+      storageKey: expect.stringContaining('forum-1/posts/'),
       mimeType: 'image/png',
       byteSize: 10,
     });

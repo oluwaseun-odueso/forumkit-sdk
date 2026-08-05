@@ -1,10 +1,20 @@
 import { randomUUID } from 'crypto';
 import type { DB } from '../db';
-import type { Attachment, UserRole } from '@forumkit/types';
+import type { Attachment, AttachmentPurpose, UserRole } from '@forumkit/types';
 import type { StorageAdapter, PresignedUpload } from '@forumkit/storage';
 import { ok, err } from '../lib/result';
 import type { Result } from '../lib/result';
 import * as repo from '../repositories/attachment';
+
+// Physical storage layout, one folder per purpose within a forum's prefix —
+// keeps profile pictures, banners, and post/comment media separable for
+// bucket lifecycle rules, CDN cache policies, or bulk export, without
+// needing a DB column since the purpose never changes after upload.
+const STORAGE_FOLDER: Record<AttachmentPurpose, string> = {
+  avatar: 'profiles',
+  banner: 'banners',
+  attachment: 'posts',
+};
 
 export type StorageError =
   | 'mime_not_allowed'
@@ -20,14 +30,15 @@ type RequestUploadOptions = {
   filename: string;
   mimeType: string;
   byteSize: number;
+  purpose: AttachmentPurpose;
 };
 
 function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100);
 }
 
-function buildStorageKey(forumId: string, filename: string): string {
-  return `${forumId}/${randomUUID()}-${sanitizeFilename(filename)}`;
+function buildStorageKey(forumId: string, purpose: AttachmentPurpose, filename: string): string {
+  return `${forumId}/${STORAGE_FOLDER[purpose]}/${randomUUID()}-${sanitizeFilename(filename)}`;
 }
 
 export async function requestUpload(
@@ -39,7 +50,7 @@ export async function requestUpload(
   if (!config.storageAllowedMimeTypes.includes(opts.mimeType)) return err('mime_not_allowed');
   if (opts.byteSize > config.storageMaxFileSizeBytes) return err('file_too_large');
 
-  const storageKey = buildStorageKey(opts.forumId, opts.filename);
+  const storageKey = buildStorageKey(opts.forumId, opts.purpose, opts.filename);
   const attachment = await repo.insertPendingAttachment(db, {
     forumId: opts.forumId,
     uploaderId: opts.uploaderId,

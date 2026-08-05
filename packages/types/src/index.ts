@@ -9,6 +9,10 @@ export type EmbeddingProvider = 'local' | 'openai';
 export type ModerationProvider = 'local' | 'perspective';
 export type AIProvider = 'local' | 'openai' | 'anthropic';
 export type AttachmentStatus = 'pending' | 'confirmed' | 'deleted';
+// Chooses which storage path an upload lands under (see buildStorageKey in
+// packages/api/src/services/storage.ts) — avatars, banners, and post/comment
+// attachments are kept in separate prefixes within a forum's bucket space.
+export type AttachmentPurpose = 'avatar' | 'banner' | 'attachment';
 export type VoteDirection = 1 | -1;
 
 // ── Core entities ──────────────────────────────────────────────────

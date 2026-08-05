@@ -13,6 +13,7 @@ const uploadUrlBodySchema = z.object({
   filename: z.string().min(1).max(255),
   mimeType: z.string().min(1),
   byteSize: z.number().int().positive(),
+  purpose: z.enum(['avatar', 'banner', 'attachment']),
 });
 
 const confirmBodySchema = z.object({

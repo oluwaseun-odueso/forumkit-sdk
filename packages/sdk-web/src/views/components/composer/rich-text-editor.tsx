@@ -122,7 +122,7 @@ type RichTextEditorProps = {
 };
 
 async function uploadInline(forumId: string, sessionToken: string | undefined, file: File): Promise<string> {
-  const upload = await requestUploadUrl(forumId, file.name, file.type, file.size, sessionToken);
+  const upload = await requestUploadUrl({ forumId, filename: file.name, mimeType: file.type, byteSize: file.size, purpose: 'attachment', token: sessionToken });
   await putFile(upload.uploadUrl, upload.uploadHeaders, file);
   let width: number | null = null;
   let height: number | null = null;
