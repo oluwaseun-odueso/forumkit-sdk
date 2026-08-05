@@ -48,7 +48,7 @@ export default function DraftsListModal({ items, loading, highlightedDraftId, on
         ) : items.length === 0 ? (
           <div className="fk-drafts-modal-empty">
             <DraftIcon size={48} />
-            <p>Nothing saved yet — anything you start writing can land here so you never lose it.</p>
+            <p>Nothing saved yet. Anything you start writing can land here so you never lose it.</p>
           </div>
         ) : (
           items.map((draft) => {
