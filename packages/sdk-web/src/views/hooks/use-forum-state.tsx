@@ -1322,8 +1322,7 @@ function useForumStateInternal() {
         themeHost.setThemeAttr(profile.themePreference);
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionToken]);
+  }, [sessionToken, forumId, themeHost]);
 
   // ─── Profile activity: (re)load whenever the tab/sort/content-filter changes ─
   // Same "always fetch page 1 and replace" pattern as feed init below —
