@@ -22,4 +22,5 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: min-height 0.2s ease;
 }
