@@ -21,6 +21,15 @@
   cursor: pointer;
 }
 
+button.fk-profile-filter-label {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--text-2);
+}
+
 .fk-profile-actions-row {
   display: flex;
   align-items: center;
