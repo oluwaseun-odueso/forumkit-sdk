@@ -191,7 +191,7 @@ type Action =
   | { type: 'ADD_FILE'; file: AttachmentFile }
   | { type: 'UPDATE_FILE_URL'; id: number; url: string }
   | { type: 'UPDATE_ATTACHMENT_META'; id: number; caption: string; attachmentUrl: string }
-  | { type: 'SET_ATTACHMENT_UPLOAD'; id: number; status: AttachmentFile['uploadStatus']; attachmentId?: string | null }
+  | { type: 'SET_ATTACHMENT_UPLOAD'; id: number; status: AttachmentFile['uploadStatus']; attachmentId?: string | null; attachmentUrl?: string }
   | { type: 'REMOVE_FILE'; id: number }
   | { type: 'SUBMIT_COMPOSER_START' }
   | { type: 'SUBMIT_COMPOSER_SUCCESS'; post: FeedPost }
@@ -647,7 +647,12 @@ function reducer(state: State, action: Action): State {
           ...state.composer,
           attachments: state.composer.attachments.map(a =>
             a.id === action.id
-              ? { ...a, uploadStatus: action.status, attachmentId: action.attachmentId ?? a.attachmentId }
+              ? {
+                  ...a,
+                  uploadStatus: action.status,
+                  attachmentId: action.attachmentId ?? a.attachmentId,
+                  attachmentUrl: action.attachmentUrl ?? a.attachmentUrl,
+                }
               : a
           ),
         },
@@ -1216,8 +1221,8 @@ function useForumStateInternal() {
         }
       }
 
-      await confirmUpload(forumId, upload.attachmentId, { width, height }, sessionToken);
-      dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploaded', attachmentId: upload.attachmentId });
+      const att = await confirmUpload(forumId, upload.attachmentId, { width, height }, sessionToken);
+      dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'uploaded', attachmentId: upload.attachmentId, attachmentUrl: att.downloadUrl });
     } catch {
       dispatch({ type: 'SET_ATTACHMENT_UPLOAD', id, status: 'error' });
     }
