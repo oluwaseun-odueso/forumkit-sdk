@@ -103,20 +103,28 @@ export default function EditProfileModal({
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    const blob = await resizeImage(file, 1200, 300);
-    const url = URL.createObjectURL(blob);
-    setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
-    setBannerBlob(blob);
+    try {
+      const blob = await resizeImage(file, 1200, 300);
+      const url = URL.createObjectURL(blob);
+      setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
+      setBannerBlob(blob);
+    } catch {
+      setSaveError('That image could not be used — try a different file.');
+    }
   }
 
   async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    const blob = await resizeImage(file, 400, 400);
-    const url = URL.createObjectURL(blob);
-    setAvatarPreview(prev => { if (prev && prev !== avatarUrl) URL.revokeObjectURL(prev); return url; });
-    setAvatarBlob(blob);
+    try {
+      const blob = await resizeImage(file, 400, 400);
+      const url = URL.createObjectURL(blob);
+      setAvatarPreview(prev => { if (prev && prev !== avatarUrl) URL.revokeObjectURL(prev); return url; });
+      setAvatarBlob(blob);
+    } catch {
+      setSaveError('That image could not be used — try a different file.');
+    }
   }
 
   function addLink() {
