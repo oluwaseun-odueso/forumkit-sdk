@@ -1,3 +1,12 @@
+.fk-profile-header-banner {
+  height: 160px;
+  border-radius: 16px;
+  background: linear-gradient(120deg, #3f7ee2, #7b5cff);
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 16px;
+}
+
 .fk-profile-header {
   display: flex;
   align-items: flex-start;

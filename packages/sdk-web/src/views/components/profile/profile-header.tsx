@@ -7,23 +7,30 @@ type ProfileHeaderProps = {
   username: string;
   handle: string;
   avatarUrl: string | null;
+  bannerUrl: string | null;
   onEditAvatar: () => void;
 };
 
-export default function ProfileHeader({ username, handle, avatarUrl, onEditAvatar }: ProfileHeaderProps) {
+export default function ProfileHeader({ username, handle, avatarUrl, bannerUrl, onEditAvatar }: ProfileHeaderProps) {
   const avatar = authorAvatar(handle, username);
   return (
-    <div className="fk-profile-header">
-      <div className="fk-profile-avatar-wrap">
-        <Avatar size={88} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} style={{ borderRadius: '50%' }} />
-        <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar" onClick={onEditAvatar}>
-          <CameraIcon />
-        </button>
+    <>
+      <div
+        className="fk-profile-header-banner"
+        style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}
+      />
+      <div className="fk-profile-header">
+        <div className="fk-profile-avatar-wrap">
+          <Avatar size={88} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} style={{ borderRadius: '50%' }} />
+          <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar" onClick={onEditAvatar}>
+            <CameraIcon />
+          </button>
+        </div>
+        <div className="fk-profile-header-labels">
+          <h1 className="fk-profile-username">{username}</h1>
+          <div className="fk-profile-handle">/{handle}</div>
+        </div>
       </div>
-      <div className="fk-profile-header-labels">
-        <h1 className="fk-profile-username">{username}</h1>
-        <div className="fk-profile-handle">/{handle}</div>
-      </div>
-    </div>
+    </>
   );
 }

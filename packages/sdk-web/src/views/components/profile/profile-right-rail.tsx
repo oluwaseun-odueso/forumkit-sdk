@@ -32,12 +32,15 @@ function cleanUrl(url: string): string {
 
 export default function ProfileRightRail({ username, handle, postKarma, commentKarma }: ProfileRightRailProps) {
   const { state, openSettings } = useForum();
-  const { socialLinks } = state.profile;
+  const { socialLinks, bannerUrl } = state.profile;
 
   return (
     <aside className="fk-profile-rail">
       <div className="fk-profile-card fk-profile-card--identity">
-        <div className="fk-profile-card-banner" />
+        <div
+          className="fk-profile-card-banner"
+          style={bannerUrl ? { backgroundImage: `url(${bannerUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+        />
         <div className="fk-profile-card-body">
           <div className="fk-profile-card-name">{username}</div>
           <div className="fk-profile-card-handle">/{handle}</div>
