@@ -7,7 +7,7 @@ type UserProfileRow = {
   bio: string | null;
   avatar_url: string | null;
   banner_url: string | null;
-  social_links: Array<{ platform: string; url: string }>;
+  social_links: unknown;
   created_at: Date;
   theme_preference: 'light' | 'dark' | null;
 };
@@ -16,6 +16,11 @@ type UserProfileRow = {
 // threads/comments (see thread.ts/comment.ts's getThreadKarma/getCommentKarma),
 // composed alongside this in the route handler rather than reached into
 // from a users-table-scoped repository function.
+//
+// social_links is typed `unknown` on the row and normalized to an array
+// here rather than trusted as jsonb-shaped — a handful of rows predate the
+// column's NOT NULL DEFAULT '[]' and stored a bare object instead of an
+// array, which crashed every `.map()` call downstream on both read paths.
 function toProfile(row: UserProfileRow): Omit<UserProfile, 'postKarma' | 'commentKarma'> {
   return {
     id: row.id,
@@ -23,7 +28,7 @@ function toProfile(row: UserProfileRow): Omit<UserProfile, 'postKarma' | 'commen
     bio: row.bio,
     avatarUrl: row.avatar_url,
     bannerUrl: row.banner_url,
-    socialLinks: row.social_links,
+    socialLinks: Array.isArray(row.social_links) ? row.social_links as Array<{ platform: string; url: string }> : [],
     joinedAt: row.created_at,
     themePreference: row.theme_preference,
   };
