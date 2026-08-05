@@ -37,8 +37,11 @@ function toSuffix(platform: SocialLink['platform'], url: string): string {
 
 function toUrl(platform: SocialLink['platform'], suffix: string): string {
   const { prefix } = PLATFORM_CONFIG[platform];
-  const trimmed = suffix.trim();
-  return prefix ? `${prefix}${trimmed}` : trimmed;
+  const trimmed = suffix.trim().replace(/^\/+|\/+$/g, '');
+  if (!prefix) {
+    return trimmed && !/^https?:\/\//i.test(trimmed) ? `https://${trimmed}` : trimmed;
+  }
+  return `${prefix}${trimmed}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
