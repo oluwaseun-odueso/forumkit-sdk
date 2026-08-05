@@ -1,22 +1,20 @@
+.fk-profile-header {
+  margin-bottom: 26px;
+}
+
 .fk-profile-header-banner {
+  position: relative;
   height: 160px;
   border-radius: 16px;
   background: linear-gradient(120deg, #3f7ee2, #7b5cff);
   background-size: cover;
   background-position: center;
-  margin-bottom: 16px;
-}
-
-.fk-profile-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  margin-bottom: 26px;
 }
 
 .fk-profile-avatar-wrap {
-  position: relative;
-  flex: 0 0 auto;
+  position: absolute;
+  bottom: -44px;
+  left: 24px;
 }
 
 .fk-profile-avatar {
@@ -46,7 +44,7 @@
 }
 
 .fk-profile-header-labels {
-  padding-top: 8px;
+  padding: 56px 4px 0;
 }
 
 .fk-profile-username {
