@@ -28,7 +28,7 @@ export default function DraftsListModal({ items, loading, onClose, onResume, onD
   }
 
   return (
-    <Modal onClose={onClose} maxWidth={560} minHeight={560} blurBackground>
+    <Modal onClose={onClose} maxWidth={560} minHeight={660} blurBackground>
       <div className="fk-drafts-modal-header">
         <h3 className="fk-drafts-modal-title">Drafts</h3>
         <button type="button" className="fk-drafts-modal-close" onClick={onClose}>
