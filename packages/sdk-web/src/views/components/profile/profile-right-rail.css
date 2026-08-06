@@ -16,13 +16,8 @@
   overflow: hidden;
 }
 
-.fk-profile-card-banner {
-  height: 64px;
-  background: linear-gradient(120deg, #3f7ee2, #7b5cff);
-}
-
 .fk-profile-card-body {
-  padding: 14px 16px 18px;
+  padding: 18px 16px;
 }
 
 .fk-profile-card-name {
