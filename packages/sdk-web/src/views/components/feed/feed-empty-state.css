@@ -1,0 +1,28 @@
+.fk-feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 44px 20px 24px;
+}
+
+.fk-feed-empty-mascot {
+  margin-bottom: 28px;
+  animation: fkfloat 5s ease-in-out infinite;
+}
+
+.fk-feed-empty-title {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.fk-feed-empty-desc {
+  margin: 0 0 22px;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 440px;
+}

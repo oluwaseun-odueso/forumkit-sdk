@@ -98,6 +98,7 @@ type FeedState = {
   topWindow: TopWindow;
   page: number;
   hasMore: boolean;
+  loading: boolean;
   loadingMore: boolean;
   openPostMenuId: string | null;
   sortMenuOpen: boolean;
@@ -159,6 +160,7 @@ type Action =
   | { type: 'SET_FEED_SORT'; sort: FeedSort }
   | { type: 'SET_FEED_SCOPE'; scope: FeedScope }
   | { type: 'SET_TOP_WINDOW'; window: TopWindow }
+  | { type: 'SET_FEED_LOADING'; loading: boolean }
   | { type: 'SET_LOADING_MORE'; loading: boolean }
   | { type: 'APPEND_POSTS'; posts: FeedPost[]; hasMore: boolean }
   | { type: 'SET_LATEST_RAIL'; items: RailItem[] }
@@ -443,7 +445,7 @@ const initialState: State = {
   accountMenu: { open: false },
   feed: {
     view: 'compact', sort: 'Best', scope: 'home', tagName: null, topWindow: DEFAULT_TOP_WINDOW,
-    page: 1, hasMore: false, loadingMore: false,
+    page: 1, hasMore: false, loading: false, loadingMore: false,
     openPostMenuId: null, sortMenuOpen: false, viewMenuOpen: false, topWindowMenuOpen: false,
   },
   rail: { latest: [], similar: [], featured: [] },
@@ -504,6 +506,8 @@ function reducer(state: State, action: Action): State {
     }
     case 'SET_TOP_WINDOW':
       return { ...state, feed: { ...state.feed, topWindow: action.window } };
+    case 'SET_FEED_LOADING':
+      return { ...state, feed: { ...state.feed, loading: action.loading } };
     case 'SET_LOADING_MORE':
       return { ...state, feed: { ...state.feed, loadingMore: action.loading } };
     case 'APPEND_POSTS':
@@ -1374,6 +1378,7 @@ function useForumStateInternal() {
 
   useEffect(() => {
     if (!sessionToken || !forumId) return;
+    dispatch({ type: 'SET_FEED_LOADING', loading: true });
     void apiListThreads(forumId, sessionToken, {
       sort: FEED_SORT_TO_QUERY[state.feed.sort],
       tagName: state.feed.tagName ?? undefined,
@@ -1384,6 +1389,8 @@ function useForumStateInternal() {
       const posts = result.threads.map(t => threadToFeedPost(t));
       const hasMore = result.page * result.limit < result.total;
       dispatch({ type: 'SET_POSTS', posts, hasMore });
+    }).finally(() => {
+      dispatch({ type: 'SET_FEED_LOADING', loading: false });
     });
   }, [sessionToken, forumId, state.feed.sort, state.feed.tagName, state.feed.topWindow]);
 
