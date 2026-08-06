@@ -20,7 +20,7 @@ export default function ProfileHeader({ username, handle, avatarUrl, bannerUrl, 
         style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}
       >
         <div className="fk-profile-avatar-wrap">
-          <Avatar size={88} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} style={{ borderRadius: '50%', border: '3px solid var(--surface)' }} />
+          <Avatar size={128} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} style={{ borderRadius: '50%', border: '3px solid var(--surface)' }} />
           <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar" onClick={onEditAvatar}>
             <CameraIcon />
           </button>
