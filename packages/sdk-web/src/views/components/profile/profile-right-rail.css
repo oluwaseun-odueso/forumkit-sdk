@@ -8,7 +8,7 @@
 .fk-profile-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 10px;
   margin-bottom: 18px;
 }
 
