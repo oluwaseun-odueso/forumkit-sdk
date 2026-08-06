@@ -738,9 +738,13 @@ function reducer(state: State, action: Action): State {
       // an append (see APPEND_POSTS for the "load more" case).
       return { ...state, posts: action.posts, feed: { ...state.feed, page: 1, hasMore: action.hasMore } };
     case 'SET_PROFILE_TAB':
+      // Keeps the previous tab's items on screen (rather than blanking to
+      // empty) until the new tab's fetch resolves and SET_PROFILE_ACTIVITY
+      // replaces them — clearing immediately caused the page to visibly
+      // shrink then grow back on every tab switch.
       return {
         ...state,
-        profile: { ...state.profile, activeTab: action.tab, activityItems: [], activityPage: 1 },
+        profile: { ...state.profile, activeTab: action.tab, activityPage: 1 },
       };
     case 'UPDATE_PROFILE':
       return {
@@ -772,11 +776,11 @@ function reducer(state: State, action: Action): State {
     case 'SET_PROFILE_ACTIVITY_LOADING':
       return { ...state, profile: { ...state.profile, activityLoading: action.loading } };
     case 'SET_PROFILE_SORT':
-      return { ...state, profile: { ...state.profile, activitySort: action.sort, activityItems: [], activityPage: 1 } };
+      return { ...state, profile: { ...state.profile, activitySort: action.sort, activityPage: 1 } };
     case 'SET_PROFILE_CONTENT_TYPE':
       return {
         ...state,
-        profile: { ...state.profile, activityContentType: action.contentType, activityItems: [], activityPage: 1 },
+        profile: { ...state.profile, activityContentType: action.contentType, activityPage: 1 },
       };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
