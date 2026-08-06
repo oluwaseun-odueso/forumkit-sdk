@@ -17,10 +17,16 @@ type UserProfileRow = {
 // composed alongside this in the route handler rather than reached into
 // from a users-table-scoped repository function.
 //
-// social_links is typed `unknown` on the row and normalized to an array
-// here rather than trusted as jsonb-shaped — a handful of rows predate the
-// column's NOT NULL DEFAULT '[]' and stored a bare object instead of an
-// array, which crashed every `.map()` call downstream on both read paths.
+// social_links is typed `unknown` on the row rather than trusted as
+// jsonb-shaped — over Supabase's pooled (transaction-mode PgBouncer)
+// connection, postgres.js can't always introspect the column type to
+// auto-parse jsonb, so it falls back to handing back the raw JSON text
+// instead of a parsed array. Parsing it here handles both cases.
+function parseSocialLinks(value: unknown): Array<{ platform: string; url: string }> {
+  const parsed = typeof value === 'string' ? JSON.parse(value) as unknown : value;
+  return Array.isArray(parsed) ? parsed as Array<{ platform: string; url: string }> : [];
+}
+
 function toProfile(row: UserProfileRow): Omit<UserProfile, 'postKarma' | 'commentKarma'> {
   return {
     id: row.id,
@@ -28,7 +34,7 @@ function toProfile(row: UserProfileRow): Omit<UserProfile, 'postKarma' | 'commen
     bio: row.bio,
     avatarUrl: row.avatar_url,
     bannerUrl: row.banner_url,
-    socialLinks: Array.isArray(row.social_links) ? row.social_links as Array<{ platform: string; url: string }> : [],
+    socialLinks: parseSocialLinks(row.social_links),
     joinedAt: row.created_at,
     themePreference: row.theme_preference,
   };
