@@ -4,8 +4,8 @@
 
 .fk-profile-header-banner {
   position: relative;
-  height: 160px;
-  border-radius: 16px;
+  height: 200px;
+  border-radius: 16px 16px 0 0;
   background: linear-gradient(120deg, #3f7ee2, #7b5cff);
   background-size: cover;
   background-position: center;
