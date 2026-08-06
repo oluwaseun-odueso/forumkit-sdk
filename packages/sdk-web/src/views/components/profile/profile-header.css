@@ -13,13 +13,13 @@
 
 .fk-profile-avatar-wrap {
   position: absolute;
-  bottom: -64px;
+  bottom: -75px;
   left: 24px;
 }
 
 .fk-profile-avatar {
-  width: 128px;
-  height: 128px;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
 }
 
@@ -44,7 +44,7 @@
 }
 
 .fk-profile-header-labels {
-  padding: 76px 4px 0;
+  padding: 88px 4px 0;
 }
 
 .fk-profile-username {
