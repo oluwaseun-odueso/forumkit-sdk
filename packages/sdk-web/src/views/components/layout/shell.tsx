@@ -40,8 +40,10 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
           activeScope={state.view === 'feed' ? state.feed.scope : null}
           onSelectScope={setFeedScope}
         />
-        <main className="fk-shell-main" style={{ overflowY: scrollMain ? 'auto' : 'hidden' }}>{children}</main>
-        {rail}
+        <div className="fk-shell-content">
+          <main className="fk-shell-main" style={{ overflowY: scrollMain ? 'auto' : 'hidden' }}>{children}</main>
+          {rail}
+        </div>
       </div>
     </div>
   );
