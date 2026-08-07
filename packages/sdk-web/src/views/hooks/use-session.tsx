@@ -17,18 +17,39 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
 
   useEffect(() => {
     let cancelled = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // The session token (unlike the host JWT) is short-lived — SESSION_TTL_MINUTES,
+    // 15 min by default — and nothing was ever renewing it, so every authenticated
+    // request silently started 401ing once a page had been open that long. Refreshing
+    // at 80% of the TTL keeps a live token in place with margin to spare, rather than
+    // racing the exact expiry instant.
+    function scheduleRefresh(expiresIn: number) {
+      if (cancelled) return;
+      refreshTimer = setTimeout(() => { void refresh(); }, expiresIn * 1000 * 0.8);
+    }
+
+    function refresh(): Promise<void> {
+      return createSession(apiUrl, config.token)
+        .then(result => {
+          if (cancelled) return;
+          setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, error: null, onLogout: config.onLogout });
+          scheduleRefresh(result.expiresIn);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          const message = err instanceof Error ? err.message : 'Failed to create session';
+          setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message, onLogout: config.onLogout });
+        });
+    }
+
     setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null, onLogout: config.onLogout });
-    createSession(apiUrl, config.token)
-      .then(result => {
-        if (cancelled) return;
-        setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, error: null, onLogout: config.onLogout });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : 'Failed to create session';
-        setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message, onLogout: config.onLogout });
-      });
-    return () => { cancelled = true; };
+    void refresh();
+
+    return () => {
+      cancelled = true;
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
   }, [config.forumId, config.token, apiUrl, config.onLogout]);
 
   return (
