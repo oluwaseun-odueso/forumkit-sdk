@@ -25,7 +25,14 @@
 }
 
 .fk-shell-main {
-  flex: 0 1 auto;
+  /* A definite flex-basis (not "auto") so this column always claims its
+     full intended width and only shrinks under real viewport pressure —
+     "auto" sizes to the *content's* intrinsic width, which made narrow
+     content (e.g. plain-text comment rows, no images/titles) collapse
+     the whole column down instead of filling it. 800px covers the
+     widest route content (feed/thread); narrower routes (profile, 760px)
+     just center within it via their own max-width + margin auto. */
+  flex: 0 1 800px;
   min-width: 0;
   max-width: 100%;
   overflow-y: auto;
