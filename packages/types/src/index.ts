@@ -316,6 +316,54 @@ export type SearchQuery = {
   limit?: number;
 };
 
+// A single matching thread from GET /forums/:forumId/search — bodySnippet is
+// a truncated preview (not the full body), and rank is whichever score
+// (full-text or fuzzy trigram) matched best for that row, higher = better.
+export type SearchResult = {
+  threadId: string;
+  title: string;
+  bodySnippet: string;
+  rank: number;
+  createdAt: Date;
+};
+
+// Same idea for GET /forums/:forumId/search/comments (forum-wide) and
+// GET /threads/:threadId/comments/search (thread-scoped) — threadTitle is
+// included because a bare comment snippet is meaningless without knowing
+// which post it's replying to.
+export type CommentSearchResult = {
+  commentId: string;
+  threadId: string;
+  threadTitle: string;
+  bodySnippet: string;
+  rank: number;
+  createdAt: Date;
+};
+
+// mode tells the client which search strategies actually ran: 'hybrid' means
+// semantic (pgvector embedding similarity, matches by meaning) and keyword
+// (full-text + fuzzy trigram, matches by spelling/typo-tolerance) both ran
+// and were merged into one ranked list; 'keyword' means only keyword+fuzzy
+// ran, because generating an embedding for the query failed (e.g. no AI
+// provider configured) — the server decides this automatically, the client
+// doesn't choose.
+export type SearchResponse<T> = {
+  results: T[];
+  total: number;
+  page: number;
+  limit: number;
+  mode: 'hybrid' | 'keyword';
+};
+
+// GET /forums/:forumId/search/users — People section of the search results
+// page. Fuzzy-only (trigram similarity on display_name), no semantic mode:
+// a display name is one short string, not a document worth embedding.
+export type UserSearchResult = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
 // ── Error response ─────────────────────────────────────────────────
 
 export type ErrorResponse = {
