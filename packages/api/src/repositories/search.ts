@@ -165,7 +165,7 @@ export async function semanticSearch(
   opts: SearchOpts,
 ): Promise<{ results: SearchResult[]; total: number }> {
   const offset = (opts.page - 1) * opts.limit;
-  const vecStr = '[' + embedding.join(',') + ']';
+  const vec = '[' + embedding.join(',') + ']';
 
   const rows = await db<SearchRow[]>`
     SELECT
