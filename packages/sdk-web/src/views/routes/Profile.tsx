@@ -69,7 +69,7 @@ export function Profile() {
       }
     >
       <div className="fk-profile">
-        <ProfileHeader username={username} handle={username} avatarUrl={profile.avatarUrl} bannerUrl={profile.bannerUrl} onEditAvatar={openSettings} />
+        <ProfileHeader username={username} handle={username} avatarUrl={profile.avatarUrl} bannerUrl={profile.bannerUrl} onEditAvatar={openSettings} onEditBanner={openSettings} />
         <ProfileTabs active={profile.activeTab} onSelect={setProfileTab} />
 
         <div className="fk-profile-filter-row">

@@ -11,6 +11,28 @@
   background-position: center;
 }
 
+.fk-profile-change-banner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.fk-profile-change-banner:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
 .fk-profile-avatar-wrap {
   position: absolute;
   bottom: -75px;

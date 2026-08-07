@@ -9,9 +9,10 @@ type ProfileHeaderProps = {
   avatarUrl: string | null;
   bannerUrl: string | null;
   onEditAvatar: () => void;
+  onEditBanner: () => void;
 };
 
-export default function ProfileHeader({ username, handle, avatarUrl, bannerUrl, onEditAvatar }: ProfileHeaderProps) {
+export default function ProfileHeader({ username, handle, avatarUrl, bannerUrl, onEditAvatar, onEditBanner }: ProfileHeaderProps) {
   const avatar = authorAvatar(handle, username);
   return (
     <div className="fk-profile-header">
@@ -19,6 +20,10 @@ export default function ProfileHeader({ username, handle, avatarUrl, bannerUrl, 
         className="fk-profile-header-banner"
         style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}
       >
+        <button type="button" className="fk-profile-change-banner" onClick={onEditBanner}>
+          <CameraIcon size={13} />
+          Change Banner
+        </button>
         <div className="fk-profile-avatar-wrap">
           <Avatar size={150} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} style={{ borderRadius: '50%', border: '3px solid var(--surface)' }} />
           <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar" onClick={onEditAvatar}>
