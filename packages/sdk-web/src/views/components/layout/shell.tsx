@@ -19,7 +19,10 @@ type ShellProps = {
  * right rail. Routes only supply their own center content (and rail).
  */
 export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true, scopeTag }: ShellProps) {
-  const { state, setView, openComposer, toggleSidebarPin, setFeedScope } = useForum();
+  const {
+    state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
+    setSearchQuery, closeSearchDropdown, openSearchResults,
+  } = useForum();
 
   return (
     <div className="fk-shell">
@@ -32,6 +35,14 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
         scopeTag={scopeTag}
         avatarUrl={state.profile.avatarUrl}
         displayName={state.profile.displayName}
+        searchQuery={state.search.query}
+        onSearchChange={setSearchQuery}
+        searchOpen={state.search.open}
+        searchLoading={state.search.loading}
+        searchResults={state.search.results}
+        onCloseSearchDropdown={closeSearchDropdown}
+        onSelectSearchResult={(threadId) => { closeSearchDropdown(); openThread(threadId); }}
+        onSubmitSearch={openSearchResults}
       />
       <div className="fk-shell-body">
         <Sidebar

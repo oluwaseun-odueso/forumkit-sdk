@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import type { SearchResult } from '@forumkit/types';
 import MascotIcon from './mascot-icon';
 import AccountMenu from './account-menu';
+import SearchResultsDropdown from './search-results-dropdown';
 import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
 import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
@@ -17,10 +19,22 @@ type TopNavProps = {
   scopeTag?: string | undefined;
   avatarUrl: string | null;
   displayName: string;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  searchOpen: boolean;
+  searchLoading: boolean;
+  searchResults: SearchResult[];
+  onCloseSearchDropdown: () => void;
+  onSelectSearchResult: (threadId: string) => void;
+  onSubmitSearch: (query: string) => void;
 };
 
 /** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */
-export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, compact, scopeTag, avatarUrl, displayName }: TopNavProps) {
+export default function TopNav({
+  onHome, onOpenComposer, onViewProfile, onAsk, compact, scopeTag, avatarUrl, displayName,
+  searchQuery, onSearchChange, searchOpen, searchLoading, searchResults,
+  onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch,
+}: TopNavProps) {
   const { theme, toggleTheme } = useTheme();
   const { gradient, letter } = authorAvatar(displayName || undefined, displayName || 'You');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,7 +66,13 @@ export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, c
               </button>
             </span>
           )}
-          <input className="fk-topnav-search-input" placeholder={placeholder} />
+          <input
+            className="fk-topnav-search-input"
+            placeholder={placeholder}
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && searchQuery.trim()) onSubmitSearch(searchQuery.trim()); }}
+          />
           {!compact && !showTag && (
             <>
               <div className="fk-topnav-search-divider" />
@@ -63,6 +83,16 @@ export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, c
             </>
           )}
         </div>
+        {searchOpen && (
+          <SearchResultsDropdown
+            loading={searchLoading}
+            results={searchResults}
+            query={searchQuery}
+            onClose={onCloseSearchDropdown}
+            onSelectResult={onSelectSearchResult}
+            onSeeMore={() => onSubmitSearch(searchQuery.trim())}
+          />
+        )}
       </div>
 
       <div className="fk-topnav-actions">

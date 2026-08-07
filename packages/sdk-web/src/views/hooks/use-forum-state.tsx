@@ -5,8 +5,9 @@ import {
 import type {
   SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow,
   ProfileActivityItem, ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
-  Draft, DraftContent,
+  Draft, DraftContent, SearchResult,
 } from '@forumkit/types';
+import { searchThreads as apiSearchThreads } from '../api/search';
 import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
@@ -26,7 +27,7 @@ import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type View = 'feed' | 'thread' | 'profile' | 'compose';
+export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search';
 export type FeedView = 'card' | 'compact';
 export type FeedSort = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
 export type FeedScope = 'home' | 'popular' | 'news';
@@ -132,6 +133,21 @@ type ProfileState = {
   activityContentType: ProfileActivityContentType;
 };
 
+// Covers both the top-nav live dropdown (query/results/loading/open — open
+// is whether that small dropdown panel is currently visible, separate from
+// resultsSection below) and what seeds the full SearchResults page once
+// "See more results" is clicked (resultsQuery/resultsSection). One slice
+// since both are "the search feature's state," not because they're the
+// same UI — the dropdown and the results page are different components.
+type SearchState = {
+  query: string;
+  results: SearchResult[];
+  loading: boolean;
+  open: boolean;
+  resultsQuery: string;
+  resultsSection: 'all' | 'threads' | 'comments' | 'people';
+};
+
 type State = {
   view: View;
   posts: FeedPost[];
@@ -147,6 +163,7 @@ type State = {
   profile: ProfileState;
   settings: { open: boolean };
   draftsModal: DraftsModalState;
+  search: SearchState;
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
@@ -208,6 +225,12 @@ type Action =
   | { type: 'SET_DRAFTS_LIST'; items: Draft[] }
   | { type: 'SET_DRAFTS_LOADING'; loading: boolean }
   | { type: 'REMOVE_DRAFT_FROM_LIST'; draftId: string }
+  | { type: 'SET_SEARCH_QUERY'; query: string }
+  | { type: 'SET_SEARCH_RESULTS'; results: SearchResult[] }
+  | { type: 'SET_SEARCH_LOADING'; loading: boolean }
+  | { type: 'SET_SEARCH_OPEN'; open: boolean }
+  | { type: 'OPEN_SEARCH_RESULTS'; query: string }
+  | { type: 'SET_SEARCH_RESULTS_SECTION'; section: SearchState['resultsSection'] }
   | { type: 'SET_POSTS'; posts: FeedPost[]; hasMore: boolean }
   | { type: 'SET_PROFILE_TAB'; tab: string }
   | {
@@ -467,6 +490,7 @@ const initialState: State = {
   },
   settings: { open: false },
   draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
+  search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
 };
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -736,6 +760,25 @@ function reducer(state: State, action: Action): State {
         ...state,
         draftsModal: { ...state.draftsModal, items: state.draftsModal.items.filter((d) => d.id !== action.draftId) },
       };
+    case 'SET_SEARCH_QUERY':
+      return { ...state, search: { ...state.search, query: action.query } };
+    case 'SET_SEARCH_RESULTS':
+      return { ...state, search: { ...state.search, results: action.results } };
+    case 'SET_SEARCH_LOADING':
+      return { ...state, search: { ...state.search, loading: action.loading } };
+    case 'SET_SEARCH_OPEN':
+      return { ...state, search: { ...state.search, open: action.open } };
+    // "See more results" / pressing Enter — seeds the SearchResults page
+    // with the current query and always starts it on the 'all' (sectioned)
+    // view, closing the dropdown since we're navigating away from it.
+    case 'OPEN_SEARCH_RESULTS':
+      return {
+        ...state,
+        view: 'search',
+        search: { ...state.search, open: false, resultsQuery: action.query, resultsSection: 'all' },
+      };
+    case 'SET_SEARCH_RESULTS_SECTION':
+      return { ...state, search: { ...state.search, resultsSection: action.section } };
     case 'SET_POSTS':
       // Always the "sort/scope/filter changed" path (or the very first
       // load) — resets pagination to page 1 since it's a full replace, not
@@ -1114,6 +1157,40 @@ function useForumStateInternal() {
       .finally(() => { if (!cancelled) dispatch({ type: 'SET_DRAFTS_LOADING', loading: false }); });
     return () => { cancelled = true; };
   }, [state.draftsModal.open, forumId, sessionToken]);
+
+  const setSearchQuery = useCallback((query: string) => dispatch({ type: 'SET_SEARCH_QUERY', query }), []);
+  const closeSearchDropdown = useCallback(() => dispatch({ type: 'SET_SEARCH_OPEN', open: false }), []);
+  const openSearchResults = useCallback((query: string) => dispatch({ type: 'OPEN_SEARCH_RESULTS', query }), []);
+  const openSearchResultsSection = useCallback(
+    (section: SearchState['resultsSection']) => dispatch({ type: 'SET_SEARCH_RESULTS_SECTION', section }),
+    [],
+  );
+
+  // Live top-nav dropdown: waits 300ms after the user stops typing before
+  // firing the request, so we're not hitting the API on every keystroke.
+  // An empty query just clears the results locally with no network call.
+  useEffect(() => {
+    const query = state.search.query.trim();
+    if (!query || !sessionToken || !forumId) {
+      dispatch({ type: 'SET_SEARCH_RESULTS', results: [] });
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      dispatch({ type: 'SET_SEARCH_LOADING', loading: true });
+      apiSearchThreads(forumId, query, { limit: 5 }, sessionToken)
+        .then((res) => {
+          dispatch({ type: 'SET_SEARCH_RESULTS', results: res.results });
+          dispatch({ type: 'SET_SEARCH_OPEN', open: true });
+        })
+        .catch((err: unknown) => {
+          console.error('[useForum] search fetch failed', err);
+        })
+        .finally(() => {
+          dispatch({ type: 'SET_SEARCH_LOADING', loading: false });
+        });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [state.search.query, sessionToken, forumId]);
 
   // Periodic autosave while the composer is open — silent on failure so a
   // transient network blip doesn't interrupt someone mid-sentence.
@@ -1523,6 +1600,10 @@ function useForumStateInternal() {
     openDraftsList,
     closeDraftsList,
     deleteDraftFromList,
+    setSearchQuery,
+    closeSearchDropdown,
+    openSearchResults,
+    openSearchResultsSection,
     setProfileTab,
     setProfileSort,
     setProfileContentType,
