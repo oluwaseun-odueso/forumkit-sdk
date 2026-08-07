@@ -41,6 +41,19 @@ const activityQuerySchema = z.object({
   contentType: z.enum(['all', 'posts', 'comments']).default('all'),
 });
 
+// Same shape as activityQuerySchema above, minus 'saved' — used only by the
+// public GET /:forumId/users/:userId/activity route below. Saved posts are
+// a private bookmark list, not something to expose on someone else's
+// profile, so the enum itself refuses that scope rather than relying on
+// the client to simply not ask for it.
+const publicActivityQuerySchema = z.object({
+  scope: z.enum(['overview', 'posts', 'comments', 'upvoted', 'downvoted']),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  sort: z.enum(['new', 'top']).default('new'),
+  contentType: z.enum(['all', 'posts', 'comments']).default('all'),
+});
+
 export async function usersRoutes(app: FastifyInstance): Promise<void> {
   app.get('/:forumId/me', { preHandler: authenticate }, async (request, reply) => {
     const { forumId } = request.params as { forumId: string };
@@ -163,6 +176,63 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
       request.server.config.publicApiUrl,
       forumId,
       user.id,
+      parsed.data.scope,
+      parsed.data.page,
+      parsed.data.limit,
+      parsed.data.sort,
+      parsed.data.contentType,
+    );
+
+    return reply.status(200).send(result);
+  });
+
+  /**
+   * GET /forums/:forumId/users/:userId
+   * The public-profile counterpart to GET /:forumId/me above — same
+   * response shape (profile fields + karma), but for an arbitrary member
+   * instead of the caller. findProfileById already only selects
+   * public-safe columns (no email, no role), so it's reused as-is here;
+   * there's nothing extra to redact for a public view.
+   */
+  app.get('/:forumId/users/:userId', { preHandler: authenticate }, async (request, reply) => {
+    const { forumId, userId } = request.params as { forumId: string; userId: string };
+
+    const [profile, postKarma, commentKarma] = await Promise.all([
+      userRepo.findProfileById(request.server.db, userId),
+      threadRepo.getThreadKarma(request.server.db, forumId, userId),
+      commentRepo.getCommentKarma(request.server.db, forumId, userId),
+    ]);
+    if (!profile) {
+      return reply.status(404).send({ error: 'user_not_found', message: 'User not found', statusCode: 404 });
+    }
+
+    return reply.status(200).send({ ...profile, postKarma, commentKarma });
+  });
+
+  /**
+   * GET /forums/:forumId/users/:userId/activity
+   * Public counterpart to GET /:forumId/me/activity — same
+   * Overview/Posts/Comments/Upvoted/Downvoted tabs, but 'saved' is not a
+   * valid scope here (see publicActivityQuerySchema above) since someone's
+   * saved-post list is private to them.
+   */
+  app.get('/:forumId/users/:userId/activity', { preHandler: authenticate }, async (request, reply) => {
+    const { forumId, userId } = request.params as { forumId: string; userId: string };
+
+    const parsed = publicActivityQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: 'invalid_query',
+        message: parsed.error.issues.map((i) => i.message).join(', '),
+        statusCode: 400,
+      });
+    }
+
+    const result = await profileActivityService.getProfileActivity(
+      request.server.db,
+      request.server.config.publicApiUrl,
+      forumId,
+      userId,
       parsed.data.scope,
       parsed.data.page,
       parsed.data.limit,
