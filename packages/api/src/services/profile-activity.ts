@@ -87,7 +87,7 @@ function paginate<T>(items: T[], page: number, limit: number): T[] {
 // Downvoted, where "recency" means "when you saved/voted," not "when it
 // was posted."
 function sortByExternalTime(items: ProfileActivityItem[], timeById: Map<string, Date>): ProfileActivityItem[] {
-  const idOf = (item: ProfileActivityItem) => (item.kind === 'thread' ? item.thread.id : item.comment.id);
+  const idOf = (item: ProfileActivityItem): string => (item.kind === 'thread' ? item.thread.id : item.comment.id);
   return [...items].sort((a, b) => (timeById.get(idOf(b))?.getTime() ?? 0) - (timeById.get(idOf(a))?.getTime() ?? 0));
 }
 

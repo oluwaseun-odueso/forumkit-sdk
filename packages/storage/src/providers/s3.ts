@@ -6,7 +6,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import type { StorageAdapter } from '../index';
+import type { StorageAdapter, PresignedUpload, ObjectMetadata } from '../index';
 
 const UPLOAD_EXPIRES_SECONDS = 15 * 60;
 const DOWNLOAD_EXPIRES_SECONDS = 60 * 60;
@@ -37,7 +37,7 @@ export function s3Storage(config: S3Config): StorageAdapter {
   });
 
   return {
-    async getUploadUrl({ storageKey, mimeType }) {
+    async getUploadUrl({ storageKey, mimeType }): Promise<PresignedUpload> {
       const command = new PutObjectCommand({
         Bucket: config.bucket,
         Key: storageKey,
@@ -52,7 +52,7 @@ export function s3Storage(config: S3Config): StorageAdapter {
       };
     },
 
-    async getObjectMetadata(storageKey) {
+    async getObjectMetadata(storageKey): Promise<ObjectMetadata> {
       try {
         const head = await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key: storageKey }));
         return { exists: true, byteSize: head.ContentLength ?? null };
@@ -61,12 +61,12 @@ export function s3Storage(config: S3Config): StorageAdapter {
       }
     },
 
-    async getDownloadUrl(storageKey) {
+    async getDownloadUrl(storageKey): Promise<string> {
       const command = new GetObjectCommand({ Bucket: config.bucket, Key: storageKey });
       return getSignedUrl(client, command, { expiresIn: DOWNLOAD_EXPIRES_SECONDS });
     },
 
-    async deleteObject(storageKey) {
+    async deleteObject(storageKey): Promise<void> {
       try {
         await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: storageKey }));
       } catch {
