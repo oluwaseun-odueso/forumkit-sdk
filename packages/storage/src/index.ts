@@ -48,6 +48,16 @@ type StorageAdapterConfig = {
  */
 export async function buildStorageAdapter(config: StorageAdapterConfig): Promise<StorageAdapter> {
   if (!config.storageS3Bucket || !config.storageS3AccessKeyId || !config.storageS3SecretAccessKey) {
+    if (process.env['NODE_ENV'] === 'test') {
+      return {
+        async getUploadUrl(): Promise<PresignedUpload> {
+          return { uploadUrl: 'http://stub', uploadMethod: 'PUT', uploadHeaders: {}, expiresAt: new Date() };
+        },
+        async getObjectMetadata(): Promise<ObjectMetadata> { return { exists: false, byteSize: null }; },
+        async getDownloadUrl(): Promise<string> { return 'http://stub'; },
+        async deleteObject(): Promise<void> {},
+      };
+    }
     throw new Error(
       'Remote storage is required: set STORAGE_S3_BUCKET, STORAGE_S3_ACCESS_KEY_ID, and STORAGE_S3_SECRET_ACCESS_KEY',
     );

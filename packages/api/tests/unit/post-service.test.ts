@@ -4,21 +4,25 @@ import type { EmbedFn, ModerateFn } from '@forumkit/ai';
 
 // ── Mocks must be declared before the module under test is imported ──────────
 
-jest.unstable_mockModule('../../src/repositories/post', () => ({
+jest.unstable_mockModule('../../src/repositories/comment', () => ({
   getThreadInfo: jest.fn(),
-  getPostById: jest.fn(),
-  createPost: jest.fn(),
-  updatePost: jest.fn(),
-  softDeletePost: jest.fn(),
+  getCommentById: jest.fn(),
+  createComment: jest.fn(),
+  updateComment: jest.fn(),
+  softDeleteComment: jest.fn(),
   upsertReaction: jest.fn(),
   deleteReaction: jest.fn(),
   getReactionCounts: jest.fn(),
   insertReport: jest.fn(),
   setAcceptedAnswer: jest.fn(),
-  updatePostEmbedding: jest.fn(),
-  updatePostToxicity: jest.fn(),
+  updateCommentEmbedding: jest.fn(),
+  updateCommentToxicity: jest.fn(),
   insertModerationQueueItem: jest.fn(),
   getForumConfigByThreadId: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../src/services/storage', () => ({
+  attachToExistingComment: jest.fn(),
 }));
 
 jest.unstable_mockModule('@forumkit/ai', () => ({
@@ -30,19 +34,19 @@ jest.unstable_mockModule('@forumkit/ai', () => ({
   suggestAnswer: jest.fn(),
 }));
 
-const repo = await import('../../src/repositories/post');
-const svc = await import('../../src/services/post');
+const repo = await import('../../src/repositories/comment');
+const svc = await import('../../src/services/comment');
 
 const db = {} as DB;
 const embedFn = jest.fn<EmbedFn>();
 const moderateFn = jest.fn<ModerateFn>();
 
 const mockThread = { id: 'thread-1', status: 'open' as const, authorId: 'user-1' };
-const mockPost = {
-  id: 'post-1',
+const mockComment = {
+  id: 'comment-1',
   threadId: 'thread-1',
   authorId: 'user-1',
-  parentPostId: null,
+  parentCommentId: null,
   body: 'Original body',
   status: 'visible' as const,
   isAcceptedAnswer: false,
@@ -56,23 +60,23 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe('createPost', () => {
-  it('creates a post and returns ok', async () => {
+describe('createComment', () => {
+  it('creates a comment and returns ok', async () => {
     jest.mocked(repo.getThreadInfo).mockResolvedValue(mockThread);
-    jest.mocked(repo.createPost).mockResolvedValue(mockPost);
+    jest.mocked(repo.createComment).mockResolvedValue(mockComment);
 
-    const result = await svc.createPost(db, embedFn, moderateFn, {
+    const result = await svc.createComment(db, embedFn, moderateFn, {
       threadId: 'thread-1',
       authorId: 'user-1',
       body: 'Hello',
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.id).toBe('post-1');
+    if (result.ok) expect(result.value.id).toBe('comment-1');
   });
 
   it('returns thread_not_found when thread does not exist', async () => {
     jest.mocked(repo.getThreadInfo).mockResolvedValue(null);
-    const result = await svc.createPost(db, embedFn, moderateFn, {
+    const result = await svc.createComment(db, embedFn, moderateFn, {
       threadId: 'missing',
       authorId: 'user-1',
       body: 'Hello',
@@ -83,7 +87,7 @@ describe('createPost', () => {
 
   it('returns thread_locked when thread status is locked', async () => {
     jest.mocked(repo.getThreadInfo).mockResolvedValue({ ...mockThread, status: 'locked' });
-    const result = await svc.createPost(db, embedFn, moderateFn, {
+    const result = await svc.createComment(db, embedFn, moderateFn, {
       threadId: 'thread-1',
       authorId: 'user-1',
       body: 'Hello',
@@ -94,7 +98,7 @@ describe('createPost', () => {
 
   it('returns thread_not_found when thread is soft-deleted', async () => {
     jest.mocked(repo.getThreadInfo).mockResolvedValue({ ...mockThread, status: 'deleted' });
-    const result = await svc.createPost(db, embedFn, moderateFn, {
+    const result = await svc.createComment(db, embedFn, moderateFn, {
       threadId: 'thread-1',
       authorId: 'user-1',
       body: 'Hello',
@@ -104,100 +108,100 @@ describe('createPost', () => {
   });
 });
 
-describe('updatePost', () => {
-  it('allows the author to edit their post', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
-    jest.mocked(repo.updatePost).mockResolvedValue({ ...mockPost, body: 'Edited' });
+describe('updateComment', () => {
+  it('allows the author to edit their comment', async () => {
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
+    jest.mocked(repo.updateComment).mockResolvedValue({ ...mockComment, body: 'Edited' });
 
-    const result = await svc.updatePost(db, 'post-1', 'user-1', 'member', 'Edited');
+    const result = await svc.updateComment(db, 'comment-1', 'user-1', 'member', 'Edited');
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.body).toBe('Edited');
   });
 
-  it('allows a moderator to edit any post', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
-    jest.mocked(repo.updatePost).mockResolvedValue(mockPost);
+  it('allows a moderator to edit any comment', async () => {
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
+    jest.mocked(repo.updateComment).mockResolvedValue(mockComment);
 
-    const result = await svc.updatePost(db, 'post-1', 'mod-1', 'moderator', 'Edited by mod');
+    const result = await svc.updateComment(db, 'comment-1', 'mod-1', 'moderator', 'Edited by mod');
     expect(result.ok).toBe(true);
   });
 
   it('returns forbidden when a different member tries to edit', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
 
-    const result = await svc.updatePost(db, 'post-1', 'other-user', 'member', 'Hijack');
+    const result = await svc.updateComment(db, 'comment-1', 'other-user', 'member', 'Hijack');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('forbidden');
   });
 
-  it('returns post_not_found when post does not exist', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(null);
-    const result = await svc.updatePost(db, 'missing', 'user-1', 'member', 'x');
+  it('returns comment_not_found when comment does not exist', async () => {
+    jest.mocked(repo.getCommentById).mockResolvedValue(null);
+    const result = await svc.updateComment(db, 'missing', 'user-1', 'member', 'x');
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe('post_not_found');
+    if (!result.ok) expect(result.code).toBe('comment_not_found');
   });
 });
 
-describe('deletePost', () => {
-  it('allows the author to delete their post', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
-    jest.mocked(repo.softDeletePost).mockResolvedValue(undefined);
+describe('deleteComment', () => {
+  it('allows the author to delete their comment', async () => {
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
+    jest.mocked(repo.softDeleteComment).mockResolvedValue(undefined);
 
-    const result = await svc.deletePost(db, 'post-1', 'user-1', 'member');
+    const result = await svc.deleteComment(db, 'comment-1', 'user-1', 'member');
     expect(result.ok).toBe(true);
   });
 
   it('returns forbidden for a stranger', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
-    const result = await svc.deletePost(db, 'post-1', 'stranger', 'member');
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
+    const result = await svc.deleteComment(db, 'comment-1', 'stranger', 'member');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('forbidden');
   });
 
-  it('returns post_not_found when post does not exist', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(null);
-    const result = await svc.deletePost(db, 'missing', 'user-1', 'member');
+  it('returns comment_not_found when comment does not exist', async () => {
+    jest.mocked(repo.getCommentById).mockResolvedValue(null);
+    const result = await svc.deleteComment(db, 'missing', 'user-1', 'member');
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe('post_not_found');
+    if (!result.ok) expect(result.code).toBe('comment_not_found');
   });
 });
 
-describe('reactToPost / removeReaction', () => {
+describe('reactToComment / removeReaction', () => {
   it('upserts a reaction and returns updated counts', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
     jest.mocked(repo.upsertReaction).mockResolvedValue(undefined);
     jest.mocked(repo.getReactionCounts).mockResolvedValue({ like: 1 });
 
-    const result = await svc.reactToPost(db, 'post-1', 'user-1', 'like');
+    const result = await svc.reactToComment(db, 'comment-1', 'user-1', 'like');
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.like).toBe(1);
   });
 
   it('deletes a reaction and returns updated counts', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
     jest.mocked(repo.deleteReaction).mockResolvedValue(undefined);
     jest.mocked(repo.getReactionCounts).mockResolvedValue({});
 
-    const result = await svc.removeReaction(db, 'post-1', 'user-1', 'like');
+    const result = await svc.removeReaction(db, 'comment-1', 'user-1', 'like');
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value).toEqual({});
   });
 
-  it('returns post_not_found when post does not exist', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(null);
-    const result = await svc.reactToPost(db, 'missing', 'user-1', 'like');
+  it('returns comment_not_found when comment does not exist', async () => {
+    jest.mocked(repo.getCommentById).mockResolvedValue(null);
+    const result = await svc.reactToComment(db, 'missing', 'user-1', 'like');
     expect(result.ok).toBe(false);
   });
 });
 
 describe('acceptAnswer', () => {
   it('allows the thread author to accept an answer', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
     jest.mocked(repo.getThreadInfo).mockResolvedValue(mockThread);
-    jest.mocked(repo.setAcceptedAnswer).mockResolvedValue({ ...mockPost, isAcceptedAnswer: true });
+    jest.mocked(repo.setAcceptedAnswer).mockResolvedValue({ ...mockComment, isAcceptedAnswer: true });
 
     const result = await svc.acceptAnswer(db, {
-      postId: 'post-1',
+      commentId: 'comment-1',
       threadId: 'thread-1',
       requesterId: 'user-1',
       requesterRole: 'member',
@@ -207,11 +211,11 @@ describe('acceptAnswer', () => {
   });
 
   it('returns forbidden when a non-author non-moderator tries to accept', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue(mockPost);
+    jest.mocked(repo.getCommentById).mockResolvedValue(mockComment);
     jest.mocked(repo.getThreadInfo).mockResolvedValue(mockThread);
 
     const result = await svc.acceptAnswer(db, {
-      postId: 'post-1',
+      commentId: 'comment-1',
       threadId: 'thread-1',
       requesterId: 'stranger',
       requesterRole: 'member',
@@ -220,12 +224,12 @@ describe('acceptAnswer', () => {
     if (!result.ok) expect(result.code).toBe('forbidden');
   });
 
-  it('returns post_not_found when post is in a different thread', async () => {
-    jest.mocked(repo.getPostById).mockResolvedValue({ ...mockPost, threadId: 'other-thread' });
+  it('returns comment_not_found when comment is in a different thread', async () => {
+    jest.mocked(repo.getCommentById).mockResolvedValue({ ...mockComment, threadId: 'other-thread' });
     jest.mocked(repo.getThreadInfo).mockResolvedValue(mockThread);
 
     const result = await svc.acceptAnswer(db, {
-      postId: 'post-1',
+      commentId: 'comment-1',
       threadId: 'thread-1',
       requesterId: 'user-1',
       requesterRole: 'member',
