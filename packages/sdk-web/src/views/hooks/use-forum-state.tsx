@@ -1344,6 +1344,8 @@ function useForumStateInternal() {
       forumId, scope, 1, PROFILE_ACTIVITY_PAGE_SIZE, state.profile.activitySort, state.profile.activityContentType, sessionToken,
     ).then(result => {
       dispatch({ type: 'SET_PROFILE_ACTIVITY', items: result.items.map(toActivityItemView), total: result.total, page: 1 });
+    }).catch(err => {
+      console.error('[useForum] profile activity fetch failed', err);
     }).finally(() => {
       dispatch({ type: 'SET_PROFILE_ACTIVITY_LOADING', loading: false });
     });
@@ -1389,6 +1391,8 @@ function useForumStateInternal() {
       const posts = result.threads.map(t => threadToFeedPost(t));
       const hasMore = result.page * result.limit < result.total;
       dispatch({ type: 'SET_POSTS', posts, hasMore });
+    }).catch(err => {
+      console.error('[useForum] feed fetch failed', err);
     }).finally(() => {
       dispatch({ type: 'SET_FEED_LOADING', loading: false });
     });
@@ -1400,6 +1404,8 @@ function useForumStateInternal() {
     if (!sessionToken || !forumId) return;
     void getForum(forumId, sessionToken).then(forum => {
       dispatch({ type: 'SET_FORUM_CONFIG', config: forum.config });
+    }).catch(err => {
+      console.error('[useForum] forum config fetch failed', err);
     });
   }, [sessionToken, forumId]);
 
@@ -1410,6 +1416,8 @@ function useForumStateInternal() {
     void apiListThreads(forumId, sessionToken, { pinned: true, limit: 5 }).then(result => {
       const items = result.threads.map(t => threadToRailItem(t));
       dispatch({ type: 'SET_FEATURED_RAIL', items });
+    }).catch(err => {
+      console.error('[useForum] featured rail fetch failed', err);
     });
   }, [sessionToken, forumId]);
 
@@ -1420,6 +1428,8 @@ function useForumStateInternal() {
     void apiListThreads(forumId, sessionToken, { sort: 'new', limit: 5 }).then(result => {
       const items = result.threads.map(t => threadToRailItem(t));
       dispatch({ type: 'SET_LATEST_RAIL', items });
+    }).catch(err => {
+      console.error('[useForum] latest rail fetch failed', err);
     });
   }, [sessionToken, forumId, state.view]);
 
@@ -1431,6 +1441,8 @@ function useForumStateInternal() {
     void getSimilarThreads(forumId, threadId, sessionToken, 5).then(result => {
       const items = result.threads.map(t => relatedToRailItem(t));
       dispatch({ type: 'SET_SIMILAR_RAIL', items });
+    }).catch(err => {
+      console.error('[useForum] similar rail fetch failed', err);
     });
   }, [state.thread.activePostId, sessionToken, forumId]);
 
@@ -1443,6 +1455,8 @@ function useForumStateInternal() {
       const post = threadToFeedPost(thread);
       const comments = commentsToCommentTree(rawComments);
       dispatch({ type: 'THREAD_LOADED', post, comments });
+    }).catch(err => {
+      console.error('[useForum] thread/comments fetch failed', err);
     });
   }, [state.thread.activePostId, sessionToken, forumId]);
 
