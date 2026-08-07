@@ -13,10 +13,10 @@ const searchQuerySchema = z.object({
 export async function searchRoutes(app: FastifyInstance): Promise<void> {
   /**
    * GET /forums/:fid/search
-   * Requires authentication. Auto-selects semantic search if an embedding
-   * provider is configured, otherwise falls back to keyword (PostgreSQL FTS).
+   * Public — auto-selects semantic search if an embedding provider is
+   * configured, otherwise falls back to keyword (PostgreSQL FTS).
    */
-  app.get('/:fid/search', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/:fid/search', async (request, reply) => {
     const { fid } = request.params as { fid: string };
 
     const parsed = searchQuerySchema.safeParse(request.query);

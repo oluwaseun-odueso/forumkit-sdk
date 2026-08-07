@@ -52,8 +52,10 @@ const SORT_CLAUSES = {
   best:   't.pinned DESC, fk_wilson_lower_bound(COALESCE(vc.up,0), COALESCE(vc.down,0)) DESC, t.created_at DESC',
   hot:    't.pinned DESC, fk_hot_score(COALESCE(vc.up,0), COALESCE(vc.down,0), t.created_at) DESC, t.created_at DESC',
   new:    't.pinned DESC, t.created_at DESC',
+  latest: 't.pinned DESC, t.created_at DESC',
   top:    't.pinned DESC, (COALESCE(vc.up,0) - COALESCE(vc.down,0)) DESC, t.created_at DESC',
   rising: 't.pinned DESC, fk_rising_score(COALESCE(vc.up,0), COALESCE(vc.down,0), t.created_at) DESC, t.created_at DESC',
+  oldest: 't.pinned DESC, t.created_at ASC',
 } satisfies Record<NonNullable<ThreadListQuery['sort']>, string>;
 
 // Reddit's own default window when Top is first selected.

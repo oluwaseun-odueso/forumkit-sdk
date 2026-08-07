@@ -302,7 +302,7 @@ export type ThreadListQuery = {
   tagId?: string | undefined;
   tagName?: string | undefined;
   pinned?: boolean | undefined;
-  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising' | undefined;
+  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising' | 'oldest' | 'latest' | undefined;
   topWindow?: TopWindow | undefined;
   page?: number | undefined;
   limit?: number | undefined;

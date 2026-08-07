@@ -85,9 +85,10 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:fid
-   * Requires authentication.
+   * Public for non-existent forums (404) and public forums (200).
+   * Private forums require a valid same-forum token.
    */
-  app.get('/:fid', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/:fid', async (request, reply) => {
     const { fid } = request.params as { fid: string };
     const result = await forumService.getForum(request.server.db, fid);
     if (!result.ok) {
@@ -142,9 +143,9 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:fid/tags
-   * Requires authentication.
+   * Public — tag lists are not sensitive.
    */
-  app.get('/:fid/tags', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/:fid/tags', async (request, reply) => {
     const { fid } = request.params as { fid: string };
     const result = await forumService.listTags(request.server.db, fid);
     if (!result.ok) {

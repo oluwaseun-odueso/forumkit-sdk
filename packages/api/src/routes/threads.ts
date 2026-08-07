@@ -12,7 +12,7 @@ const listQuerySchema = z.object({
   tagId: z.string().uuid().optional(),
   tagName: z.string().min(1).max(100).optional(),
   pinned: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
-  sort: z.enum(['best', 'hot', 'new', 'top', 'rising']).optional(),
+  sort: z.enum(['best', 'hot', 'new', 'top', 'rising', 'oldest', 'latest']).optional(),
   topWindow: z.enum(['hour', 'day', 'week', 'month', 'year', 'all']).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
@@ -102,9 +102,10 @@ function sendSaveError(code: saveService.SaveError, reply: FastifyReply): void {
 export async function threadsRoutes(app: FastifyInstance): Promise<void> {
   /**
    * GET /forums/:forumId/threads
-   * Requires authentication — no ForumKit endpoint is public.
+   * Public — passes requesterId for personalised vote/save state when a
+   * valid session token is present, otherwise serves anonymous results.
    */
-  app.get('/:forumId/threads', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/:forumId/threads', async (request, reply) => {
     const { forumId } = request.params as { forumId: string };
 
     const parsed = listQuerySchema.safeParse(request.query);
@@ -116,15 +117,14 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const user = await resolveUser(request, forumId);
-    if (!user) return sendSessionRequired(reply);
+    const userId = request.jwtPayload ? (await resolveUser(request, forumId))?.id : undefined;
 
     const result = await threadService.listThreads(
       request.server.db,
       request.server.config.publicApiUrl,
       forumId,
       parsed.data,
-      user.id,
+      userId,
     );
 
     return reply.status(200).send(result);
@@ -211,10 +211,9 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:forumId/threads/duplicates
-   * Requires authentication. Must be registered before /:threadId to avoid
-   * param shadowing.
+   * Public. Must be registered before /:threadId to avoid param shadowing.
    */
-  app.get('/:forumId/threads/duplicates', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/:forumId/threads/duplicates', async (request, reply) => {
     const { forumId } = request.params as { forumId: string };
 
     const parsed = duplicatesQuerySchema.safeParse(request.query);
@@ -239,20 +238,20 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:forumId/threads/:threadId
-   * Requires authentication.
+   * Public — passes requesterId for personalised vote/save/accepted-answer
+   * state when a valid session token is present.
    */
-  app.get('/:forumId/threads/:threadId', { preHandler: authenticate }, async (request, reply) => {
+  app.get('/:forumId/threads/:threadId', async (request, reply) => {
     const { forumId, threadId } = request.params as { forumId: string; threadId: string };
 
-    const user = await resolveUser(request, forumId);
-    if (!user) return sendSessionRequired(reply);
+    const userId = request.jwtPayload ? (await resolveUser(request, forumId))?.id : undefined;
 
     const result = await threadService.getThreadWithAttachments(
       request.server.db,
       request.server.config.publicApiUrl,
       forumId,
       threadId,
-      user.id,
+      userId,
     );
     if (!result.ok) {
       sendThreadError(result.code, reply);
