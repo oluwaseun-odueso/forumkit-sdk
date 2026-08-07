@@ -66,13 +66,15 @@ export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, c
       </div>
 
       <div className="fk-topnav-actions">
-        <IconButton label="Toggle theme" onClick={toggleTheme}>
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </IconButton>
-        <button type="button" className="fk-topnav-create" onClick={onOpenComposer}>
-          <PlusIcon />
-          Create
-        </button>
+        <div className="fk-topnav-create-group">
+          <IconButton label="Toggle theme" onClick={toggleTheme}>
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </IconButton>
+          <button type="button" className="fk-topnav-create" onClick={onOpenComposer}>
+            <PlusIcon />
+            Create
+          </button>
+        </div>
         <IconButton label="Notifications" style={{ position: 'relative' }}>
           <BellIcon />
           <span className="fk-topnav-notif-dot" />

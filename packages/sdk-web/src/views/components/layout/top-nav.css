@@ -139,6 +139,12 @@
   flex: 0 0 auto;
 }
 
+.fk-topnav-create-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
 .fk-topnav-create {
   display: flex;
   align-items: center;
