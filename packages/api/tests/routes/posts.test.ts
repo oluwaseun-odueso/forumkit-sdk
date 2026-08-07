@@ -10,8 +10,8 @@ let threadId: string;
 let memberSession: string;
 let member2Session: string;
 let adminSession: string;
-let post1Id: string;
-let post2Id: string;
+let comment1Id: string;
+let comment2Id: string;
 
 beforeAll(async () => {
   ({ app, db } = await buildTestApp());
@@ -37,48 +37,48 @@ afterAll(async () => {
   await db.end();
 });
 
-describe('POST /threads/:tid/posts', () => {
-  it('creates a top-level post', async () => {
+describe('POST /threads/:tid/comments', () => {
+  it('creates a top-level comment', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts`,
+      url: `/threads/${threadId}/comments`,
       headers: auth(memberSession),
       payload: { body: 'You can use slicing: my_string[::-1]' },
     });
     expect(res.statusCode).toBe(201);
-    const body = JSON.parse(res.body) as { id: string; parentPostId: null };
-    expect(body.parentPostId).toBeNull();
-    post1Id = body.id;
+    const body = JSON.parse(res.body) as { id: string; parentCommentId: null };
+    expect(body.parentCommentId).toBeNull();
+    comment1Id = body.id;
   });
 
   it('creates a nested reply', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts`,
+      url: `/threads/${threadId}/comments`,
       headers: auth(member2Session),
-      payload: { body: 'Or use reversed() and join', parentPostId: post1Id },
+      payload: { body: 'Or use reversed() and join', parentCommentId: comment1Id },
     });
     expect(res.statusCode).toBe(201);
-    const body = JSON.parse(res.body) as { id: string; parentPostId: string };
-    expect(body.parentPostId).toBe(post1Id);
-    post2Id = body.id;
+    const body = JSON.parse(res.body) as { id: string; parentCommentId: string };
+    expect(body.parentCommentId).toBe(comment1Id);
+    comment2Id = body.id;
   });
 
   it('returns 401 without a token', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts`,
+      url: `/threads/${threadId}/comments`,
       payload: { body: 'should fail' },
     });
     expect(res.statusCode).toBe(401);
   });
 });
 
-describe('PATCH /threads/:tid/posts/:pid', () => {
-  it('author can edit their post', async () => {
+describe('PATCH /threads/:tid/comments/:cid', () => {
+  it('author can edit their comment', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: `/threads/${threadId}/posts/${post1Id}`,
+      url: `/threads/${threadId}/comments/${comment1Id}`,
       headers: auth(memberSession),
       payload: { body: 'Updated body content.' },
     });
@@ -89,7 +89,7 @@ describe('PATCH /threads/:tid/posts/:pid', () => {
   it('returns 403 when a different user tries to edit', async () => {
     const res = await app.inject({
       method: 'PATCH',
-      url: `/threads/${threadId}/posts/${post1Id}`,
+      url: `/threads/${threadId}/comments/${comment1Id}`,
       headers: auth(member2Session),
       payload: { body: 'Stolen edit' },
     });
@@ -101,7 +101,7 @@ describe('Reactions', () => {
   it('adds a reaction', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts/${post1Id}/react`,
+      url: `/threads/${threadId}/comments/${comment1Id}/react`,
       headers: auth(member2Session),
       payload: { type: 'helpful' },
     });
@@ -113,7 +113,7 @@ describe('Reactions', () => {
   it('adds a second reaction type', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts/${post1Id}/react`,
+      url: `/threads/${threadId}/comments/${comment1Id}/react`,
       headers: auth(adminSession),
       payload: { type: 'insightful' },
     });
@@ -126,7 +126,7 @@ describe('Reactions', () => {
   it('removes a reaction', async () => {
     const res = await app.inject({
       method: 'DELETE',
-      url: `/threads/${threadId}/posts/${post1Id}/react`,
+      url: `/threads/${threadId}/comments/${comment1Id}/react`,
       headers: auth(member2Session),
       payload: { type: 'helpful' },
     });
@@ -137,11 +137,11 @@ describe('Reactions', () => {
   });
 });
 
-describe('POST /threads/:tid/posts/:pid/report', () => {
-  it('reports a post and returns 204', async () => {
+describe('POST /threads/:tid/comments/:cid/report', () => {
+  it('reports a comment and returns 204', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts/${post2Id}/report`,
+      url: `/threads/${threadId}/comments/${comment2Id}/report`,
       headers: auth(memberSession),
       payload: { reason: 'Off-topic' },
     });
@@ -149,21 +149,21 @@ describe('POST /threads/:tid/posts/:pid/report', () => {
   });
 });
 
-describe('POST /threads/:tid/posts/:pid/accept', () => {
-  it('thread author can accept a post as answer', async () => {
+describe('POST /threads/:tid/comments/:cid/accept', () => {
+  it('thread author can accept a comment as answer', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts/${post1Id}/accept`,
+      url: `/threads/${threadId}/comments/${comment1Id}/accept`,
       headers: auth(memberSession),
     });
     expect(res.statusCode).toBe(200);
     expect((JSON.parse(res.body) as { isAcceptedAnswer: boolean }).isAcceptedAnswer).toBe(true);
   });
 
-  it('accepting a different post flips the previous one to false', async () => {
+  it('accepting a different comment flips the previous one to false', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts/${post2Id}/accept`,
+      url: `/threads/${threadId}/comments/${comment2Id}/accept`,
       headers: auth(memberSession),
     });
     expect(res.statusCode).toBe(200);
@@ -173,17 +173,17 @@ describe('POST /threads/:tid/posts/:pid/accept', () => {
       method: 'GET',
       url: `/forums/${forumId}/threads/${threadId}`,
     });
-    const posts = (JSON.parse(thread.body) as { posts: { id: string; isAcceptedAnswer: boolean }[] }).posts;
-    const p1 = posts.find((p) => p.id === post1Id);
-    expect(p1?.isAcceptedAnswer).toBe(false);
+    const comments = (JSON.parse(thread.body) as { comments: { id: string; isAcceptedAnswer: boolean }[] }).comments;
+    const c1 = comments.find((c) => c.id === comment1Id);
+    expect(c1?.isAcceptedAnswer).toBe(false);
   });
 });
 
-describe('DELETE /threads/:tid/posts/:pid', () => {
-  it('author can soft delete their post', async () => {
+describe('DELETE /threads/:tid/comments/:cid', () => {
+  it('author can soft delete their comment', async () => {
     const create = await app.inject({
       method: 'POST',
-      url: `/threads/${threadId}/posts`,
+      url: `/threads/${threadId}/comments`,
       headers: auth(member2Session),
       payload: { body: 'To be deleted' },
     });
@@ -191,7 +191,7 @@ describe('DELETE /threads/:tid/posts/:pid', () => {
 
     const del = await app.inject({
       method: 'DELETE',
-      url: `/threads/${threadId}/posts/${tempId}`,
+      url: `/threads/${threadId}/comments/${tempId}`,
       headers: auth(member2Session),
     });
     expect(del.statusCode).toBe(204);
@@ -200,7 +200,7 @@ describe('DELETE /threads/:tid/posts/:pid', () => {
   it('returns 403 when another user tries to delete', async () => {
     const res = await app.inject({
       method: 'DELETE',
-      url: `/threads/${threadId}/posts/${post1Id}`,
+      url: `/threads/${threadId}/comments/${comment1Id}`,
       headers: auth(member2Session),
     });
     expect(res.statusCode).toBe(403);

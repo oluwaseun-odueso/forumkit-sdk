@@ -6,15 +6,19 @@ import { createRequire } from 'module';
 import type { Config } from './config';
 import type { DB } from './db';
 import { buildAdapters } from '@forumkit/ai';
+import { buildStorageAdapter } from '@forumkit/storage';
 
 const require = createRequire(import.meta.url);
 import { authRoutes } from './routes/auth';
 import { forumsRoutes } from './routes/forums';
 import { threadsRoutes } from './routes/threads';
-import { postsRoutes } from './routes/posts';
+import { commentsRoutes } from './routes/comments';
 import { searchRoutes } from './routes/search';
-import { aiRoutes } from './routes/ai';
+import { aiRoutes, composeAiRoutes } from './routes/ai';
 import { moderationRoutes } from './routes/moderation';
+import { attachmentsRoutes } from './routes/attachments';
+import { usersRoutes } from './routes/users';
+import { draftsRoutes } from './routes/drafts';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
   const app = Fastify({
@@ -30,26 +34,36 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
     credentials: true,
   });
 
+  // Generous default — a forum is a click-heavy surface (votes, saves, feed
+  // pagination, WS reconnects, composer autosave) and most of that traffic
+  // is harmless. A handful of write-heavy/expensive routes set their own
+  // stricter `config.rateLimit` override below instead of tightening this
+  // global number for everyone.
   await app.register(rateLimit, {
-    max: 100,
+    max: 600,
     timeWindow: '1 minute',
   });
 
   await app.register(websocket);
 
-  // ── Decorators — make db, config, and AI adapters available on every request ───
+  // ── Decorators — make db, config, AI adapters, and storage available on every request ───
   app.decorate('db', db);
   app.decorate('config', config);
   app.decorate('ai', await buildAdapters(config));
+  app.decorate('storage', await buildStorageAdapter(config));
 
   // ── Routes ───────────────────────────────────────────────────────
   await app.register(authRoutes, { prefix: '/auth' });
   await app.register(forumsRoutes, { prefix: '/forums' });
   await app.register(threadsRoutes, { prefix: '/forums' });
-  await app.register(postsRoutes, { prefix: '/threads' });
+  await app.register(commentsRoutes, { prefix: '/threads' });
   await app.register(searchRoutes, { prefix: '/forums' });
   await app.register(aiRoutes, { prefix: '/threads' });
+  await app.register(composeAiRoutes, { prefix: '/forums' });
   await app.register(moderationRoutes, { prefix: '/moderation' });
+  await app.register(attachmentsRoutes, { prefix: '/forums' });
+  await app.register(usersRoutes, { prefix: '/forums' });
+  await app.register(draftsRoutes, { prefix: '/forums' });
 
   // ── Health check ─────────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));

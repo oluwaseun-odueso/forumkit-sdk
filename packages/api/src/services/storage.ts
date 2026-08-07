@@ -1,0 +1,146 @@
+import { randomUUID } from 'crypto';
+import type { DB } from '../db';
+import type { Attachment, AttachmentPurpose, UserRole } from '@forumkit/types';
+import type { StorageAdapter, PresignedUpload } from '@forumkit/storage';
+import { ok, err } from '../lib/result';
+import type { Result } from '../lib/result';
+import * as repo from '../repositories/attachment';
+
+// Physical storage layout, one folder per purpose within a forum's prefix —
+// keeps profile pictures, banners, and post/comment media separable for
+// bucket lifecycle rules, CDN cache policies, or bulk export, without
+// needing a DB column since the purpose never changes after upload.
+const STORAGE_FOLDER: Record<AttachmentPurpose, string> = {
+  avatar: 'profiles',
+  banner: 'banners',
+  attachment: 'posts',
+};
+
+export type StorageError =
+  | 'mime_not_allowed'
+  | 'file_too_large'
+  | 'attachment_not_found'
+  | 'forbidden'
+  | 'not_pending'
+  | 'object_missing';
+
+type RequestUploadOptions = {
+  forumId: string;
+  uploaderId: string;
+  filename: string;
+  mimeType: string;
+  byteSize: number;
+  purpose: AttachmentPurpose;
+};
+
+function sanitizeFilename(filename: string): string {
+  return filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100);
+}
+
+function buildStorageKey(forumId: string, purpose: AttachmentPurpose, filename: string): string {
+  return `${forumId}/${STORAGE_FOLDER[purpose]}/${randomUUID()}-${sanitizeFilename(filename)}`;
+}
+
+export async function requestUpload(
+  db: DB,
+  adapter: StorageAdapter,
+  config: { storageMaxFileSizeBytes: number; storageAllowedMimeTypes: string[] },
+  opts: RequestUploadOptions,
+): Promise<Result<{ attachment: Attachment; upload: PresignedUpload }, StorageError>> {
+  if (!config.storageAllowedMimeTypes.includes(opts.mimeType)) return err('mime_not_allowed');
+  if (opts.byteSize > config.storageMaxFileSizeBytes) return err('file_too_large');
+
+  const storageKey = buildStorageKey(opts.forumId, opts.purpose, opts.filename);
+  const attachment = await repo.insertPendingAttachment(db, {
+    forumId: opts.forumId,
+    uploaderId: opts.uploaderId,
+    storageKey,
+    mimeType: opts.mimeType,
+    byteSize: opts.byteSize,
+  });
+  const upload = await adapter.getUploadUrl({ storageKey, mimeType: opts.mimeType, byteSize: opts.byteSize });
+  return ok({ attachment, upload });
+}
+
+type ConfirmUploadDimensions = { width: number | null; height: number | null };
+
+export async function confirmUpload(
+  db: DB,
+  adapter: StorageAdapter,
+  attachmentId: string,
+  requesterId: string,
+  dimensions: ConfirmUploadDimensions,
+): Promise<Result<Attachment, StorageError>> {
+  const attachment = await repo.getAttachmentById(db, attachmentId);
+  if (!attachment) return err('attachment_not_found');
+  if (attachment.uploaderId !== requesterId) return err('forbidden');
+  if (attachment.status !== 'pending') return err('not_pending');
+
+  const meta = await adapter.getObjectMetadata(attachment.storageKey);
+  if (!meta.exists) return err('object_missing');
+
+  const updated = await repo.markConfirmed(db, attachmentId, {
+    byteSize: meta.byteSize ?? attachment.byteSize,
+    width: dimensions.width,
+    height: dimensions.height,
+  });
+  if (!updated) return err('attachment_not_found');
+  return ok(updated);
+}
+
+// Links a confirmed attachment to a comment — called once per id, whether
+// that's right after comment creation (attachmentIds on CreateCommentBody)
+// or when adding media to an existing comment later. A comment can have many
+// attachments (several images plus a video), so this operates on one
+// attachment at a time and the caller loops.
+export async function attachToExistingComment(
+  db: DB,
+  attachmentId: string,
+  commentId: string,
+  requesterId: string,
+): Promise<Result<void, StorageError>> {
+  const attachment = await repo.getAttachmentById(db, attachmentId);
+  if (!attachment) return err('attachment_not_found');
+  if (attachment.uploaderId !== requesterId) return err('forbidden');
+  if (attachment.status !== 'confirmed') return err('not_pending');
+
+  await repo.attachToComment(db, attachmentId, commentId);
+  return ok(undefined);
+}
+
+// Same as attachToExistingComment, but for a thread's own body — threads
+// carry content directly (no comment row required), so their media links
+// here instead. Called once per id in the thread's attachmentIds.
+export async function attachToExistingThread(
+  db: DB,
+  attachmentId: string,
+  threadId: string,
+  requesterId: string,
+): Promise<Result<void, StorageError>> {
+  const attachment = await repo.getAttachmentById(db, attachmentId);
+  if (!attachment) return err('attachment_not_found');
+  if (attachment.uploaderId !== requesterId) return err('forbidden');
+  if (attachment.status !== 'confirmed') return err('not_pending');
+
+  await repo.attachToThread(db, attachmentId, threadId);
+  return ok(undefined);
+}
+
+export async function deleteAttachment(
+  db: DB,
+  adapter: StorageAdapter,
+  attachmentId: string,
+  requesterId: string,
+  requesterRole: UserRole,
+): Promise<Result<void, StorageError>> {
+  const attachment = await repo.getAttachmentById(db, attachmentId);
+  if (!attachment) return err('attachment_not_found');
+
+  const canDelete =
+    attachment.uploaderId === requesterId || requesterRole === 'moderator' || requesterRole === 'admin';
+  if (!canDelete) return err('forbidden');
+
+  await repo.softDeleteAttachment(db, attachmentId);
+  await adapter.deleteObject(attachment.storageKey).catch(() => {});
+  return ok(undefined);
+}

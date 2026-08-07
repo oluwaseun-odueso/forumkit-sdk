@@ -1,13 +1,19 @@
 // ── Enums ──────────────────────────────────────────────────────────
 
-export type UserRole = 'guest' | 'member' | 'moderator' | 'admin';
+export type UserRole = 'member' | 'moderator' | 'admin';
 export type ThreadStatus = 'open' | 'locked' | 'deleted';
-export type PostStatus = 'visible' | 'hidden' | 'deleted';
+export type CommentStatus = 'visible' | 'hidden' | 'deleted';
 export type ModerationStatus = 'pending' | 'approved' | 'removed';
 export type ReactionType = 'like' | 'helpful' | 'insightful' | 'funny';
 export type EmbeddingProvider = 'local' | 'openai';
 export type ModerationProvider = 'local' | 'perspective';
 export type AIProvider = 'local' | 'openai' | 'anthropic';
+export type AttachmentStatus = 'pending' | 'confirmed' | 'deleted';
+// Chooses which storage path an upload lands under (see buildStorageKey in
+// packages/api/src/services/storage.ts) — avatars, banners, and post/comment
+// attachments are kept in separate prefixes within a forum's bucket space.
+export type AttachmentPurpose = 'avatar' | 'banner' | 'attachment';
+export type VoteDirection = 1 | -1;
 
 // ── Core entities ──────────────────────────────────────────────────
 
@@ -26,6 +32,7 @@ export type ForumConfig = {
   aiEnabled: boolean;
   maxPostLength: number;
   requireApproval: boolean;
+  newsTagName?: string;               // tag name backing the sidebar's "News" scope; falls back to "news"
 };
 
 export type User = {
@@ -44,27 +51,39 @@ export type Thread = {
   id: string;
   forumId: string;
   authorId: string;
+  authorDisplayName?: string;
+  authorAvatarUrl?: string | null;
   title: string;
   body: string;
   status: ThreadStatus;
   pinned: boolean;
   viewCount: number;
   tags: Tag[];
+  attachments?: AttachmentSummary[];
+  commentCount?: number;
+  voteCounts?: VoteCounts;
+  myVote?: VoteDirection | null;
+  isSaved?: boolean;
   createdAt: Date;
   updatedAt: Date;
   // embedding is not included in API responses — internal only
 };
 
-export type Post = {
+export type Comment = {
   id: string;
   threadId: string;
   authorId: string;
-  parentPostId: string | null;       // null = top-level reply
+  authorDisplayName?: string;
+  authorAvatarUrl?: string | null;
+  parentCommentId: string | null;    // null = top-level reply
   body: string;
-  status: PostStatus;
+  status: CommentStatus;
   toxicityScore: number | null;      // null until moderation completes
   isAcceptedAnswer: boolean;
   reactionCounts: Partial<Record<ReactionType, number>>;
+  voteCounts?: VoteCounts;
+  myVote?: VoteDirection | null;
+  isSaved?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -77,9 +96,39 @@ export type Tag = {
   color: string;                     // hex colour e.g. "#6200EE"
 };
 
+export type Attachment = {
+  id: string;
+  forumId: string;
+  commentId: string | null;          // null until attached to a comment
+  threadId: string | null;           // null until attached to a thread
+  uploaderId: string;
+  storageKey: string;
+  mimeType: string;
+  byteSize: number;
+  width: number | null;
+  height: number | null;
+  status: AttachmentStatus;
+  createdAt: Date;
+};
+
+// Minimal, display-ready shape embedded in Thread/Comment responses —
+// storageKey is internal only, never sent to clients directly.
+export type AttachmentSummary = {
+  id: string;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  downloadUrl: string;
+};
+
+export type VoteCounts = {
+  up: number;
+  down: number;
+};
+
 export type Reaction = {
   id: string;
-  postId: string;
+  commentId: string;
   userId: string;
   type: ReactionType;
   createdAt: Date;
@@ -87,7 +136,7 @@ export type Reaction = {
 
 export type ModerationQueueItem = {
   id: string;
-  postId: string;
+  commentId: string;
   reporterId: string | null;
   reason: string;
   aiScore: number;
@@ -132,6 +181,8 @@ export type CreateThreadBody = {
   title: string;
   body: string;
   tagIds: string[];
+  tagNames?: string[] | undefined;
+  attachmentIds?: string[] | undefined;
 };
 
 export type UpdateThreadBody = {
@@ -140,18 +191,119 @@ export type UpdateThreadBody = {
   tagIds?: string[];
 };
 
-export type CreatePostBody = {
+export type CreateCommentBody = {
   body: string;
-  parentPostId?: string;
+  parentCommentId?: string;
+  attachmentIds?: string[];
 };
 
-export type UpdatePostBody = {
+export type UserProfile = {
+  id: string;
+  displayName: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  socialLinks: Array<{ platform: string; url: string }>;
+  joinedAt: Date;
+  postKarma: number;
+  commentKarma: number;
+  themePreference: 'light' | 'dark' | null;
+};
+
+export type UpdateProfileBody = {
+  displayName: string;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  socialLinks?: Array<{ platform: string; url: string }>;
+};
+
+export type UpdateThemePreferenceBody = {
+  themePreference: 'light' | 'dark' | null;
+};
+
+// ── Profile activity feed (Overview/Posts/Comments/Saved/Upvoted/Downvoted) ──
+
+export type ProfileActivityScope = 'overview' | 'posts' | 'comments' | 'saved' | 'upvoted' | 'downvoted';
+export type ProfileActivitySort = 'new' | 'top';
+export type ProfileActivityContentType = 'all' | 'posts' | 'comments';
+
+export type ProfileActivityItem =
+  | { kind: 'thread'; thread: Thread }
+  | {
+      kind: 'comment';
+      comment: Comment;
+      threadId: string;
+      threadTitle: string;
+      replyingTo?: { author: string; snippet: string };
+    };
+
+export type UploadUrlRequest = {
+  filename: string;
+  mimeType: string;
+  byteSize: number;
+};
+
+export type UploadUrlResponse = {
+  attachmentId: string;
+  uploadUrl: string;
+  uploadMethod: 'PUT';
+  uploadHeaders: Record<string, string>;
+  expiresAt: string;                 // ISO timestamp
+};
+
+export type UpdateCommentBody = {
   body: string;
 };
+
+// ── Composer drafts ─────────────────────────────────────────────────
+
+// Mirrors the composer's persistable fields — excludes transient UI state
+// (upload/generation-in-progress flags, local preview data: URLs) since
+// those can't or shouldn't survive a resume.
+export type DraftContent = {
+  activeTab: 'text' | 'images' | 'link';
+  tags: string;
+  body: string;
+  linkUrl: string;
+  attachments: Array<{
+    attachmentId: string;
+    attachmentUrl: string;
+    caption: string;
+    kind: 'image' | 'video' | 'file';
+    name: string;
+    sizeLabel: string;
+  }>;
+};
+
+export type Draft = {
+  id: string;
+  userId: string;
+  forumId: string;
+  title: string;
+  content: DraftContent;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CreateDraftBody = {
+  title: string;
+  content: DraftContent;
+};
+
+export type UpdateDraftBody = {
+  title?: string;
+  content?: DraftContent;
+};
+
+export type TopWindow = 'hour' | 'day' | 'week' | 'month' | 'year' | 'all';
 
 export type ThreadListQuery = {
   tagId?: string | undefined;
-  sort?: 'latest' | 'oldest' | 'most_posts' | 'most_reactions' | undefined;
+  tagName?: string | undefined;
+  pinned?: boolean | undefined;
+  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising' | 'oldest' | 'latest' | undefined;
+  topWindow?: TopWindow | undefined;
   page?: number | undefined;
   limit?: number | undefined;
 };
@@ -175,10 +327,11 @@ export type ErrorResponse = {
 // ── WebSocket messages ─────────────────────────────────────────────
 
 export type WSMessage =
-  | { type: 'post.created'; payload: Post }
-  | { type: 'post.updated'; payload: Post }
-  | { type: 'post.deleted'; payload: { postId: string } }
-  | { type: 'reaction.updated'; payload: { postId: string; reactionCounts: Partial<Record<ReactionType, number>> } };
+  | { type: 'comment.created'; payload: Comment }
+  | { type: 'comment.updated'; payload: Comment }
+  | { type: 'comment.deleted'; payload: { commentId: string } }
+  | { type: 'reaction.updated'; payload: { commentId: string; reactionCounts: Partial<Record<ReactionType, number>> } }
+  | { type: 'vote.updated'; payload: { targetType: 'thread' | 'comment'; targetId: string; voteCounts: VoteCounts } };
 
 // ── AI feature types ───────────────────────────────────────────────
 
@@ -186,6 +339,22 @@ export type SimilarThread = {
   id: string;
   title: string;
   similarity: number;                // 0-1
+};
+
+// Enriched similar-thread shape for the right rail — needs enough fields to
+// build a full RailItem (votes/comment-count/time), unlike SimilarThread
+// above which only backs the manual AI assistant panel's simpler list.
+export type RelatedThreadForRail = {
+  id: string;
+  title: string;
+  createdAt: Date;
+  commentCount: number;
+  voteCounts: VoteCounts;
+  similarity: number;
+  imageUrl: string | null;
+  authorId: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string | null;
 };
 
 export type AISummary = {
@@ -224,4 +393,7 @@ export type ForumKitConfig = {
   token: string;                     // signed JWT from host application
   theme?: ThemeTokens;
   apiUrl?: string;                   // defaults to same origin
+  onLogout?: () => void;             // host owns the real sign-out flow; if provided, the
+                                      // account menu shows a "Log Out" item that calls this.
+                                      // Omitted entirely (no dead button) if not provided.
 };

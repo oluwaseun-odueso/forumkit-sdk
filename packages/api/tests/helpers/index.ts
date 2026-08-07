@@ -25,6 +25,14 @@ export const testConfig: Config = {
   perspectiveApiKey: null,
   embeddingProvider: 'local',
   embeddingDimension: 384,
+  publicApiUrl: 'http://localhost:3001',
+  storageS3Endpoint: null,
+  storageS3Bucket: '',
+  storageS3Region: 'auto',
+  storageS3AccessKeyId: '',
+  storageS3SecretAccessKey: '',
+  storageMaxFileSizeBytes: 26_214_400,
+  storageAllowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'],
 };
 
 export function makeHostToken(opts: {

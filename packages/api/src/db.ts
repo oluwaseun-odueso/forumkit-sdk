@@ -12,6 +12,13 @@ export function getDb(config: Config): DB {
       idle_timeout: 30,
       connect_timeout: 10,
       onnotice: () => {},   // suppress notice logs
+      // databasePoolUrl is Supabase's transaction-mode pooler (port 6543) —
+      // successive queries in the same session can land on different
+      // backend connections, so a statement prepared on one connection may
+      // not exist when the next query is routed elsewhere ("prepared
+      // statement ... does not exist"). Prepared statements are only safe
+      // over a direct/session connection (databaseUrl, port 5432).
+      prepare: false,
     });
   }
   return _db;

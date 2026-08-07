@@ -1,0 +1,71 @@
+.fk-rte-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 22px 22px 0 0;
+  color: var(--text-2);
+}
+
+.fk-rte-btn {
+  position: relative;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+}
+
+.fk-rte-btn:hover {
+  background: var(--hover);
+}
+
+.fk-rte-btn--active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.fk-rte-btn--active:hover {
+  background: var(--accent-soft);
+}
+
+.fk-rte-btn[data-tooltip]:hover::after,
+.fk-rte-btn[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.fk-rte-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-strong);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.fk-rte-spacer {
+  flex: 1;
+}

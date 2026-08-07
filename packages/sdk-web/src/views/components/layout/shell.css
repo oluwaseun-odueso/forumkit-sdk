@@ -1,0 +1,39 @@
+.fk-shell {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fk-shell-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.fk-shell-content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fk-shell-main {
+  /* A definite flex-basis (not "auto") so this column always claims its
+     full intended width and only shrinks under real viewport pressure —
+     "auto" sizes to the *content's* intrinsic width, which made narrow
+     content (e.g. plain-text comment rows, no images/titles) collapse
+     the whole column down instead of filling it. 800px covers the
+     widest route content (feed/thread); narrower routes (profile, 760px)
+     just center within it via their own max-width + margin auto. */
+  flex: 0 1 800px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-y: auto;
+}

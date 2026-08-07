@@ -95,12 +95,12 @@ describe('POST /forums/:fid/threads', () => {
 });
 
 describe('GET /forums/:fid/threads/:id', () => {
-  it('returns the thread with posts array', async () => {
+  it('returns the thread with comments array', async () => {
     const res = await app.inject({ method: 'GET', url: `/forums/${forumId}/threads/${thread1Id}` });
     expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body) as { thread: { id: string }; posts: unknown[] };
+    const body = JSON.parse(res.body) as { thread: { id: string }; comments: unknown[] };
     expect(body.thread.id).toBe(thread1Id);
-    expect(Array.isArray(body.posts)).toBe(true);
+    expect(Array.isArray(body.comments)).toBe(true);
   });
 
   it('returns 404 for a non-existent thread', async () => {
@@ -150,7 +150,7 @@ describe('Thread lock/unlock', () => {
   it('member cannot post to a locked thread', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: `/threads/${thread1Id}/posts`,
+      url: `/threads/${thread1Id}/comments`,
       headers: auth(memberSession),
       payload: { body: 'This should fail' },
     });

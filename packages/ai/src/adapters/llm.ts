@@ -66,6 +66,25 @@ export async function suggestTags(
 }
 
 /**
+ * Suggests a concise title for a new thread based on its body text.
+ * Returns null on failure (graceful degradation).
+ */
+export async function suggestTitle(
+  body: string,
+  llmFn: LLMFn,
+): Promise<string | null> {
+  const systemPrompt = [
+    'You are a helpful assistant that writes concise, engaging forum thread titles.',
+    'Respond ONLY with the title string — no quotes, no markdown, no explanation.',
+    'The title must be under 120 characters and be a complete sentence or noun phrase.',
+  ].join(' ');
+
+  const userPrompt = `Write a clear, engaging title for a forum thread with this description:\n${body.slice(0, 500)}`;
+
+  return safeLLMCall(systemPrompt, userPrompt, llmFn);
+}
+
+/**
  * Summarises a forum thread.
  * Returns null if the LLM is unavailable.
  */
@@ -107,7 +126,10 @@ export async function suggestAnswer(
   llmFn: LLMFn,
 ): Promise<AISuggestion | null> {
   const systemPrompt = [
-    'You are a helpful assistant that suggests answers in forum threads.',
+    'You are a knowledgeable forum member writing a genuine reply to a discussion.',
+    'Write in a natural, conversational tone — the way a real person would write, not an AI assistant.',
+    'Be direct and specific. Avoid filler phrases like "Great question!", "Certainly!", or "I hope this helps".',
+    'Do not use em dashes (—) or double hyphens (--); use commas, conjunctions, or separate sentences instead.',
     'Respond ONLY with a JSON object matching this exact shape, no markdown:',
     '{"suggestion":"...","confidence":"high"|"medium"|"low","caveats":["..."]}',
   ].join(' ');
@@ -122,7 +144,11 @@ export async function suggestAnswer(
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as AISuggestion;
+    const parsed = JSON.parse(raw) as AISuggestion;
+    parsed.suggestion = parsed.suggestion
+      .replace(/\s*--\s*/g, ', ')
+      .replace(/—/g, ',');
+    return parsed;
   } catch {
     console.error('[ai/llm] Failed to parse suggestion JSON:', raw);
     return null;

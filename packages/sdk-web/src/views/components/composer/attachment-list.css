@@ -1,0 +1,73 @@
+.fk-attach-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.fk-attach-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.fk-attach-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.fk-attach-thumb--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--elev);
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.fk-attach-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.fk-attach-name {
+  font-size: 13.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-attach-size {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fk-attach-remove {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  flex-shrink: 0;
+}
+
+.fk-attach-remove:hover {
+  background: var(--hover-2);
+}

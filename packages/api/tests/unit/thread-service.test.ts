@@ -17,8 +17,17 @@ jest.unstable_mockModule('../../src/repositories/thread', () => ({
   incrementViewCount: jest.fn(),
 }));
 
-jest.unstable_mockModule('../../src/repositories/post', () => ({
-  listPostsByThread: jest.fn(),
+jest.unstable_mockModule('../../src/repositories/comment', () => ({
+  listCommentsByThread: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../src/repositories/attachment', () => ({
+  listAttachmentsByThreadIds: jest.fn().mockResolvedValue([]),
+  listAttachmentsByThread: jest.fn().mockResolvedValue([]),
+}));
+
+jest.unstable_mockModule('../../src/services/storage', () => ({
+  attachToExistingThread: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../src/repositories/tags', () => ({
@@ -36,7 +45,7 @@ jest.unstable_mockModule('@forumkit/ai', () => ({
 }));
 
 const threadRepo = await import('../../src/repositories/thread');
-const postRepo = await import('../../src/repositories/post');
+const commentRepo = await import('../../src/repositories/comment');
 const ai = await import('@forumkit/ai');
 const svc = await import('../../src/services/thread');
 
@@ -68,25 +77,24 @@ beforeEach(() => {
 describe('listThreads', () => {
   it('delegates to the repo with default pagination', async () => {
     jest.mocked(threadRepo.listThreads).mockResolvedValue({ threads: [], total: 0 });
-    await svc.listThreads(db, 'forum-1', {});
-    expect(threadRepo.listThreads).toHaveBeenCalledWith(db, 'forum-1', {
-      tagId: undefined,
-      sort: 'latest',
+    await svc.listThreads(db, 'http://localhost:3001', 'forum-1', {});
+    expect(threadRepo.listThreads).toHaveBeenCalledWith(db, 'forum-1', expect.objectContaining({
+      sort: 'best',
       page: 1,
       limit: 20,
-    });
+    }));
   });
 
   it('clamps limit to MAX_LIMIT=50', async () => {
     jest.mocked(threadRepo.listThreads).mockResolvedValue({ threads: [], total: 0 });
-    await svc.listThreads(db, 'forum-1', { limit: 999 });
+    await svc.listThreads(db, 'http://localhost:3001', 'forum-1', { limit: 999 });
     const call = jest.mocked(threadRepo.listThreads).mock.calls[0]?.[2];
     expect(call?.limit).toBe(50);
   });
 
   it('returns page and limit in the response', async () => {
     jest.mocked(threadRepo.listThreads).mockResolvedValue({ threads: [], total: 5 });
-    const result = await svc.listThreads(db, 'forum-1', { page: 2, limit: 10 });
+    const result = await svc.listThreads(db, 'http://localhost:3001', 'forum-1', { page: 2, limit: 10 });
     expect(result.page).toBe(2);
     expect(result.limit).toBe(10);
   });
@@ -95,14 +103,14 @@ describe('listThreads', () => {
 describe('getThread', () => {
   it('returns ok with thread and posts when found', async () => {
     jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
-    jest.mocked(postRepo.listPostsByThread).mockResolvedValue([]);
+    jest.mocked(commentRepo.listCommentsByThread).mockResolvedValue([]);
     jest.mocked(threadRepo.incrementViewCount).mockResolvedValue(undefined);
 
     const result = await svc.getThread(db, 'forum-1', 'thread-1');
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.thread.id).toBe('thread-1');
-      expect(result.value.posts).toEqual([]);
+      expect(result.value.comments).toEqual([]);
     }
   });
 
@@ -223,7 +231,7 @@ describe('createThread', () => {
     jest.mocked(threadRepo.createThread).mockResolvedValue(mockThread);
     jest.mocked(ai.embedOne).mockResolvedValue(null);
 
-    const result = await svc.createThread(db, embedFn, llmFn, 'forum-1', 'user-1', {
+    const result = await svc.createThread(db, embedFn, llmFn, 'http://localhost:3001', 'forum-1', 'user-1', {
       title: 'Test',
       body: 'Body',
       tagIds: [],

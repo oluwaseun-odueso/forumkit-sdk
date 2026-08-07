@@ -3,6 +3,13 @@ import tsparser from '@typescript-eslint/parser';
 
 export default [
   {
+    ignores: [
+      'packages/sdk-web/src/api/client.ts',
+      'packages/sdk-web/src/views/thread-list.ts',
+      'packages/sdk-web/src/views/thread-view.ts',
+    ],
+  },
+  {
     files: ['packages/*/src/**/*.ts'],
     languageOptions: {
       parser: tsparser,

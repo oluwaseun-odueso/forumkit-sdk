@@ -1,0 +1,84 @@
+.fk-profile-header {
+  margin-bottom: 26px;
+}
+
+.fk-profile-header-banner {
+  position: relative;
+  height: 200px;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(120deg, #3f7ee2, #7b5cff);
+  background-size: cover;
+  background-position: center;
+}
+
+.fk-profile-change-banner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.fk-profile-change-banner:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.fk-profile-avatar-wrap {
+  position: absolute;
+  bottom: -75px;
+  left: 24px;
+}
+
+.fk-profile-avatar {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+}
+
+.fk-profile-avatar-edit {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 2px solid var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.fk-profile-avatar-edit:hover {
+  color: var(--text);
+}
+
+.fk-profile-header-labels {
+  padding: 88px 4px 0;
+}
+
+.fk-profile-username {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+
+.fk-profile-handle {
+  font-size: 15px;
+  color: var(--muted);
+  margin-top: 2px;
+}

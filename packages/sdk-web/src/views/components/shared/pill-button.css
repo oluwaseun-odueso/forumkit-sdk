@@ -1,0 +1,56 @@
+.fk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 15px;
+  border: none;
+  white-space: nowrap;
+}
+
+.fk-pill--ghost {
+  background: transparent;
+  color: var(--text);
+}
+.fk-pill--ghost:hover {
+  background: var(--hover);
+}
+
+.fk-pill--surface {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.fk-pill--surface:hover {
+  background: var(--hover-2);
+}
+
+.fk-pill--accent {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.fk-pill--accent:hover {
+  background: var(--accent-2);
+}
+
+.fk-pill--outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  font-weight: 700;
+}
+.fk-pill--outline:hover {
+  background: var(--hover);
+}
+
+.fk-pill--active {
+  background: var(--hover-2);
+}
+
+.fk-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

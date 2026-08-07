@@ -1,0 +1,44 @@
+.fk-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 40px;
+}
+
+.fk-lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.fk-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.fk-lightbox-stage {
+  position: relative;
+  width: min(1100px, 100%);
+  height: min(800px, 100%);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.fk-lightbox-stage .fk-carousel-img {
+  object-fit: contain;
+  cursor: default;
+}

@@ -1,0 +1,289 @@
+.fk-composer-modal {
+  padding: 28px 0;
+}
+
+.fk-composer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.fk-composer-heading {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text-2);
+}
+
+.fk-composer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.fk-composer-drafts {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+
+.fk-composer-drafts:hover {
+  color: var(--accent);
+}
+
+.fk-composer-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: none;
+}
+
+.fk-composer-close:hover {
+  background: var(--hover-2);
+}
+
+.fk-composer-community-anchor {
+  position: relative;
+  margin-bottom: 22px;
+}
+
+.fk-composer-community-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  font-family: inherit;
+}
+
+.fk-composer-community-btn:hover {
+  background: var(--hover);
+}
+
+.fk-composer-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 36px;
+}
+
+.fk-composer-tab {
+  position: relative;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+}
+
+.fk-composer-tab:hover {
+  color: var(--text);
+}
+
+.fk-composer-tab--active {
+  color: var(--text);
+}
+
+.fk-composer-tab--active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 14px;
+  right: 14px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.fk-composer-title-wrap {
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.fk-composer-title-input {
+  width: 100%;
+  padding: 26px 20px 10px;
+  border-radius: 22px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+  font-family: inherit;
+}
+
+.fk-composer-title-label {
+  position: absolute;
+  left: 20px;
+  top: 18px;
+  font-size: 16px;
+  color: var(--faint);
+  pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
+}
+
+.fk-composer-title-input:focus ~ .fk-composer-title-label,
+.fk-composer-title-input:not(:placeholder-shown) ~ .fk-composer-title-label {
+  top: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fk-composer-required-mark {
+  color: var(--up);
+}
+
+
+.fk-composer-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.fk-composer-suggest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.fk-composer-suggest:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.fk-composer-counter {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.fk-composer-tags-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  margin-bottom: 28px;
+  cursor: text;
+}
+
+.fk-composer-tags-wrap:focus-within {
+  color: var(--text-2);
+}
+
+.fk-composer-tags {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  min-width: 195px;
+  width: auto;
+  field-sizing: content;
+}
+
+.fk-composer-tags::placeholder {
+  color: var(--muted);
+}
+
+.fk-composer-textbox {
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+}
+
+.fk-composer-textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 16px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.fk-composer-dropzone {
+  position: relative;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 22px;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 20px;
+}
+
+.fk-composer-dropzone-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-2);
+}
+
+.fk-composer-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+}
+
+.fk-composer-file-input {
+  display: none;
+}
+
+.fk-composer-error {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--down);
+  text-align: right;
+}
+
+.fk-composer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+}

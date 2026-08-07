@@ -12,7 +12,7 @@ const searchQuerySchema = z.object({
 export async function searchRoutes(app: FastifyInstance): Promise<void> {
   /**
    * GET /forums/:fid/search
-   * Public. Auto-selects semantic search if an embedding provider is
+   * Public — auto-selects semantic search if an embedding provider is
    * configured, otherwise falls back to keyword (PostgreSQL FTS).
    */
   app.get('/:fid/search', async (request, reply) => {

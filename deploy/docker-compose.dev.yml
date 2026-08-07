@@ -13,14 +13,54 @@ services:
       MODERATION_PROVIDER: local
       EMBEDDING_PROVIDER: local
       EMBEDDING_DIMENSION: 384
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_BUCKET: forumkit-dev
+      STORAGE_S3_REGION: us-east-1
+      STORAGE_S3_ACCESS_KEY_ID: forumkit
+      STORAGE_S3_SECRET_ACCESS_KEY: forumkit-dev
       PORT: 3000
       LOG_LEVEL: debug
       NODE_ENV: development
     depends_on:
       db:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       - ../packages/api/src:/app/packages/api/src   # hot reload in dev
+
+  # Storage is required (no local-disk fallback) — MinIO stands in as the
+  # self-hosted S3-compatible bucket for local dev. Point STORAGE_S3_* at a
+  # real provider (AWS S3, R2, B2, Supabase Storage) for anything beyond dev.
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: forumkit
+      MINIO_ROOT_PASSWORD: forumkit-dev
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: creates the forumkit-dev bucket, since MinIO doesn't auto-create
+  # one. Exits after running; api waits on it via service_completed_successfully.
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 forumkit forumkit-dev &&
+      mc mb -p local/forumkit-dev
+      "
 
   db:
     image: pgvector/pgvector:pg16
@@ -40,3 +80,4 @@ services:
 
 volumes:
   pgdata:
+  miniodata:

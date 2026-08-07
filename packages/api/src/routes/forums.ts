@@ -22,6 +22,7 @@ const updateForumConfigSchema = z.object({
   aiEnabled: z.boolean().optional(),
   maxPostLength: z.number().int().min(1).optional(),
   requireApproval: z.boolean().optional(),
+  newsTagName: z.string().min(1).max(100).optional(),
 });
 
 const createTagBodySchema = z.object({
@@ -84,8 +85,8 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:fid
-   * Public if the forum's config.isPublic is true.
-   * Private forums require a valid token scoped to that forum.
+   * Public for non-existent forums (404) and public forums (200).
+   * Private forums require a valid same-forum token.
    */
   app.get('/:fid', async (request, reply) => {
     const { fid } = request.params as { fid: string };
@@ -142,7 +143,7 @@ export async function forumsRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * GET /forums/:fid/tags
-   * Public.
+   * Public — tag lists are not sensitive.
    */
   app.get('/:fid/tags', async (request, reply) => {
     const { fid } = request.params as { fid: string };

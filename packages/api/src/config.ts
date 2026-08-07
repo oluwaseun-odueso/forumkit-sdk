@@ -25,6 +25,7 @@ export type Config = {
   databasePoolUrl: string;
   forumSecretKey: string;
   port: number;
+  publicApiUrl: string;
   logLevel: string;
   nodeEnv: string;
   sessionTtlMinutes: number;
@@ -36,6 +37,13 @@ export type Config = {
   perspectiveApiKey: string | null;
   embeddingProvider: EmbeddingProvider;
   embeddingDimension: number;
+  storageS3Endpoint: string | null;
+  storageS3Bucket: string;
+  storageS3Region: string;
+  storageS3AccessKeyId: string;
+  storageS3SecretAccessKey: string;
+  storageMaxFileSizeBytes: number;
+  storageAllowedMimeTypes: string[];
 };
 
 export function loadConfig(): Config {
@@ -44,6 +52,7 @@ export function loadConfig(): Config {
     databasePoolUrl: optional('DATABASE_POOL_URL', required('DATABASE_URL')),
     forumSecretKey: required('FORUM_SECRET_KEY'),
     port: optionalNumber('PORT', 3000),
+    publicApiUrl: optional('PUBLIC_API_URL', `http://localhost:${optionalNumber('PORT', 3000)}`),
     logLevel: optional('LOG_LEVEL', 'info'),
     nodeEnv: optional('NODE_ENV', 'development'),
     sessionTtlMinutes: optionalNumber('SESSION_TTL_MINUTES', 15),
@@ -55,5 +64,15 @@ export function loadConfig(): Config {
     perspectiveApiKey: process.env['PERSPECTIVE_API_KEY'] ?? null,
     embeddingProvider: optional('EMBEDDING_PROVIDER', 'local') as EmbeddingProvider,
     embeddingDimension: optionalNumber('EMBEDDING_DIMENSION', 384),
+    storageS3Endpoint: process.env['STORAGE_S3_ENDPOINT'] ?? null,
+    storageS3Bucket: required('STORAGE_S3_BUCKET'),
+    storageS3Region: required('STORAGE_S3_REGION'),
+    storageS3AccessKeyId: required('STORAGE_S3_ACCESS_KEY_ID'),
+    storageS3SecretAccessKey: required('STORAGE_S3_SECRET_ACCESS_KEY'),
+    storageMaxFileSizeBytes: optionalNumber('STORAGE_MAX_FILE_SIZE_BYTES', 26_214_400),
+    storageAllowedMimeTypes: optional(
+      'STORAGE_ALLOWED_MIME_TYPES',
+      'image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm',
+    ).split(','),
   };
 }

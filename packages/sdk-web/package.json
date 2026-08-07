@@ -11,11 +11,31 @@
   },
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit --watch",
-    "dev": "vite"
+    "dev": "vite --port 5174",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@forumkit/types": "*"
+    "@forumkit/types": "*",
+    "@tiptap/core": "^3.29.2",
+    "@tiptap/extension-image": "^3.29.2",
+    "@tiptap/extension-link": "^3.29.2",
+    "@tiptap/extension-superscript": "^3.29.2",
+    "@tiptap/extension-table": "^3.29.2",
+    "@tiptap/extension-table-cell": "^3.29.2",
+    "@tiptap/extension-table-header": "^3.29.2",
+    "@tiptap/extension-table-row": "^3.29.2",
+    "@tiptap/react": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
+    "@types/mdast": "^4.0.4",
+    "markdown-it-sup": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.1.0",
+    "remark-gfm": "^4.0.1",
+    "remark-supersub": "^1.0.0",
+    "tiptap-markdown": "^0.9.0",
+    "unist-util-visit": "^5.1.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
@@ -34,8 +54,8 @@
     }
   },
   "devDependencies": {
-    "@types/react": "^18.0.0",
-    "@types/react-dom": "^18.3.7",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "typescript": "^5.5.0",

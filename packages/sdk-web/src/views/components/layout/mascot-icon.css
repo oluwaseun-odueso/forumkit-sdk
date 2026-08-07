@@ -1,0 +1,141 @@
+.fk-mascot {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Tail, bubble, figures, and badge all live inside one "dancer" wrapper so
+   the idle bob+flip animation moves the whole assembly together. */
+.fk-mascot-dancer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+
+.fk-mascot--nav .fk-mascot-dancer {
+  animation: fkdance 4.8s ease-in-out infinite;
+}
+
+/* ── Tail ──────────────────────────────────────────────────────────────── */
+
+.fk-mascot-tail {
+  position: absolute;
+  left: calc(3px * var(--s));
+  bottom: calc(1px * var(--s));
+  width: calc(12px * var(--s));
+  height: calc(12px * var(--s));
+  /* Asymmetric: flat corner bottom-right, rounded everywhere else */
+  border-radius: 74% 74% 80% calc(2px * var(--s));
+  background: linear-gradient(150deg, #8cc0f7, #3f7ee2);
+  box-shadow: inset 0 calc(-2px * var(--s)) calc(5px * var(--s)) rgba(22, 52, 118, 0.35);
+  transform: rotate(11deg);
+}
+
+/* Empty-state: exact 120px spec values override the --s-based calculations */
+.fk-mascot--empty .fk-mascot-tail {
+  left: 10px;
+  bottom: 4px;
+  width: 42px;
+  height: 42px;
+  border-radius: 74% 74% 80% 6px;
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+/* ── Bubble ────────────────────────────────────────────────────────────── */
+
+.fk-mascot-bubble {
+  position: absolute;
+  inset: calc(2px * var(--s));
+  /* NOT a perfect circle — flattened bottom-right corner, speech-bubble shape */
+  border-radius: 50% 50% 52% 16% / 52% 52% 50% 50%;
+  /* Radial highlight painted over the base blue gradient (two background layers) */
+  background:
+    radial-gradient(120% 95% at 32% 22%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 52%),
+    linear-gradient(155deg, #cfe8ff 0%, #86bdf6 40%, #3f7ee2 66%, #aed6ff 100%);
+  box-shadow:
+    0 calc(6px * var(--s)) calc(14px * var(--s)) calc(-5px * var(--s)) rgba(16, 38, 92, 0.5),
+    inset 0 calc(1px * var(--s)) 0 rgba(255, 255, 255, 0.85),
+    inset 0 calc(-2px * var(--s)) calc(5px * var(--s)) rgba(22, 52, 118, 0.4);
+}
+
+.fk-mascot--empty .fk-mascot-bubble {
+  inset: 6px;
+  box-shadow:
+    0 16px 34px -12px rgba(16, 38, 92, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+/* ── Three dancing figures ─────────────────────────────────────────────── */
+
+.fk-mascot-dots {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2.5px * var(--s));
+  padding: 0 calc(2.1px * var(--s)) calc(3.1px * var(--s));
+}
+
+.fk-mascot-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: bottom center;
+}
+
+.fk-mascot--nav .fk-mascot-figure {
+  animation: fkdotpop 1.4s ease-in-out infinite;
+}
+
+/* Flanking figures: head 4.14px, body 6.3×4.27px (body wider than head) */
+.fk-mascot-figure-head {
+  width: calc(4.14px * var(--s));
+  height: calc(4.14px * var(--s));
+  border-radius: 50%;
+  background: #21314e;
+}
+
+.fk-mascot-figure-body {
+  width: calc(6.3px * var(--s));
+  height: calc(4.27px * var(--s));
+  margin-top: calc(0.5px * var(--s));
+  border-radius: calc(3.15px * var(--s)) calc(3.15px * var(--s)) calc(1.1px * var(--s)) calc(1.1px * var(--s));
+  background: #21314e;
+}
+
+/* Middle figure: head 5.06px, body 7.7×5.22px */
+.fk-mascot-figure--mid .fk-mascot-figure-head {
+  width: calc(5.06px * var(--s));
+  height: calc(5.06px * var(--s));
+}
+
+.fk-mascot-figure--mid .fk-mascot-figure-body {
+  width: calc(7.7px * var(--s));
+  height: calc(5.22px * var(--s));
+  border-radius: calc(3.85px * var(--s)) calc(3.85px * var(--s)) calc(1.1px * var(--s)) calc(1.1px * var(--s));
+}
+
+/* ── Notification badge ────────────────────────────────────────────────── */
+
+.fk-mascot-badge {
+  position: absolute;
+  top: calc(-3px * var(--s));
+  right: calc(-3px * var(--s));
+  width: calc(14px * var(--s));
+  height: calc(14px * var(--s));
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff9384, #e0432f);
+  box-shadow:
+    0 calc(2px * var(--s)) calc(5px * var(--s)) calc(-1px * var(--s)) rgba(0, 0, 0, 0.5),
+    inset 0 calc(1px * var(--s)) 0 rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: calc(8px * var(--s));
+  font-weight: 700;
+  line-height: 1;
+  animation: fkbadge 4.8s ease-in-out infinite;
+}

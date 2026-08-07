@@ -1,0 +1,145 @@
+.fk-drafts-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  flex-shrink: 0;
+}
+
+.fk-drafts-modal-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.fk-drafts-modal-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.fk-drafts-modal-close:hover {
+  background: var(--hover-2);
+}
+
+.fk-drafts-modal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
+}
+
+.fk-drafts-modal-loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.fk-drafts-modal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.fk-drafts-modal-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.fk-drafts-modal-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.fk-drafts-modal-row:hover {
+  background: var(--hover-2);
+}
+
+.fk-drafts-modal-row--highlighted {
+  background: var(--hover-2);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.fk-drafts-modal-row-thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fk-drafts-modal-row-thumb img,
+.fk-drafts-modal-row-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fk-drafts-modal-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fk-drafts-modal-row-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-drafts-modal-row-snippet {
+  font-size: 13px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-drafts-modal-row-time {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.fk-drafts-modal-row-trash {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.fk-drafts-modal-row-trash:hover {
+  background: var(--surface-2);
+  color: var(--danger, #e5484d);
+}

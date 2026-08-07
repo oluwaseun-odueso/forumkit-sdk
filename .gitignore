@@ -21,8 +21,12 @@ Thumbs.db
 *.png
 *.jpg
 *.jpeg
+!packages/sdk-web/public/*.png
+!packages/sdk-web/public/*.jpg
+!packages/sdk-web/public/*.jpeg
 CHECKLIST.md
 CLAUDE.md
 gen-tokens.mjs
 docs/backend-test-plan.md
-CLAUDE.md
+design_handoff_forum_kit
+
