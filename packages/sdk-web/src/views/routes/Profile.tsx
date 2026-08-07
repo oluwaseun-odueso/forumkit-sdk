@@ -34,7 +34,7 @@ function ProfileFilterLabel({ label, showChevron, onClick }: { label: string; sh
     <>
       <EyeIcon />
       {label}
-      {showChevron && <ChevronDownIcon size={22} />}
+      {showChevron && <ChevronDownIcon size={20} />}
     </>
   );
   return onClick
