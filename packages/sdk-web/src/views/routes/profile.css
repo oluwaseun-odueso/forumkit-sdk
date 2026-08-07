@@ -26,7 +26,7 @@ button.fk-profile-filter-label {
   border: none;
   padding: 0;
   margin: 0;
-  font: inherit;
+  font-family: inherit;
   color: var(--text-2);
 }
 
