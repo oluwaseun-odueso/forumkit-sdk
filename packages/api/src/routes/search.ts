@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { embedOne } from '@forumkit/ai';
 import * as searchRepo from '../repositories/search';
-import { authenticate } from '../middleware/auth';
 
 const searchQuerySchema = z.object({
   q:     z.string().min(1).max(500),
