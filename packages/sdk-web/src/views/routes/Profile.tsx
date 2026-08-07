@@ -23,6 +23,25 @@ const CONTENT_TYPE_LABEL: Record<string, string> = {
   comments: 'Showing comments only',
 };
 
+// Shared markup for the eye-icon filter label — used both as a clickable
+// button (Overview/Upvoted/Downvoted, which can filter by content type,
+// hence the chevron) and as an inert label (Posts/Comments/Saved, which
+// can't) — one component so the eye icon and, where shown, the chevron
+// always render at the same size instead of two hand-written copies
+// drifting apart.
+function ProfileFilterLabel({ label, showChevron, onClick }: { label: string; showChevron: boolean; onClick?: () => void }) {
+  const content = (
+    <>
+      <EyeIcon />
+      {label}
+      {showChevron && <ChevronDownIcon size={22} />}
+    </>
+  );
+  return onClick
+    ? <button type="button" className="fk-profile-filter-label" onClick={onClick}>{content}</button>
+    : <div className="fk-profile-filter-label">{content}</div>;
+}
+
 export function Profile() {
   const {
     state, setProfileTab, setProfileSort, setProfileContentType, loadMoreProfileActivity,
@@ -40,7 +59,6 @@ export function Profile() {
   return (
     <Shell
       scopeTag={username}
-      scrollMain={false}
       rail={
         <ProfileRightRail
           username={username}
@@ -57,11 +75,11 @@ export function Profile() {
         <div className="fk-profile-filter-row">
           {showContentFilter ? (
             <div style={{ position: 'relative' }}>
-              <button type="button" className="fk-profile-filter-label" onClick={() => setContentMenuOpen(o => !o)}>
-                <EyeIcon />
-                {CONTENT_TYPE_LABEL[profile.activityContentType]}
-                <ChevronDownIcon size={22} />
-              </button>
+              <ProfileFilterLabel
+                label={CONTENT_TYPE_LABEL[profile.activityContentType] ?? 'Showing all content'}
+                showChevron
+                onClick={() => setContentMenuOpen(o => !o)}
+              />
               <DropdownMenu open={contentMenuOpen} onClose={() => setContentMenuOpen(false)} style={{ top: 40, left: 0, width: 220, padding: 6 }}>
                 <DropdownMenuItem label="All content" onClick={() => { setProfileContentType('all'); setContentMenuOpen(false); }} />
                 <DropdownMenuItem label="Posts only" onClick={() => { setProfileContentType('posts'); setContentMenuOpen(false); }} />
@@ -69,10 +87,7 @@ export function Profile() {
               </DropdownMenu>
             </div>
           ) : (
-            <div className="fk-profile-filter-label">
-              <EyeIcon />
-              Showing all content
-            </div>
+            <ProfileFilterLabel label="Showing all content" showChevron={false} />
           )}
         </div>
         <div className="fk-profile-actions-row">
