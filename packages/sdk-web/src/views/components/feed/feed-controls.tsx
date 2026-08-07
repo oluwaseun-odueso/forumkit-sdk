@@ -62,7 +62,7 @@ export default function FeedControls({
         </div>
       )}
 
-      <div className="fk-feed-controls-anchor">
+      <div className="fk-feed-controls-anchor fk-feed-controls-anchor--right">
         <button type="button" className={`fk-feed-view-btn${viewMenuOpen ? ' fk-feed-view-btn--open' : ''}`} onClick={onToggleViewMenu}>
           {view === 'compact' ? <CompactViewIcon /> : <CardViewIcon />}
           <ChevronDownIcon />
