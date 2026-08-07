@@ -3,7 +3,7 @@ import MascotIcon from './mascot-icon';
 import AccountMenu from './account-menu';
 import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
-import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, MessagesIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
+import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
 import { useTheme } from '../../hooks/use-theme';
 import { authorAvatar } from '../../lib/author-avatar';
 import './top-nav.css';
@@ -68,9 +68,6 @@ export default function TopNav({ onHome, onOpenComposer, onViewProfile, onAsk, c
       <div className="fk-topnav-actions">
         <IconButton label="Toggle theme" onClick={toggleTheme}>
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-        </IconButton>
-        <IconButton label="Messages">
-          <MessagesIcon />
         </IconButton>
         <button type="button" className="fk-topnav-create" onClick={onOpenComposer}>
           <PlusIcon />
