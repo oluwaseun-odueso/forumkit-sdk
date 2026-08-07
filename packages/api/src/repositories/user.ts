@@ -80,3 +80,39 @@ export async function updateThemePreference(
 ): Promise<void> {
   await db`UPDATE users SET theme_preference = ${themePreference} WHERE id = ${userId}`;
 }
+
+export type UserSearchResult = { id: string; displayName: string; avatarUrl: string | null };
+
+type UserSearchRow = { id: string; display_name: string; avatar_url: string | null; total_count: string };
+
+// Fuzzy-matches display_name using pg_trgm's similarity() (see
+// migrations/013_search_fuzzy.ts for the trigram index this relies on) —
+// there's no full-text-search fallback here like the thread/comment search
+// functions have, since a display name is one short string, not a document;
+// trigram matching alone is enough to tolerate a typo in someone's name.
+// Banned users are excluded so they don't show up in the People results.
+export async function searchUsers(
+  db: DB,
+  forumId: string,
+  query: string,
+  opts: { page: number; limit: number },
+): Promise<{ results: UserSearchResult[]; total: number }> {
+  const offset = (opts.page - 1) * opts.limit;
+
+  const rows = await db<UserSearchRow[]>`
+    SELECT
+      id, display_name, avatar_url,
+      COUNT(*) OVER() AS total_count
+    FROM users
+    WHERE forum_id = ${forumId}
+      AND banned_at IS NULL
+      AND similarity(display_name, ${query}) > 0.2
+    ORDER BY similarity(display_name, ${query}) DESC
+    LIMIT ${opts.limit} OFFSET ${offset}
+  `;
+
+  return {
+    results: rows.map(r => ({ id: r.id, displayName: r.display_name, avatarUrl: r.avatar_url })),
+    total: Number(rows[0]?.total_count ?? 0),
+  };
+}

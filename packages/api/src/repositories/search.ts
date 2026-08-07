@@ -31,6 +31,47 @@ function toSearchResult(row: SearchRow): SearchResult {
   };
 }
 
+// Comment search results carry threadTitle — unlike a thread result, a bare
+// comment snippet is meaningless without knowing which post it's replying
+// to, so every comment search query below joins back to threads for it.
+export type CommentSearchResult = {
+  commentId: string;
+  threadId: string;
+  threadTitle: string;
+  bodySnippet: string;
+  rank: number;
+  createdAt: Date;
+};
+
+type CommentSearchRow = {
+  comment_id: string;
+  thread_id: string;
+  thread_title: string;
+  body_snippet: string;
+  rank: number;
+  created_at: Date;
+  total_count: string;
+};
+
+function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
+  return {
+    commentId: row.comment_id,
+    threadId: row.thread_id,
+    threadTitle: row.thread_title,
+    bodySnippet: row.body_snippet,
+    rank: Number(row.rank),
+    createdAt: row.created_at,
+  };
+}
+
+// FUZZY_SIMILARITY_THRESHOLD is pg_trgm's similarity() score, from 0 to 1,
+// measuring how many 3-letter chunks ("trigrams") two strings have in
+// common. 0.25 is a permissive-but-not-noisy cutoff: loose enough to catch
+// a typical typo (one or two letters off), tight enough to not match
+// unrelated short words. Shared by every fuzzy query below (threads,
+// comments, users) so all three search types behave consistently.
+const FUZZY_SIMILARITY_THRESHOLD = 0.25;
+
 export async function keywordSearch(
   db: DB,
   forumId: string,
@@ -39,22 +80,38 @@ export async function keywordSearch(
 ): Promise<{ results: SearchResult[]; total: number }> {
   const offset = (opts.page - 1) * opts.limit;
 
+  // rank picks the higher of two scores per row: ts_rank (Postgres's
+  // built-in full-text search relevance score — it word-stems the text via
+  // to_tsvector and matches the query via plainto_tsquery, but requires
+  // correct spelling), or similarity() against just the title (pg_trgm's
+  // trigram-overlap score — tolerates typos, since it doesn't care about
+  // whole-word spelling, just character-sequence overlap). Using GREATEST
+  // means a row that matches well on either method ranks highly.
+  // The WHERE clause ORs the two match conditions: a row is returned if it
+  // satisfies the full-text search OR is a close-enough fuzzy title match,
+  // even when the other condition alone would have excluded it.
   const rows = await db<SearchRow[]>`
     SELECT
       t.id                                                       AS thread_id,
       t.title,
       LEFT(t.body, 200)                                          AS body_snippet,
-      ts_rank(
-        to_tsvector('english', t.title || ' ' || t.body),
-        plainto_tsquery('english', ${query})
+      GREATEST(
+        ts_rank(
+          to_tsvector('english', t.title || ' ' || t.body),
+          plainto_tsquery('english', ${query})
+        ),
+        similarity(t.title, ${query})
       )                                                          AS rank,
       t.created_at,
       COUNT(*) OVER()                                            AS total_count
     FROM threads t
     WHERE t.forum_id = ${forumId}
       AND t.status != 'deleted'
-      AND to_tsvector('english', t.title || ' ' || t.body)
-          @@ plainto_tsquery('english', ${query})
+      AND (
+        to_tsvector('english', t.title || ' ' || t.body)
+            @@ plainto_tsquery('english', ${query})
+        OR similarity(t.title, ${query}) > ${FUZZY_SIMILARITY_THRESHOLD}
+      )
     ORDER BY rank DESC, t.created_at DESC
     LIMIT ${opts.limit} OFFSET ${offset}
   `;
@@ -185,6 +242,97 @@ export async function semanticSearch(
 
   return {
     results: rows.map(toSearchResult),
+    total: Number(rows[0]?.total_count ?? 0),
+  };
+}
+
+// Searches comments by keyword (word-stemmed full-text search) plus fuzzy
+// title-style trigram matching on the comment body, same combined strategy
+// as keywordSearch above. threadId is optional: pass it to scope the search
+// to one thread (the in-thread "Search Comments" pill), omit it to search
+// every comment in the forum (the top-nav search results page's Comments
+// section). Joins back to threads so the caller always knows which post
+// each matching comment belongs to.
+export async function keywordSearchComments(
+  db: DB,
+  forumId: string,
+  query: string,
+  opts: SearchOpts,
+  threadId?: string,
+): Promise<{ results: CommentSearchResult[]; total: number }> {
+  const offset = (opts.page - 1) * opts.limit;
+  // Conditional SQL fragment: only adds the "AND c.thread_id = ..." clause
+  // when threadId is actually passed in, following the same optional-filter
+  // pattern already used in repositories/thread.ts's listThreads.
+  const threadFilter = threadId ? db`AND c.thread_id = ${threadId}` : db``;
+
+  const rows = await db<CommentSearchRow[]>`
+    SELECT
+      c.id                                                       AS comment_id,
+      c.thread_id                                                AS thread_id,
+      t.title                                                    AS thread_title,
+      LEFT(c.body, 200)                                          AS body_snippet,
+      GREATEST(
+        ts_rank(to_tsvector('english', c.body), plainto_tsquery('english', ${query})),
+        similarity(c.body, ${query})
+      )                                                          AS rank,
+      c.created_at,
+      COUNT(*) OVER()                                            AS total_count
+    FROM comments c
+    JOIN threads t ON t.id = c.thread_id
+    WHERE t.forum_id = ${forumId}
+      AND c.status = 'visible'
+      ${threadFilter}
+      AND (
+        to_tsvector('english', c.body) @@ plainto_tsquery('english', ${query})
+        OR similarity(c.body, ${query}) > ${FUZZY_SIMILARITY_THRESHOLD}
+      )
+    ORDER BY rank DESC, c.created_at DESC
+    LIMIT ${opts.limit} OFFSET ${offset}
+  `;
+
+  return {
+    results: rows.map(toCommentSearchResult),
+    total: Number(rows[0]?.total_count ?? 0),
+  };
+}
+
+// Semantic (embedding cosine-similarity) counterpart to keywordSearchComments
+// — same optional threadId scoping and thread-title join, but ranks by how
+// close the comment's embedding is to the query's embedding instead of text
+// matching, same pattern as semanticSearch's relationship to keywordSearch.
+export async function semanticSearchComments(
+  db: DB,
+  forumId: string,
+  embedding: number[],
+  opts: SearchOpts,
+  threadId?: string,
+): Promise<{ results: CommentSearchResult[]; total: number }> {
+  const offset = (opts.page - 1) * opts.limit;
+  const vec = '[' + embedding.join(',') + ']';
+  const threadFilter = threadId ? db`AND c.thread_id = ${threadId}` : db``;
+
+  const rows = await db<CommentSearchRow[]>`
+    SELECT
+      c.id                                                     AS comment_id,
+      c.thread_id                                               AS thread_id,
+      t.title                                                   AS thread_title,
+      LEFT(c.body, 200)                                         AS body_snippet,
+      (1 - (c.embedding <=> ${vec}::vector))::float             AS rank,
+      c.created_at,
+      COUNT(*) OVER()                                           AS total_count
+    FROM comments c
+    JOIN threads t ON t.id = c.thread_id
+    WHERE t.forum_id = ${forumId}
+      AND c.status = 'visible'
+      AND c.embedding IS NOT NULL
+      ${threadFilter}
+    ORDER BY c.embedding <=> ${vec}::vector
+    LIMIT ${opts.limit} OFFSET ${offset}
+  `;
+
+  return {
+    results: rows.map(toCommentSearchResult),
     total: Number(rows[0]?.total_count ?? 0),
   };
 }
