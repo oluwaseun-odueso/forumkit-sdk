@@ -10,10 +10,6 @@
   position: relative;
 }
 
-.fk-feed-controls-anchor--right {
-  margin-left: auto;
-}
-
 .fk-feed-sort-btn,
 .fk-feed-view-btn {
   display: flex;

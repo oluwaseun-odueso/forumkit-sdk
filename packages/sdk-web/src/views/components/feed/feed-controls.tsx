@@ -62,12 +62,12 @@ export default function FeedControls({
         </div>
       )}
 
-      <div className="fk-feed-controls-anchor fk-feed-controls-anchor--right">
+      <div className="fk-feed-controls-anchor">
         <button type="button" className={`fk-feed-view-btn${viewMenuOpen ? ' fk-feed-view-btn--open' : ''}`} onClick={onToggleViewMenu}>
           {view === 'compact' ? <CompactViewIcon /> : <CardViewIcon />}
           <ChevronDownIcon />
         </button>
-        <DropdownMenu open={viewMenuOpen} onClose={onCloseMenus} style={{ top: 42, right: 0, width: 200 }}>
+        <DropdownMenu open={viewMenuOpen} onClose={onCloseMenus} style={{ top: 42, left: 0, width: 200 }}>
           <DropdownMenuTitle>View</DropdownMenuTitle>
           <DropdownMenuItem icon={<CardViewIcon size={20} />} label="Card" active={view === 'card'} onClick={() => onSelectView('card')} />
           <DropdownMenuItem icon={<CompactViewIcon size={20} />} label="Compact" active={view === 'compact'} onClick={() => onSelectView('compact')} />
