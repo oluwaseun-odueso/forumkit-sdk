@@ -34,8 +34,13 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
     credentials: true,
   });
 
+  // Generous default — a forum is a click-heavy surface (votes, saves, feed
+  // pagination, WS reconnects, composer autosave) and most of that traffic
+  // is harmless. A handful of write-heavy/expensive routes set their own
+  // stricter `config.rateLimit` override below instead of tightening this
+  // global number for everyone.
   await app.register(rateLimit, {
-    max: 100,
+    max: 600,
     timeWindow: '1 minute',
   });
 
