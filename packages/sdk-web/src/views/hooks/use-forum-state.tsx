@@ -11,7 +11,10 @@ import { searchThreads as apiSearchThreads } from '../api/search';
 import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
-import { getMyProfile, updateMyProfile, updateThemePreference, getProfileActivity } from '../api/profile';
+import {
+  getMyProfile, updateMyProfile, updateThemePreference, getProfileActivity,
+  getUserProfile, getUserActivity,
+} from '../api/profile';
 import { getForum } from '../api/forums';
 import {
   createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
@@ -133,6 +136,17 @@ type ProfileState = {
   activityContentType: ProfileActivityContentType;
 };
 
+// Deliberately a separate slice from ProfileState, not a shared one —
+// ProfileState doubles as "my own identity" (TopNav's avatar, the account
+// menu, etc. all read state.profile directly), so overwriting it with
+// someone else's data while viewing their profile would leak their avatar
+// into places that are supposed to show yours. null means "not currently
+// viewing anyone else" — Profile.tsx falls back to state.profile in that
+// case. Derived from ProfileState via Omit/& rather than hand-duplicated:
+// same shape plus userId, minus themePreference (that's a personal setting,
+// meaningless when looking at someone else's profile).
+type ViewedProfileState = Omit<ProfileState, 'themePreference' | 'id'> & { userId: string };
+
 // Covers both the top-nav live dropdown (query/results/loading/open — open
 // is whether that small dropdown panel is currently visible, separate from
 // resultsSection below) and what seeds the full SearchResults page once
@@ -161,6 +175,7 @@ type State = {
   composer: ComposeState;
   asst: AsstState;
   profile: ProfileState;
+  viewedProfile: ViewedProfileState | null;
   settings: { open: boolean };
   draftsModal: DraftsModalState;
   search: SearchState;
@@ -244,6 +259,22 @@ type Action =
   | { type: 'SET_PROFILE_ACTIVITY_LOADING'; loading: boolean }
   | { type: 'SET_PROFILE_SORT'; sort: ProfileActivitySort }
   | { type: 'SET_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
+  // Opens someone else's profile — resets viewedProfile to a fresh (empty)
+  // record for that userId; the profile-init/activity effects (keyed on
+  // viewedProfile.userId) then fill it in, same "dispatch empty, effect
+  // fills it" pattern OPEN_THREAD already uses for state.thread.
+  | { type: 'OPEN_USER_PROFILE'; userId: string }
+  | {
+      type: 'SET_VIEWED_PROFILE_DATA'; displayName: string; bio: string; socialLinks: SocialLink[];
+      avatarUrl: string | null; bannerUrl: string | null; joinedAt: string | null;
+      postKarma: number; commentKarma: number;
+    }
+  | { type: 'SET_VIEWED_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
+  | { type: 'APPEND_VIEWED_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
+  | { type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING'; loading: boolean }
+  | { type: 'SET_VIEWED_PROFILE_TAB'; tab: string }
+  | { type: 'SET_VIEWED_PROFILE_SORT'; sort: ProfileActivitySort }
+  | { type: 'SET_VIEWED_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
   | { type: 'ASST_SUGGEST'; text: string }
@@ -488,6 +519,7 @@ const initialState: State = {
     activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
     activitySort: 'new', activityContentType: 'all',
   },
+  viewedProfile: null,
   settings: { open: false },
   draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
   search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
@@ -497,8 +529,12 @@ const initialState: State = {
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
+    // Resets viewedProfile on every generic navigation — the only way
+    // viewedProfile gets set is OPEN_USER_PROFILE below, so any other
+    // SET_VIEW (including "go to my own profile" from the account menu)
+    // means we're not looking at someone else's anymore.
     case 'SET_VIEW':
-      return { ...state, view: action.view, accountMenu: { open: false } };
+      return { ...state, view: action.view, accountMenu: { open: false }, viewedProfile: null };
     case 'OPEN_THREAD':
       return {
         ...state,
@@ -829,6 +865,61 @@ function reducer(state: State, action: Action): State {
         ...state,
         profile: { ...state.profile, activityContentType: action.contentType, activityPage: 1 },
       };
+    case 'OPEN_USER_PROFILE':
+      return {
+        ...state,
+        view: 'profile',
+        accountMenu: { open: false },
+        viewedProfile: {
+          userId: action.userId, activeTab: 'Overview', displayName: '', bio: '', socialLinks: [],
+          avatarUrl: null, bannerUrl: null, joinedAt: null, postKarma: 0, commentKarma: 0,
+          activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
+          activitySort: 'new', activityContentType: 'all',
+        },
+      };
+    case 'SET_VIEWED_PROFILE_DATA':
+      // No-op if viewedProfile got cleared (e.g. the user navigated away)
+      // before this fetch resolved — nothing to write the data into.
+      if (!state.viewedProfile) return state;
+      return {
+        ...state,
+        viewedProfile: {
+          ...state.viewedProfile, displayName: action.displayName, bio: action.bio,
+          socialLinks: action.socialLinks, avatarUrl: action.avatarUrl, bannerUrl: action.bannerUrl,
+          joinedAt: action.joinedAt, postKarma: action.postKarma, commentKarma: action.commentKarma,
+        },
+      };
+    case 'SET_VIEWED_PROFILE_ACTIVITY':
+      if (!state.viewedProfile) return state;
+      return {
+        ...state,
+        viewedProfile: {
+          ...state.viewedProfile, activityItems: action.items, activityTotal: action.total, activityPage: action.page,
+        },
+      };
+    case 'APPEND_VIEWED_PROFILE_ACTIVITY':
+      if (!state.viewedProfile) return state;
+      return {
+        ...state,
+        viewedProfile: {
+          ...state.viewedProfile,
+          activityItems: [...state.viewedProfile.activityItems, ...action.items],
+          activityTotal: action.total,
+          activityPage: action.page,
+        },
+      };
+    case 'SET_VIEWED_PROFILE_ACTIVITY_LOADING':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activityLoading: action.loading } };
+    case 'SET_VIEWED_PROFILE_TAB':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activeTab: action.tab, activityPage: 1 } };
+    case 'SET_VIEWED_PROFILE_SORT':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activitySort: action.sort, activityPage: 1 } };
+    case 'SET_VIEWED_PROFILE_CONTENT_TYPE':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activityContentType: action.contentType, activityPage: 1 } };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
     case 'ASST_SUMMARY':
@@ -1450,6 +1541,88 @@ function useForumStateInternal() {
     state.profile.activitySort, state.profile.activityContentType,
   ]);
 
+  const openUserProfile = useCallback((userId: string) => dispatch({ type: 'OPEN_USER_PROFILE', userId }), []);
+  const setViewedProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_VIEWED_PROFILE_TAB', tab }), []);
+  const setViewedProfileSort = useCallback(
+    (sort: ProfileActivitySort) => dispatch({ type: 'SET_VIEWED_PROFILE_SORT', sort }),
+    [],
+  );
+  const setViewedProfileContentType = useCallback(
+    (contentType: ProfileActivityContentType) => dispatch({ type: 'SET_VIEWED_PROFILE_CONTENT_TYPE', contentType }),
+    [],
+  );
+
+  // ─── Viewed-profile init: fetch a public profile whenever userId changes ────
+  // Same "dispatch on the resolved response" shape as the my-profile effect
+  // above, but no theme-preference side effect (that's a personal setting,
+  // never applicable when looking at someone else) and no localStorage.
+  useEffect(() => {
+    const userId = state.viewedProfile?.userId;
+    if (!userId || !sessionToken || !forumId) return;
+    void getUserProfile(forumId, userId, sessionToken).then(profile => {
+      if (!profile) return;
+      dispatch({
+        type: 'SET_VIEWED_PROFILE_DATA',
+        displayName: profile.displayName,
+        bio: profile.bio ?? '',
+        socialLinks: profile.socialLinks.map((l, i) => ({
+          id: Date.now() + i,
+          platform: l.platform as SocialLink['platform'],
+          url: l.url,
+        })),
+        avatarUrl: profile.avatarUrl,
+        bannerUrl: profile.bannerUrl,
+        joinedAt: profile.joinedAt as unknown as string,
+        postKarma: profile.postKarma,
+        commentKarma: profile.commentKarma,
+      });
+    }).catch(err => {
+      console.error('[useForum] viewed profile fetch failed', err);
+    });
+  }, [state.viewedProfile?.userId, sessionToken, forumId]);
+
+  // ─── Viewed-profile activity: same reload-on-change pattern as my own ───────
+  useEffect(() => {
+    const viewed = state.viewedProfile;
+    if (!viewed || !sessionToken || !forumId || state.view !== 'profile') return;
+    const scope = PROFILE_TAB_TO_SCOPE[viewed.activeTab];
+    // 'saved' is never offered as a tab when viewing someone else (see
+    // Profile.tsx), but guard here too rather than trust the UI alone —
+    // the backend would 400 it anyway (publicActivityQuerySchema).
+    if (!scope || scope === 'saved') return;
+    dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: true });
+    void getUserActivity(
+      forumId, viewed.userId, scope, 1, PROFILE_ACTIVITY_PAGE_SIZE, viewed.activitySort, viewed.activityContentType, sessionToken,
+    ).then(result => {
+      dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY', items: result.items.map(toActivityItemView), total: result.total, page: 1 });
+    }).catch(err => {
+      console.error('[useForum] viewed profile activity fetch failed', err);
+    }).finally(() => {
+      dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: false });
+    });
+  }, [
+    state.viewedProfile?.userId, sessionToken, forumId, state.view, state.viewedProfile?.activeTab,
+    state.viewedProfile?.activitySort, state.viewedProfile?.activityContentType,
+  ]);
+
+  const loadMoreViewedProfileActivity = useCallback(async () => {
+    const viewed = state.viewedProfile;
+    if (!viewed || !sessionToken || !forumId) return;
+    const scope = PROFILE_TAB_TO_SCOPE[viewed.activeTab];
+    if (!scope || scope === 'saved') return;
+    const nextPage = viewed.activityPage + 1;
+    dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: true });
+    try {
+      const result = await getUserActivity(
+        forumId, viewed.userId, scope, nextPage, PROFILE_ACTIVITY_PAGE_SIZE,
+        viewed.activitySort, viewed.activityContentType, sessionToken,
+      );
+      dispatch({ type: 'APPEND_VIEWED_PROFILE_ACTIVITY', items: result.items.map(toActivityItemView), total: result.total, page: nextPage });
+    } finally {
+      dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: false });
+    }
+  }, [state.viewedProfile, sessionToken, forumId]);
+
   // ─── Feed init: (re)load real threads whenever the sort/scope/window changes ─
   // Ranking is now computed server-side (see repositories/thread.ts
   // SORT_CLAUSES) — this always fetches page 1 and replaces state.posts;
@@ -1608,6 +1781,11 @@ function useForumStateInternal() {
     setProfileSort,
     setProfileContentType,
     loadMoreProfileActivity,
+    openUserProfile,
+    setViewedProfileTab,
+    setViewedProfileSort,
+    setViewedProfileContentType,
+    loadMoreViewedProfileActivity,
     toggleTheme,
     logOut,
     canLogOut,

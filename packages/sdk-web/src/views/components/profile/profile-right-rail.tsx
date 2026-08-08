@@ -13,6 +13,11 @@ type ProfileRightRailProps = {
   handle: string;
   postKarma: number;
   commentKarma: number;
+  socialLinks: SocialLink[];
+  // False when viewing someone else's profile — hides "Edit Profile",
+  // "Manage", and "+ Add a link", none of which make sense on a profile
+  // that isn't yours.
+  isOwnProfile?: boolean;
 };
 
 const PLATFORM_ICON: Record<SocialLink['platform'], React.ComponentType<{ size?: number }>> = {
@@ -30,9 +35,30 @@ function cleanUrl(url: string): string {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
-export default function ProfileRightRail({ username, handle, postKarma, commentKarma }: ProfileRightRailProps) {
-  const { state, openSettings } = useForum();
-  const { socialLinks } = state.profile;
+export default function ProfileRightRail({
+  username, handle, postKarma, commentKarma, socialLinks, isOwnProfile = true,
+}: ProfileRightRailProps) {
+  const { openSettings } = useForum();
+  // Nothing to show and nothing to add on someone else's empty links list —
+  // an empty card with no "+ Add a link" button (that button only makes
+  // sense on your own profile) would just be a header floating with
+  // nothing under it.
+  if (!isOwnProfile && socialLinks.length === 0) {
+    return (
+      <aside className="fk-profile-rail">
+        <div className="fk-profile-card fk-profile-card--identity">
+          <div className="fk-profile-card-body">
+            <div className="fk-profile-card-name">{username}</div>
+            <div className="fk-profile-card-handle">/{handle}</div>
+            <div className="fk-profile-stats">
+              <div><div className="fk-profile-stat-value">{postKarma.toLocaleString()}</div><div className="fk-profile-stat-label">Post Karma</div></div>
+              <div><div className="fk-profile-stat-value">{commentKarma.toLocaleString()}</div><div className="fk-profile-stat-label">Comment Karma</div></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="fk-profile-rail">
@@ -44,19 +70,23 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
             <div><div className="fk-profile-stat-value">{postKarma.toLocaleString()}</div><div className="fk-profile-stat-label">Post Karma</div></div>
             <div><div className="fk-profile-stat-value">{commentKarma.toLocaleString()}</div><div className="fk-profile-stat-label">Comment Karma</div></div>
           </div>
-          <div className="fk-profile-card-actions">
-            <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={openSettings}>Edit Profile</PillButton>
-            <IconButton label="More options" size={42}><EllipsisIcon /></IconButton>
-          </div>
+          {isOwnProfile && (
+            <div className="fk-profile-card-actions">
+              <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={openSettings}>Edit Profile</PillButton>
+              <IconButton label="More options" size={42}><EllipsisIcon /></IconButton>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="fk-profile-card">
         <div className="fk-profile-card-head">
           <span className="fk-profile-card-title">Social Links</span>
-          <button type="button" className="fk-profile-card-link fk-profile-card-link--accent" onClick={openSettings}>
-            Manage
-          </button>
+          {isOwnProfile && (
+            <button type="button" className="fk-profile-card-link fk-profile-card-link--accent" onClick={openSettings}>
+              Manage
+            </button>
+          )}
         </div>
 
         {socialLinks.map(link => {
@@ -79,9 +109,11 @@ export default function ProfileRightRail({ username, handle, postKarma, commentK
           );
         })}
 
-        <button type="button" className="fk-social-link-add" onClick={openSettings}>
-          + Add a link
-        </button>
+        {isOwnProfile && (
+          <button type="button" className="fk-social-link-add" onClick={openSettings}>
+            + Add a link
+          </button>
+        )}
       </div>
     </aside>
   );

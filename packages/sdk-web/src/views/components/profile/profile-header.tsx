@@ -8,8 +8,11 @@ type ProfileHeaderProps = {
   handle: string;
   avatarUrl: string | null;
   bannerUrl: string | null;
-  onEditAvatar: () => void;
-  onEditBanner: () => void;
+  // Both omitted (undefined) when viewing someone else's profile — there's
+  // nothing to edit on a profile that isn't yours, so the buttons don't
+  // render at all rather than rendering disabled.
+  onEditAvatar?: (() => void) | undefined;
+  onEditBanner?: (() => void) | undefined;
 };
 
 export default function ProfileHeader({ username, handle, avatarUrl, bannerUrl, onEditAvatar, onEditBanner }: ProfileHeaderProps) {
@@ -20,15 +23,19 @@ export default function ProfileHeader({ username, handle, avatarUrl, bannerUrl, 
         className="fk-profile-header-banner"
         style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : undefined}
       >
-        <button type="button" className="fk-profile-change-banner" onClick={onEditBanner}>
-          <CameraIcon size={13} />
-          Change Banner
-        </button>
+        {onEditBanner && (
+          <button type="button" className="fk-profile-change-banner" onClick={onEditBanner}>
+            <CameraIcon size={13} />
+            Change Banner
+          </button>
+        )}
         <div className="fk-profile-avatar-wrap">
           <Avatar size={150} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} style={{ borderRadius: '50%', border: '3px solid var(--surface)' }} />
-          <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar" onClick={onEditAvatar}>
-            <CameraIcon />
-          </button>
+          {onEditAvatar && (
+            <button type="button" className="fk-profile-avatar-edit" aria-label="Edit avatar" onClick={onEditAvatar}>
+              <CameraIcon />
+            </button>
+          )}
         </div>
       </div>
       <div className="fk-profile-header-labels">
