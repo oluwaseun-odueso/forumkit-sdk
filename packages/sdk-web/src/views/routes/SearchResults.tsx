@@ -5,6 +5,8 @@ import Thumbnail from '../components/shared/thumbnail';
 import Avatar from '../components/shared/avatar';
 import RenderedBody from '../components/shared/rendered-body';
 import MascotIcon from '../components/layout/mascot-icon';
+import PillButton from '../components/shared/pill-button';
+import { ChevronLeftIcon } from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
 import { searchThreads, searchComments, searchUsers } from '../api/search';
@@ -86,7 +88,10 @@ type Section = 'all' | 'threads' | 'comments' | 'people';
  * transient and not needed anywhere else in the app.
  */
 export function SearchResults() {
-  const { state, openSearchResultsSection, openThread, openUserProfile, forumId: fid, sessionToken: token } = useForum();
+  const {
+    state, openSearchResultsSection, openThread, openUserProfile, goBack,
+    forumId: fid, sessionToken: token,
+  } = useForum();
   const query = state.search.resultsQuery;
   const section = state.search.resultsSection as Section;
 
@@ -150,6 +155,9 @@ export function SearchResults() {
           already used by the Profile route — reused here rather than a new
           page-container class, since this page needs the same shape. */}
       <div className="fk-profile">
+        {state.history.length > 0 && (
+          <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
+        )}
         <div className="fk-profile-filter-label" style={{ marginBottom: 16 }}>
           Results for &ldquo;{query}&rdquo;
         </div>

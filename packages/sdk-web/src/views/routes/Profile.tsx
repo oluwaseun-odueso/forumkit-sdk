@@ -10,7 +10,7 @@ import MascotIcon from '../components/layout/mascot-icon';
 import IconButton from '../components/shared/icon-button';
 import PillButton from '../components/shared/pill-button';
 import DropdownMenu, { DropdownMenuItem } from '../components/shared/dropdown-menu';
-import { EyeIcon, ChevronDownIcon, PlusIcon, FilterIcon } from '../components/shared/icons';
+import { EyeIcon, ChevronDownIcon, ChevronLeftIcon, PlusIcon, FilterIcon } from '../components/shared/icons';
 import { useForum } from '../hooks/use-forum-state';
 import { useInfiniteScroll } from '../hooks/use-infinite-scroll';
 import './profile.css';
@@ -46,7 +46,7 @@ export function Profile() {
   const {
     state, setProfileTab, setProfileSort, setProfileContentType, loadMoreProfileActivity,
     setViewedProfileTab, setViewedProfileSort, setViewedProfileContentType, loadMoreViewedProfileActivity,
-    openComposer, openThread, openSettings, votePost, toggleSavePost, setPostMenu,
+    openComposer, openThread, openSettings, votePost, toggleSavePost, setPostMenu, goBack,
   } = useForum();
   const [contentMenuOpen, setContentMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -85,6 +85,9 @@ export function Profile() {
       }
     >
       <div className="fk-profile">
+        {state.history.length > 0 && (
+          <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
+        )}
         <ProfileHeader
           username={username}
           handle={username}
