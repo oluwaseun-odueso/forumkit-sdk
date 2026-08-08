@@ -1,14 +1,6 @@
 import type { DB } from '../db';
-import type { SimilarThread, RelatedThreadForRail } from '@forumkit/types';
+import type { SimilarThread, RelatedThreadForRail, SearchResult, CommentSearchResult } from '@forumkit/types';
 import { THREAD_VOTE_COUNTS_SUBQUERY } from './vote';
-
-export type SearchResult = {
-  threadId: string;
-  title: string;
-  bodySnippet: string;
-  rank: number;
-  createdAt: Date;
-};
 
 type SearchRow = {
   thread_id: string;
@@ -21,27 +13,22 @@ type SearchRow = {
 
 type SearchOpts = { page: number; limit: number };
 
+// imageUrl always starts null here — these queries don't join attachments
+// (a thread can have several; picking "the first image" is a decision the
+// service layer makes once, on just the current page of results, via the
+// same listAttachmentsByThreadIds + first-image-per-thread pattern already
+// used by services/thread.ts's surfaceRelated). Repositories/search.ts's
+// job is ranking and matching, not attachment resolution.
 function toSearchResult(row: SearchRow): SearchResult {
   return {
     threadId: row.thread_id,
     title: row.title,
     bodySnippet: row.body_snippet,
+    imageUrl: null,
     rank: Number(row.rank),
     createdAt: row.created_at,
   };
 }
-
-// Comment search results carry threadTitle — unlike a thread result, a bare
-// comment snippet is meaningless without knowing which post it's replying
-// to, so every comment search query below joins back to threads for it.
-export type CommentSearchResult = {
-  commentId: string;
-  threadId: string;
-  threadTitle: string;
-  bodySnippet: string;
-  rank: number;
-  createdAt: Date;
-};
 
 type CommentSearchRow = {
   comment_id: string;
@@ -59,6 +46,7 @@ function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
     threadId: row.thread_id,
     threadTitle: row.thread_title,
     bodySnippet: row.body_snippet,
+    imageUrl: null,
     rank: Number(row.rank),
     createdAt: row.created_at,
   };

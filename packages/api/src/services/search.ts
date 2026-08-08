@@ -2,6 +2,8 @@ import type { DB } from '../db';
 import type { EmbedFn } from '@forumkit/ai';
 import { embedOne } from '@forumkit/ai';
 import * as searchRepo from '../repositories/search';
+import * as attachmentRepo from '../repositories/attachment';
+import { rawAttachmentUrl } from '../lib/attachment-url';
 import type { SearchResult, CommentSearchResult } from '@forumkit/types';
 
 type SearchOpts = { page: number; limit: number };
@@ -53,8 +55,36 @@ function overfetchOpts(opts: SearchOpts): SearchOpts {
   return { page: 1, limit: opts.page * opts.limit };
 }
 
+// Resolves each result's thumbnail: looks up every distinct threadId in the
+// (already paginated — only the page actually being returned, not the
+// overfetched candidate set) results, finds each thread's first image
+// attachment, and stamps its download URL onto imageUrl. Same
+// find-first-image-per-thread pattern services/thread.ts's surfaceRelated
+// already uses for the "Similar Posts" rail. Works for both SearchResult
+// and CommentSearchResult since both carry a threadId — a comment shows its
+// parent thread's image, since a comment can't have its own attachment.
+async function hydrateImages<T extends { threadId: string }>(
+  db: DB,
+  publicApiUrl: string,
+  forumId: string,
+  results: T[],
+): Promise<(T & { imageUrl: string | null })[]> {
+  if (results.length === 0) return [];
+  const threadIds = [...new Set(results.map((r) => r.threadId))];
+  const attachments = await attachmentRepo.listAttachmentsByThreadIds(db, threadIds);
+  const firstImageByThread = new Map<string, string>();
+  for (const a of attachments) {
+    if (!a.threadId || !a.mimeType.startsWith('image/')) continue;
+    if (!firstImageByThread.has(a.threadId)) {
+      firstImageByThread.set(a.threadId, rawAttachmentUrl(publicApiUrl, forumId, a.id));
+    }
+  }
+  return results.map((r) => ({ ...r, imageUrl: firstImageByThread.get(r.threadId) ?? null }));
+}
+
 export async function searchThreads(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   query: string,
   opts: SearchOpts,
@@ -70,7 +100,8 @@ export async function searchThreads(
   if (!vector) {
     const { results, total } = await keywordPromise;
     const offset = (opts.page - 1) * opts.limit;
-    return { results: results.slice(offset, offset + opts.limit), total, mode: 'keyword' };
+    const page = results.slice(offset, offset + opts.limit);
+    return { results: await hydrateImages(db, publicApiUrl, forumId, page), total, mode: 'keyword' };
   }
 
   // Both run concurrently — semantic search is a separate query, not a
@@ -81,11 +112,13 @@ export async function searchThreads(
     keywordPromise,
   ]);
   const merged = mergeRanked(semantic.results, keyword.results, (r) => r.threadId);
-  return { ...paginate(merged, opts, semantic.total, keyword.total), mode: 'hybrid' };
+  const { results, total } = paginate(merged, opts, semantic.total, keyword.total);
+  return { results: await hydrateImages(db, publicApiUrl, forumId, results), total, mode: 'hybrid' };
 }
 
 export async function searchComments(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   query: string,
   opts: SearchOpts,
@@ -100,7 +133,8 @@ export async function searchComments(
   if (!vector) {
     const { results, total } = await keywordPromise;
     const offset = (opts.page - 1) * opts.limit;
-    return { results: results.slice(offset, offset + opts.limit), total, mode: 'keyword' };
+    const page = results.slice(offset, offset + opts.limit);
+    return { results: await hydrateImages(db, publicApiUrl, forumId, page), total, mode: 'keyword' };
   }
 
   const [semantic, keyword] = await Promise.all([
@@ -108,5 +142,6 @@ export async function searchComments(
     keywordPromise,
   ]);
   const merged = mergeRanked(semantic.results, keyword.results, (r) => r.commentId);
-  return { ...paginate(merged, opts, semantic.total, keyword.total), mode: 'hybrid' };
+  const { results, total } = paginate(merged, opts, semantic.total, keyword.total);
+  return { results: await hydrateImages(db, publicApiUrl, forumId, results), total, mode: 'hybrid' };
 }

@@ -323,6 +323,10 @@ export type SearchResult = {
   threadId: string;
   title: string;
   bodySnippet: string;
+  // The thread's first image attachment, if it has one — null otherwise.
+  // Lets the search dropdown/results page show a thumbnail, same as the
+  // compact post-card view does on the feed.
+  imageUrl: string | null;
   rank: number;
   createdAt: Date;
 };
@@ -330,12 +334,14 @@ export type SearchResult = {
 // Same idea for GET /forums/:forumId/search/comments (forum-wide) and
 // GET /threads/:threadId/comments/search (thread-scoped) — threadTitle is
 // included because a bare comment snippet is meaningless without knowing
-// which post it's replying to.
+// which post it's replying to. imageUrl here is the parent thread's image
+// (a comment can't have its own attachment), for the same reason.
 export type CommentSearchResult = {
   commentId: string;
   threadId: string;
   threadTitle: string;
   bodySnippet: string;
+  imageUrl: string | null;
   rank: number;
   createdAt: Date;
 };

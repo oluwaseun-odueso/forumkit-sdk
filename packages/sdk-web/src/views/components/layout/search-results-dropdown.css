@@ -91,3 +91,16 @@
 .fk-search-dropdown-see-more:hover {
   background: var(--hover-2);
 }
+
+/* Below: additions for the full SearchResults page, which reuses the row/
+   status classes above (bigger thumbnail, no fixed panel width/height) —
+   see routes/SearchResults.tsx. */
+
+.fk-search-results-row {
+  padding: 10px;
+}
+
+.fk-search-results-row-time {
+  font-size: 11.5px;
+  color: var(--muted);
+}

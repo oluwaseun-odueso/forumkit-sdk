@@ -6,6 +6,7 @@ import { Feed } from './routes/Feed';
 import { Thread } from './routes/Thread';
 import { Profile } from './routes/Profile';
 import { Compose } from './routes/Compose';
+import { SearchResults } from './routes/SearchResults';
 import EditProfileModal from './components/profile/edit-profile-modal';
 import DraftsListModal from './components/composer/drafts-list-modal';
 
@@ -22,6 +23,7 @@ function Router() {
       {state.view === 'thread' && <Thread />}
       {state.view === 'profile' && <Profile />}
       {state.view === 'compose' && <Compose />}
+      {state.view === 'search' && <SearchResults />}
       {state.settings.open && (
         <EditProfileModal
           displayName={profile.displayName}
