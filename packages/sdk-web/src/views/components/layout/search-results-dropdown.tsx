@@ -1,5 +1,4 @@
 import type { SearchResult } from '@forumkit/types';
-import { SearchIcon } from '../shared/icons';
 import Thumbnail from '../shared/thumbnail';
 import RenderedBody from '../shared/rendered-body';
 import './search-results-dropdown.css';
@@ -40,10 +39,8 @@ export default function SearchResultsDropdown({
                 className="fk-search-dropdown-row"
                 onClick={() => onSelectResult(r.threadId)}
               >
-                {r.imageUrl ? (
+                {r.imageUrl && (
                   <Thumbnail gradient="" imageUrl={r.imageUrl} width={40} height={40} radius={8} />
-                ) : (
-                  <SearchIcon size={14} />
                 )}
                 <span className="fk-search-dropdown-row-text">
                   <span className="fk-search-dropdown-row-title">{r.title}</span>

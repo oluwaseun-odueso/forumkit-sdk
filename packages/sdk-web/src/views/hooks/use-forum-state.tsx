@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import {
   type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
@@ -162,6 +162,23 @@ type SearchState = {
   resultsSection: 'all' | 'threads' | 'comments' | 'people';
 };
 
+// One entry per past navigation, pushed just before the app switches to a
+// new page (see the nav-triggering reducer cases below, e.g. OPEN_THREAD).
+// Captures just enough to put the user back exactly where they were:
+// which page, which thread/profile/search query was showing on it, and how
+// far down they'd scrolled. Everything else about that page (feed sort,
+// profile tab, etc.) is already preserved for free since navigating away
+// doesn't clear those state slices — only view-identity + scroll position
+// need to be remembered explicitly.
+type NavEntry = {
+  view: View;
+  threadId: string | null;
+  viewedUserId: string | null;
+  searchQuery: string;
+  searchSection: SearchState['resultsSection'];
+  scrollTop: number;
+};
+
 type State = {
   view: View;
   posts: FeedPost[];
@@ -179,13 +196,20 @@ type State = {
   settings: { open: boolean };
   draftsModal: DraftsModalState;
   search: SearchState;
+  history: NavEntry[];
+  // Set by GO_BACK to the scroll position the previous page was at; Shell
+  // applies it to the scrollable main column then clears it via
+  // CLEAR_PENDING_SCROLL — it's a one-shot instruction, not steady state.
+  pendingScrollTop: number | null;
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
 
 type Action =
-  | { type: 'SET_VIEW'; view: View }
-  | { type: 'OPEN_THREAD'; postId: string }
+  | { type: 'SET_VIEW'; view: View; fromScrollTop: number }
+  | { type: 'OPEN_THREAD'; postId: string; fromScrollTop: number }
+  | { type: 'GO_BACK' }
+  | { type: 'CLEAR_PENDING_SCROLL' }
   | { type: 'TOGGLE_SIDEBAR_PIN' }
   | { type: 'SET_ACCOUNT_MENU'; open: boolean }
   | { type: 'SET_FEED_VIEW'; view: FeedView }
@@ -215,7 +239,7 @@ type Action =
   | { type: 'REPLY_SUBMITTED'; parentId: string | null; comment: CommentNodeData }
   | { type: 'COMMENT_EDITED'; commentId: string; body: string }
   | { type: 'POST_EDITED'; postId: string; title: string; body: string }
-  | { type: 'OPEN_COMPOSER' }
+  | { type: 'OPEN_COMPOSER'; fromScrollTop: number }
   | { type: 'CLOSE_COMPOSER' }
   | { type: 'OPEN_SETTINGS' }
   | { type: 'CLOSE_SETTINGS' }
@@ -244,8 +268,8 @@ type Action =
   | { type: 'SET_SEARCH_RESULTS'; results: SearchResult[] }
   | { type: 'SET_SEARCH_LOADING'; loading: boolean }
   | { type: 'SET_SEARCH_OPEN'; open: boolean }
-  | { type: 'OPEN_SEARCH_RESULTS'; query: string }
-  | { type: 'SET_SEARCH_RESULTS_SECTION'; section: SearchState['resultsSection'] }
+  | { type: 'OPEN_SEARCH_RESULTS'; query: string; fromScrollTop: number }
+  | { type: 'SET_SEARCH_RESULTS_SECTION'; section: SearchState['resultsSection']; fromScrollTop: number }
   | { type: 'SET_POSTS'; posts: FeedPost[]; hasMore: boolean }
   | { type: 'SET_PROFILE_TAB'; tab: string }
   | {
@@ -263,7 +287,7 @@ type Action =
   // record for that userId; the profile-init/activity effects (keyed on
   // viewedProfile.userId) then fill it in, same "dispatch empty, effect
   // fills it" pattern OPEN_THREAD already uses for state.thread.
-  | { type: 'OPEN_USER_PROFILE'; userId: string }
+  | { type: 'OPEN_USER_PROFILE'; userId: string; fromScrollTop: number }
   | {
       type: 'SET_VIEWED_PROFILE_DATA'; displayName: string; bio: string; socialLinks: SocialLink[];
       avatarUrl: string | null; bannerUrl: string | null; joinedAt: string | null;
@@ -523,7 +547,26 @@ const initialState: State = {
   settings: { open: false },
   draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
   search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
+  history: [],
+  pendingScrollTop: null,
 };
+
+// Snapshots "where we are right now" into a NavEntry just before a
+// navigating action switches to a new page — used by every nav-triggering
+// reducer case below (OPEN_THREAD, OPEN_USER_PROFILE, etc.) so GO_BACK has
+// something to restore. scrollTop comes from the caller (a ref outside
+// React state, since scroll position isn't itself part of the reducer's
+// state) rather than from `state`.
+function buildNavEntry(state: State, scrollTop: number): NavEntry {
+  return {
+    view: state.view,
+    threadId: state.thread.activePostId,
+    viewedUserId: state.viewedProfile?.userId ?? null,
+    searchQuery: state.search.resultsQuery,
+    searchSection: state.search.resultsSection,
+    scrollTop,
+  };
+}
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
@@ -534,14 +577,60 @@ function reducer(state: State, action: Action): State {
     // SET_VIEW (including "go to my own profile" from the account menu)
     // means we're not looking at someone else's anymore.
     case 'SET_VIEW':
-      return { ...state, view: action.view, accountMenu: { open: false }, viewedProfile: null };
+      return {
+        ...state,
+        view: action.view,
+        accountMenu: { open: false },
+        viewedProfile: null,
+        // Skip the push if this isn't actually going anywhere (e.g. hitting
+        // "home" while already on the feed) — nothing to come back to.
+        history: action.view === state.view ? state.history : [...state.history, buildNavEntry(state, action.fromScrollTop)],
+      };
     case 'OPEN_THREAD':
       return {
         ...state,
         view: 'thread',
         accountMenu: { open: false },
         thread: { ...state.thread, activePostId: action.postId },
+        history: state.view === 'thread' && state.thread.activePostId === action.postId
+          ? state.history
+          : [...state.history, buildNavEntry(state, action.fromScrollTop)],
       };
+    // Pops the most recent nav entry and restores that page's identity
+    // (which thread/profile/search query it was showing) plus a one-shot
+    // pendingScrollTop that Shell applies then clears. Everything else
+    // about that page (feed sort, profile tab, loaded items, etc.) was
+    // never cleared in the first place, so it's already exactly as it was.
+    case 'GO_BACK': {
+      if (state.history.length === 0) return state;
+      const entry = state.history[state.history.length - 1]!;
+      const nextViewedProfile = entry.view !== 'profile'
+        ? null
+        : entry.viewedUserId
+          ? {
+              userId: entry.viewedUserId, activeTab: 'Overview', displayName: '', bio: '', socialLinks: [],
+              avatarUrl: null, bannerUrl: null, joinedAt: null, postKarma: 0, commentKarma: 0,
+              activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
+              activitySort: 'new' as const, activityContentType: 'all' as const,
+            }
+          : null;
+      return {
+        ...state,
+        history: state.history.slice(0, -1),
+        view: entry.view,
+        accountMenu: { open: false },
+        thread: entry.view === 'thread' && entry.threadId
+          ? { ...state.thread, activePostId: entry.threadId }
+          : state.thread,
+        viewedProfile: nextViewedProfile,
+        search: entry.view === 'search'
+          ? { ...state.search, resultsQuery: entry.searchQuery, resultsSection: entry.searchSection }
+          : state.search,
+        pendingScrollTop: entry.scrollTop,
+      };
+    }
+    case 'CLEAR_PENDING_SCROLL':
+      return { ...state, pendingScrollTop: null };
     case 'TOGGLE_SIDEBAR_PIN':
       return { ...state, sidebar: { pinned: !state.sidebar.pinned } };
     case 'SET_ACCOUNT_MENU':
@@ -671,6 +760,7 @@ function reducer(state: State, action: Action): State {
           attachments: [], genTitle: false, genTags: false,
           submitting: false, error: null, draftId: null, savingDraft: false,
         },
+        history: state.view === 'compose' ? state.history : [...state.history, buildNavEntry(state, action.fromScrollTop)],
       };
     case 'CLOSE_COMPOSER':
       return { ...state, view: 'feed', composer: { ...state.composer, open: false } };
@@ -812,9 +902,19 @@ function reducer(state: State, action: Action): State {
         ...state,
         view: 'search',
         search: { ...state.search, open: false, resultsQuery: action.query, resultsSection: 'all' },
+        history: [...state.history, buildNavEntry(state, action.fromScrollTop)],
       };
+    // "Show all →" on a section, or GO_BACK returning into one — pushes
+    // history too so the back button can step from a drilled-into section
+    // back to the 'all' preview instead of leaving the results page.
     case 'SET_SEARCH_RESULTS_SECTION':
-      return { ...state, search: { ...state.search, resultsSection: action.section } };
+      return {
+        ...state,
+        search: { ...state.search, resultsSection: action.section },
+        history: action.section === state.search.resultsSection
+          ? state.history
+          : [...state.history, buildNavEntry(state, action.fromScrollTop)],
+      };
     case 'SET_POSTS':
       // Always the "sort/scope/filter changed" path (or the very first
       // load) — resets pagination to page 1 since it's a full replace, not
@@ -876,6 +976,9 @@ function reducer(state: State, action: Action): State {
           activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
           activitySort: 'new', activityContentType: 'all',
         },
+        history: state.view === 'profile' && state.viewedProfile?.userId === action.userId
+          ? state.history
+          : [...state.history, buildNavEntry(state, action.fromScrollTop)],
       };
     case 'SET_VIEWED_PROFILE_DATA':
       // No-op if viewedProfile got cleared (e.g. the user navigated away)
@@ -949,8 +1052,17 @@ function useForumStateInternal() {
   const sessionToken = session.sessionToken ?? undefined;
   const themeHost = useContext(ThemeHostContext);
 
-  const setView = useCallback((view: View) => dispatch({ type: 'SET_VIEW', view }), []);
-  const openThread = useCallback((postId: string) => dispatch({ type: 'OPEN_THREAD', postId }), []);
+  // The scrollable main column's current scrollTop, kept outside React
+  // state (see reportScroll below) purely so navigating actions can read
+  // "how far down was the user scrolled" at the moment they navigate away,
+  // without needing a re-render on every scroll event.
+  const scrollTopRef = useRef(0);
+  const reportScroll = useCallback((y: number) => { scrollTopRef.current = y; }, []);
+  const goBack = useCallback(() => dispatch({ type: 'GO_BACK' }), []);
+  const clearPendingScroll = useCallback(() => dispatch({ type: 'CLEAR_PENDING_SCROLL' }), []);
+
+  const setView = useCallback((view: View) => dispatch({ type: 'SET_VIEW', view, fromScrollTop: scrollTopRef.current }), []);
+  const openThread = useCallback((postId: string) => dispatch({ type: 'OPEN_THREAD', postId, fromScrollTop: scrollTopRef.current }), []);
   const toggleSidebarPin = useCallback(() => dispatch({ type: 'TOGGLE_SIDEBAR_PIN' }), []);
   const setAccountMenu = useCallback((open: boolean) => dispatch({ type: 'SET_ACCOUNT_MENU', open }), []);
   const setFeedView = useCallback((view: FeedView) => dispatch({ type: 'SET_FEED_VIEW', view }), []);
@@ -1131,7 +1243,7 @@ function useForumStateInternal() {
     dispatch({ type: 'POST_EDITED', postId: threadId, title: thread.title, body: thread.body });
   }, [state.thread.activePostId, forumId, sessionToken]);
 
-  const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER' }), []);
+  const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER', fromScrollTop: scrollTopRef.current }), []);
   const closeComposer = useCallback(() => dispatch({ type: 'CLOSE_COMPOSER' }), []);
   const openSettings = useCallback(() => dispatch({ type: 'OPEN_SETTINGS' }), []);
   const closeSettings = useCallback(() => dispatch({ type: 'CLOSE_SETTINGS' }), []);
@@ -1251,9 +1363,12 @@ function useForumStateInternal() {
 
   const setSearchQuery = useCallback((query: string) => dispatch({ type: 'SET_SEARCH_QUERY', query }), []);
   const closeSearchDropdown = useCallback(() => dispatch({ type: 'SET_SEARCH_OPEN', open: false }), []);
-  const openSearchResults = useCallback((query: string) => dispatch({ type: 'OPEN_SEARCH_RESULTS', query }), []);
+  const openSearchResults = useCallback(
+    (query: string) => dispatch({ type: 'OPEN_SEARCH_RESULTS', query, fromScrollTop: scrollTopRef.current }),
+    [],
+  );
   const openSearchResultsSection = useCallback(
-    (section: SearchState['resultsSection']) => dispatch({ type: 'SET_SEARCH_RESULTS_SECTION', section }),
+    (section: SearchState['resultsSection']) => dispatch({ type: 'SET_SEARCH_RESULTS_SECTION', section, fromScrollTop: scrollTopRef.current }),
     [],
   );
 
@@ -1541,7 +1656,10 @@ function useForumStateInternal() {
     state.profile.activitySort, state.profile.activityContentType,
   ]);
 
-  const openUserProfile = useCallback((userId: string) => dispatch({ type: 'OPEN_USER_PROFILE', userId }), []);
+  const openUserProfile = useCallback(
+    (userId: string) => dispatch({ type: 'OPEN_USER_PROFILE', userId, fromScrollTop: scrollTopRef.current }),
+    [],
+  );
   const setViewedProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_VIEWED_PROFILE_TAB', tab }), []);
   const setViewedProfileSort = useCallback(
     (sort: ProfileActivitySort) => dispatch({ type: 'SET_VIEWED_PROFILE_SORT', sort }),
@@ -1796,6 +1914,9 @@ function useForumStateInternal() {
     suggestComposeMeta,
     forumId,
     sessionToken,
+    reportScroll,
+    goBack,
+    clearPendingScroll,
   };
 }
 

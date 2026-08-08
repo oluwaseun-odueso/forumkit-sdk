@@ -5,7 +5,7 @@ import AccountMenu from './account-menu';
 import SearchResultsDropdown from './search-results-dropdown';
 import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
-import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
+import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, PlusIcon, BellIcon, CloseIcon, ChevronLeftIcon } from '../shared/icons';
 import { useTheme } from '../../hooks/use-theme';
 import { authorAvatar } from '../../lib/author-avatar';
 import './top-nav.css';
@@ -27,13 +27,15 @@ type TopNavProps = {
   onCloseSearchDropdown: () => void;
   onSelectSearchResult: (threadId: string) => void;
   onSubmitSearch: (query: string) => void;
+  canGoBack: boolean;
+  onBack: () => void;
 };
 
 /** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */
 export default function TopNav({
   onHome, onOpenComposer, onViewProfile, onAsk, compact, scopeTag, avatarUrl, displayName,
   searchQuery, onSearchChange, searchOpen, searchLoading, searchResults,
-  onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch,
+  onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch, canGoBack, onBack,
 }: TopNavProps) {
   const { theme, toggleTheme } = useTheme();
   const { gradient, letter } = authorAvatar(displayName || undefined, displayName || 'You');
@@ -45,6 +47,11 @@ export default function TopNav({
 
   return (
     <header className="fk-topnav">
+      {canGoBack && (
+        <IconButton label="Back" onClick={onBack} style={{ marginRight: 2 }}>
+          <ChevronLeftIcon size={20} />
+        </IconButton>
+      )}
       <button type="button" className="fk-topnav-brand" onClick={onHome}>
         <MascotIcon size={34} />
         <span className="fk-topnav-wordmark">FORUM KIT</span>

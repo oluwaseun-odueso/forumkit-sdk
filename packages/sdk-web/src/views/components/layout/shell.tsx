@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import TopNav from './top-nav';
 import Sidebar from './sidebar';
 import { useForum } from '../../hooks/use-forum-state';
@@ -22,7 +22,19 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
   const {
     state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
     setSearchQuery, closeSearchDropdown, openSearchResults,
+    reportScroll, goBack, clearPendingScroll,
   } = useForum();
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Applies a GO_BACK's one-shot pendingScrollTop to the actual DOM once
+  // the page we're returning to has (re-)rendered, then clears it — this
+  // is what makes "back" land at the same scroll position instead of just
+  // the same page.
+  useEffect(() => {
+    if (state.pendingScrollTop === null) return;
+    mainRef.current?.scrollTo({ top: state.pendingScrollTop });
+    clearPendingScroll();
+  }, [state.pendingScrollTop, clearPendingScroll]);
 
   return (
     <div className="fk-shell">
@@ -43,6 +55,8 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
         onCloseSearchDropdown={closeSearchDropdown}
         onSelectSearchResult={(threadId) => { closeSearchDropdown(); openThread(threadId); }}
         onSubmitSearch={openSearchResults}
+        canGoBack={state.history.length > 0}
+        onBack={goBack}
       />
       <div className="fk-shell-body">
         <Sidebar
@@ -52,7 +66,14 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
           onSelectScope={setFeedScope}
         />
         <div className="fk-shell-content">
-          <main className="fk-shell-main" style={{ overflowY: scrollMain ? 'auto' : 'hidden' }}>{children}</main>
+          <main
+            ref={mainRef}
+            className="fk-shell-main"
+            style={{ overflowY: scrollMain ? 'auto' : 'hidden' }}
+            onScroll={e => reportScroll(e.currentTarget.scrollTop)}
+          >
+            {children}
+          </main>
           {rail}
         </div>
       </div>

@@ -5,7 +5,6 @@ import Thumbnail from '../components/shared/thumbnail';
 import Avatar from '../components/shared/avatar';
 import RenderedBody from '../components/shared/rendered-body';
 import MascotIcon from '../components/layout/mascot-icon';
-import { SearchIcon } from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
 import { searchThreads, searchComments, searchUsers } from '../api/search';
@@ -15,43 +14,51 @@ import { useInfiniteScroll } from '../hooks/use-infinite-scroll';
 // etc.) instead of a parallel stylesheet — this page is a bigger, paginated
 // version of the same "search result row" the dropdown already renders.
 import '../components/layout/search-results-dropdown.css';
+// Threads are sized like the feed/profile "compact" PostCard view, so this
+// reuses that view's own row/title/snippet classes (fk-post-card-row etc.)
+// rather than inventing a second set of near-identical sizing rules.
+import '../components/feed/post-card.css';
 
 const SECTION_PAGE_SIZE = 20;
 const PREVIEW_SIZE = 5;
 
 function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
   return (
-    <button type="button" className="fk-search-dropdown-row fk-search-results-row" onClick={onOpen}>
-      {result.imageUrl ? (
-        <Thumbnail gradient="" imageUrl={result.imageUrl} width={56} height={56} radius={10} />
-      ) : (
-        <SearchIcon size={16} />
-      )}
-      <span className="fk-search-dropdown-row-text">
-        <span className="fk-search-dropdown-row-title">{result.title}</span>
-        <RenderedBody body={result.bodySnippet} className="fk-search-dropdown-row-snippet fk-clamp-2" />
-        <span className="fk-search-results-row-time">{fmtRelativeTime(result.createdAt)}</span>
-      </span>
-    </button>
+    <article className="fk-post-card fk-search-results-thread-row" onClick={onOpen}>
+      <div className="fk-post-card-row">
+        <div className="fk-post-card-row-text">
+          <h3 className="fk-post-card-title fk-clamp-2">{result.title}</h3>
+          <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
+          <span className="fk-search-results-row-time">{fmtRelativeTime(result.createdAt)}</span>
+        </div>
+        {result.imageUrl && (
+          <div className="fk-post-card-row-img">
+            <Thumbnail gradient="" imageUrl={result.imageUrl} width={150} height={110} radius={14} />
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 
 function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: () => void }) {
   return (
-    <button type="button" className="fk-search-dropdown-row fk-search-results-row" onClick={onOpen}>
-      {result.imageUrl ? (
-        <Thumbnail gradient="" imageUrl={result.imageUrl} width={56} height={56} radius={10} />
-      ) : (
-        <SearchIcon size={16} />
-      )}
-      <span className="fk-search-dropdown-row-text">
-        <span className="fk-search-dropdown-row-title">
-          Commented on {result.threadTitle}
-        </span>
-        <RenderedBody body={result.bodySnippet} className="fk-search-dropdown-row-snippet fk-clamp-2" />
-        <span className="fk-search-results-row-time">{fmtRelativeTime(result.createdAt)}</span>
-      </span>
-    </button>
+    <article className="fk-post-card fk-search-results-thread-row" onClick={onOpen}>
+      <div className="fk-post-card-row">
+        <div className="fk-post-card-row-text">
+          <h3 className="fk-post-card-title fk-clamp-2">
+            Commented on {result.threadTitle}
+          </h3>
+          <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
+          <span className="fk-search-results-row-time">{fmtRelativeTime(result.createdAt)}</span>
+        </div>
+        {result.imageUrl && (
+          <div className="fk-post-card-row-img">
+            <Thumbnail gradient="" imageUrl={result.imageUrl} width={150} height={110} radius={14} />
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -151,9 +158,6 @@ export function SearchResults() {
           <>
             <div className="fk-profile-filter-row">
               <div className="fk-profile-filter-label">Threads</div>
-              {threads.total > PREVIEW_SIZE && (
-                <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('threads')}>Show all →</button>
-              )}
             </div>
             {threads.loading && threads.items.length === 0 ? (
               <div className="fk-search-dropdown-status"><MascotIcon size={32} /></div>
@@ -162,13 +166,13 @@ export function SearchResults() {
             ) : (
               threads.items.map(r => <ThreadRow key={r.threadId} result={r} onOpen={() => openThread(r.threadId)} />)
             )}
+            {threads.total > PREVIEW_SIZE && (
+              <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('threads')}>Show all →</button>
+            )}
             <div className="fk-profile-divider" />
 
             <div className="fk-profile-filter-row">
               <div className="fk-profile-filter-label">Comments</div>
-              {comments.total > PREVIEW_SIZE && (
-                <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('comments')}>Show all →</button>
-              )}
             </div>
             {comments.loading && comments.items.length === 0 ? (
               <div className="fk-search-dropdown-status"><MascotIcon size={32} /></div>
@@ -177,13 +181,13 @@ export function SearchResults() {
             ) : (
               comments.items.map(r => <CommentRow key={r.commentId} result={r} onOpen={() => openThread(r.threadId)} />)
             )}
+            {comments.total > PREVIEW_SIZE && (
+              <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('comments')}>Show all →</button>
+            )}
             <div className="fk-profile-divider" />
 
             <div className="fk-profile-filter-row">
               <div className="fk-profile-filter-label">People</div>
-              {people.total > PREVIEW_SIZE && (
-                <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('people')}>Show all →</button>
-              )}
             </div>
             {people.loading && people.items.length === 0 ? (
               <div className="fk-search-dropdown-status"><MascotIcon size={32} /></div>
@@ -191,6 +195,9 @@ export function SearchResults() {
               <div className="fk-search-dropdown-status">No matching people</div>
             ) : (
               people.items.map(r => <PersonRow key={r.id} result={r} onOpen={() => openUserProfile(r.id)} />)
+            )}
+            {people.total > PREVIEW_SIZE && (
+              <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('people')}>Show all →</button>
             )}
           </>
         ) : (
