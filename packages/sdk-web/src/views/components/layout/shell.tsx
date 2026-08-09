@@ -11,6 +11,13 @@ type ShellProps = {
   compactSearch?: boolean;
   scrollMain?: boolean;
   scopeTag?: string;
+  // .fk-shell-main's flex-basis is hardcoded to 800px in shell.css (sized
+  // for the widest existing route, feed/thread) so narrower routes like
+  // Profile can just center a smaller max-width column within it. A route
+  // with no rail competing for space (e.g. SearchResults) can override that
+  // cap here instead — passed as an inline style so it wins over the CSS
+  // class's flex-basis regardless of import order.
+  mainMaxWidth?: number;
 };
 
 /**
@@ -18,7 +25,7 @@ type ShellProps = {
  * persistent collapsible sidebar, a scrollable main column, and an optional
  * right rail. Routes only supply their own center content (and rail).
  */
-export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true, scopeTag }: ShellProps) {
+export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true, scopeTag, mainMaxWidth }: ShellProps) {
   const {
     state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
     setSearchQuery, closeSearchDropdown, openSearchResults,
@@ -69,7 +76,7 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
           <main
             ref={mainRef}
             className="fk-shell-main"
-            style={{ overflowY: scrollMain ? 'auto' : 'hidden' }}
+            style={{ overflowY: scrollMain ? 'auto' : 'hidden', ...(mainMaxWidth ? { flexBasis: mainMaxWidth } : {}) }}
             onScroll={e => reportScroll(e.currentTarget.scrollTop)}
           >
             {children}

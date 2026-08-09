@@ -104,3 +104,14 @@
   font-size: 11.5px;
   color: var(--muted);
 }
+
+/* Wider than the shared fk-profile column (760px) — the results page has
+   no right rail competing for space, so it can afford to give the content
+   itself more of the screen while margin:0 auto (inherited from fk-profile)
+   still keeps it centered. Chained with .fk-profile (two classes) rather
+   than used alone, so this reliably beats .fk-profile's own max-width
+   regardless of which stylesheet's import happens to land later in the
+   bundle — same specificity would otherwise make that a coin flip. */
+.fk-profile.fk-search-results-wide {
+  max-width: 1150px;
+}

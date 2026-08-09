@@ -161,11 +161,14 @@ export function SearchResults() {
   const sentinelRef = useInfiniteScroll(() => setDrillPage(p => p + 1), hasMore && !drillItems.loading);
 
   return (
-    <Shell scopeTag="Search" compactSearch>
+    <Shell scopeTag="Search" compactSearch mainMaxWidth={1200}>
       {/* fk-profile is the existing "narrow centered content column" layout
-          already used by the Profile route — reused here rather than a new
-          page-container class, since this page needs the same shape. */}
-      <div className="fk-profile">
+          already used by the Profile route, widened here via
+          fk-search-results-wide (and Shell's mainMaxWidth above, since the
+          shell's own column is normally capped narrower than that) — this
+          page has no right rail competing for space, so it can use more of
+          the screen while margin:0 auto still keeps it centered. */}
+      <div className="fk-profile fk-search-results-wide">
         {state.history.length > 0 && (
           <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
         )}
