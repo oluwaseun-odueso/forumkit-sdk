@@ -51,6 +51,16 @@ type CommentSearchRow = {
   author_id: string;
   author_display_name: string;
   author_avatar_url: string | null;
+  comment_vote_counts: CommentSearchResult['commentVoteCounts'];
+  thread_author_id: string;
+  thread_author_display_name: string;
+  thread_author_avatar_url: string | null;
+  // Named to match THREAD_VOTE_COUNTS_SUBQUERY's own hardcoded `AS
+  // vote_counts` (see vote.ts) — it isn't parameterized, so the column it
+  // produces is always literally called this regardless of which query
+  // embeds it.
+  vote_counts: CommentSearchResult['threadVoteCounts'];
+  thread_comment_count: string;
 };
 
 function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
@@ -63,10 +73,29 @@ function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
     authorId: row.author_id,
     authorDisplayName: row.author_display_name,
     authorAvatarUrl: row.author_avatar_url,
+    commentVoteCounts: row.comment_vote_counts,
+    threadAuthorId: row.thread_author_id,
+    threadAuthorDisplayName: row.thread_author_display_name,
+    threadAuthorAvatarUrl: row.thread_author_avatar_url,
+    threadVoteCounts: row.vote_counts,
+    threadCommentCount: Number(row.thread_comment_count),
     rank: Number(row.rank),
     createdAt: row.created_at,
   };
 }
+
+// Correlated subquery for a comment's own vote tally — same JSON_BUILD_OBJECT
+// shape as vote.ts's THREAD_VOTE_COUNTS_SUBQUERY/COMMENT_VOTE_COUNTS_SUBQUERY,
+// but written out here instead of reusing COMMENT_VOTE_COUNTS_SUBQUERY since
+// that constant hardcodes the comments-table alias as `p` (comment.ts's
+// convention) while these queries alias it `c`.
+const COMMENT_SEARCH_VOTE_COUNTS_SUBQUERY = `
+  (SELECT JSON_BUILD_OBJECT(
+     'up',   COUNT(*) FILTER (WHERE direction = 1),
+     'down', COUNT(*) FILTER (WHERE direction = -1)
+   )
+   FROM votes WHERE comment_id = c.id)::json AS comment_vote_counts
+`;
 
 // FUZZY_SIMILARITY_THRESHOLD is pg_trgm's similarity() score, from 0 to 1,
 // measuring how many 3-letter chunks ("trigrams") two strings have in
@@ -296,10 +325,17 @@ export async function keywordSearchComments(
       c.author_id,
       u.display_name                                             AS author_display_name,
       u.avatar_url                                                AS author_avatar_url,
+      ${db.unsafe(COMMENT_SEARCH_VOTE_COUNTS_SUBQUERY)},
+      t.author_id                                                AS thread_author_id,
+      tu.display_name                                            AS thread_author_display_name,
+      tu.avatar_url                                               AS thread_author_avatar_url,
+      ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+      (SELECT COUNT(*) FROM comments WHERE thread_id = t.id AND status = 'visible')::int AS thread_comment_count,
       COUNT(*) OVER()                                            AS total_count
     FROM comments c
     JOIN threads t ON t.id = c.thread_id
     JOIN users u ON u.id = c.author_id
+    JOIN users tu ON tu.id = t.author_id
     WHERE t.forum_id = ${forumId}
       AND c.status = 'visible'
       ${threadFilter}
@@ -343,10 +379,17 @@ export async function semanticSearchComments(
       c.author_id,
       u.display_name                                            AS author_display_name,
       u.avatar_url                                               AS author_avatar_url,
+      ${db.unsafe(COMMENT_SEARCH_VOTE_COUNTS_SUBQUERY)},
+      t.author_id                                               AS thread_author_id,
+      tu.display_name                                           AS thread_author_display_name,
+      tu.avatar_url                                              AS thread_author_avatar_url,
+      ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+      (SELECT COUNT(*) FROM comments WHERE thread_id = t.id AND status = 'visible')::int AS thread_comment_count,
       COUNT(*) OVER()                                           AS total_count
     FROM comments c
     JOIN threads t ON t.id = c.thread_id
     JOIN users u ON u.id = c.author_id
+    JOIN users tu ON tu.id = t.author_id
     WHERE t.forum_id = ${forumId}
       AND c.status = 'visible'
       AND c.embedding IS NOT NULL

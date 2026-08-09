@@ -349,9 +349,20 @@ export type CommentSearchResult = {
   threadTitle: string;
   bodySnippet: string;
   imageUrl: string | null;
+  // Who wrote the comment — shown inside the comment's own "card" in the
+  // results-page row.
   authorId: string;
   authorDisplayName: string;
   authorAvatarUrl: string | null;
+  commentVoteCounts: VoteCounts;
+  // The thread's original poster and stats — shown above the comment card,
+  // since a search hit on a comment is presented in the context of "who
+  // started this thread, and how is it doing overall" first.
+  threadAuthorId: string;
+  threadAuthorDisplayName: string;
+  threadAuthorAvatarUrl: string | null;
+  threadVoteCounts: VoteCounts;
+  threadCommentCount: number;
   rank: number;
   createdAt: Date;
 };
@@ -378,6 +389,10 @@ export type UserSearchResult = {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  // Post karma + comment karma combined, shown under the name in the
+  // People section — same "karma" concept as the profile page's two
+  // separate stats, just summed for a compact list row.
+  karma: number;
 };
 
 // ── Error response ─────────────────────────────────────────────────

@@ -81,27 +81,46 @@ function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
   );
 }
 
-function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: () => void }) {
+// A small avatar+name identity line, reused for both the thread's original
+// poster (shown above the title) and the comment's own author (shown
+// inside the comment card) — neither carries a date in this layout, unlike
+// ResultAuthorHead above which is ThreadRow's own header.
+function IdentityLine({ userId, displayName, avatarUrl }: { userId: string; displayName: string; avatarUrl: string | null }) {
+  const avatar = authorAvatar(userId, displayName);
   return (
-    <article className="fk-post-card fk-search-results-thread-row" onClick={onOpen}>
-      <ResultAuthorHead
-        authorId={result.authorId}
-        authorDisplayName={result.authorDisplayName}
-        authorAvatarUrl={result.authorAvatarUrl}
-        createdAt={result.createdAt}
-      />
-      <div className="fk-post-card-row">
-        <div className="fk-post-card-row-text">
-          <h3 className="fk-post-card-title fk-search-results-title fk-clamp-2">
-            Commented on {result.threadTitle}
-          </h3>
-          <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
-        </div>
-        {result.imageUrl && (
-          <div className="fk-post-card-row-img">
-            <Thumbnail gradient="" imageUrl={result.imageUrl} width={150} height={110} radius={14} />
-          </div>
-        )}
+    <div className="fk-post-card-head">
+      <Avatar size={22} gradient={avatar.gradient} letter={avatar.letter} imageUrl={avatarUrl} />
+      <span className="fk-post-card-author">{displayName}</span>
+    </div>
+  );
+}
+
+// Comment results lead with the thread's original poster and title (the
+// context a comment hit needs first), then the matching comment itself in
+// a visually distinct "card" (its own author + body + vote count), and
+// finally a "Go to thread" link alongside the thread's own totals — kept
+// outside the card since those numbers describe the thread, not the
+// comment.
+function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: () => void }) {
+  const commentNetVotes = result.commentVoteCounts.up - result.commentVoteCounts.down;
+  const threadNetVotes = result.threadVoteCounts.up - result.threadVoteCounts.down;
+  return (
+    <article className="fk-search-results-thread-row">
+      <IdentityLine userId={result.threadAuthorId} displayName={result.threadAuthorDisplayName} avatarUrl={result.threadAuthorAvatarUrl} />
+      <h3
+        className="fk-post-card-title fk-search-results-title fk-clamp-2 fk-search-results-clickable-title"
+        onClick={onOpen}
+      >
+        {result.threadTitle}
+      </h3>
+      <div className="fk-search-results-comment-card">
+        <IdentityLine userId={result.authorId} displayName={result.authorDisplayName} avatarUrl={result.authorAvatarUrl} />
+        <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
+        <div className="fk-search-results-comment-card-votes">{commentNetVotes} votes</div>
+      </div>
+      <div className="fk-search-results-comment-footer">
+        <button type="button" className="fk-search-results-goto-link" onClick={onOpen}>Go to thread</button>
+        <span>{threadNetVotes} votes · {result.threadCommentCount} comments</span>
       </div>
       <div className="fk-post-card-divider" />
     </article>
@@ -116,6 +135,7 @@ function PersonRow({ result, onOpen }: { result: UserSearchResult; onOpen: () =>
         <Avatar size={40} gradient={gradient} letter={letter} imageUrl={result.avatarUrl} />
         <span className="fk-search-dropdown-row-text">
           <span className="fk-search-dropdown-row-title">{result.displayName}</span>
+          <span className="fk-search-results-row-karma">{result.karma.toLocaleString()} karma</span>
         </span>
       </button>
       <div className="fk-post-card-divider" />

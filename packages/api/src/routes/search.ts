@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import * as searchService from '../services/search';
 import * as userRepo from '../repositories/user';
+import * as threadRepo from '../repositories/thread';
+import * as commentRepo from '../repositories/comment';
 
 const searchQuerySchema = z.object({
   q:     z.string().min(1).max(500),
@@ -84,6 +86,20 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
 
     const { q, page, limit } = parsed.data;
     const { results, total } = await userRepo.searchUsers(request.server.db, fid, q, { page, limit });
-    return reply.status(200).send({ results, total, page, limit });
+
+    // Karma is deliberately not part of the users-table query itself (see
+    // repositories/user.ts) — it's a cross-table sum composed here the same
+    // way GET /:forumId/me and GET /:forumId/users/:userId already do,
+    // just once per matched result (page-capped at 50, so this stays a
+    // small number of extra queries, run in parallel).
+    const withKarma = await Promise.all(results.map(async (r) => {
+      const [postKarma, commentKarma] = await Promise.all([
+        threadRepo.getThreadKarma(request.server.db, fid, r.id),
+        commentRepo.getCommentKarma(request.server.db, fid, r.id),
+      ]);
+      return { ...r, karma: postKarma + commentKarma };
+    }));
+
+    return reply.status(200).send({ results: withKarma, total, page, limit });
   });
 }

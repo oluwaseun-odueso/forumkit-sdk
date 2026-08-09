@@ -1,5 +1,5 @@
 import type { DB } from '../db';
-import type { UserProfile } from '@forumkit/types';
+import type { UserProfile, UserSearchResult } from '@forumkit/types';
 
 type UserProfileRow = {
   id: string;
@@ -81,8 +81,6 @@ export async function updateThemePreference(
   await db`UPDATE users SET theme_preference = ${themePreference} WHERE id = ${userId}`;
 }
 
-export type UserSearchResult = { id: string; displayName: string; avatarUrl: string | null };
-
 type UserSearchRow = { id: string; display_name: string; avatar_url: string | null; total_count: string };
 
 // Fuzzy-matches display_name using pg_trgm's similarity() (see
@@ -91,12 +89,15 @@ type UserSearchRow = { id: string; display_name: string; avatar_url: string | nu
 // functions have, since a display name is one short string, not a document;
 // trigram matching alone is enough to tolerate a typo in someone's name.
 // Banned users are excluded so they don't show up in the People results.
+// karma is composed by the caller (routes/search.ts), same "not part of
+// this query" convention as UserProfile's postKarma/commentKarma noted
+// above — so this returns everything but that one field.
 export async function searchUsers(
   db: DB,
   forumId: string,
   query: string,
   opts: { page: number; limit: number },
-): Promise<{ results: UserSearchResult[]; total: number }> {
+): Promise<{ results: Omit<UserSearchResult, 'karma'>[]; total: number }> {
   const offset = (opts.page - 1) * opts.limit;
 
   const rows = await db<UserSearchRow[]>`
