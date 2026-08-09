@@ -100,11 +100,6 @@
   padding: 10px;
 }
 
-.fk-search-results-row-time {
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
 /* Wider than the shared fk-profile column (760px) — the results page has
    no right rail competing for space, so it can afford to give the content
    itself more of the screen while margin:0 auto (inherited from fk-profile)
@@ -116,14 +111,22 @@
   max-width: 1150px;
 }
 
-/* "N votes · N comments" line under a thread/comment result, right-aligned
-   under the row's content (same fk-post-card-row-text column the title and
+/* "N votes · N comments" line under a thread result, left-aligned under
+   the row's content (same fk-post-card-row-text column the title and
    snippet sit in). */
 .fk-search-results-row-stats {
-  text-align: right;
+  text-align: left;
   font-size: 12.5px;
   color: var(--muted);
   margin: -4px 0 12px;
+}
+
+/* Thread/comment result titles use a lighter weight than the feed's own
+   PostCard title (700) so a page full of stacked results doesn't read as
+   uniformly heavy — the author-name header above each title already
+   carries the bold weight for this row. */
+.fk-search-results-title {
+  font-weight: 600;
 }
 
 /* PersonRow isn't a fk-post-card, so it needs its own wrapper to hang the

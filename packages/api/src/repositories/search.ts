@@ -11,6 +11,9 @@ type SearchRow = {
   total_count: string;
   vote_counts: SearchResult['voteCounts'];
   comment_count: string;
+  author_id: string;
+  author_display_name: string;
+  author_avatar_url: string | null;
 };
 
 type SearchOpts = { page: number; limit: number };
@@ -29,6 +32,9 @@ function toSearchResult(row: SearchRow): SearchResult {
     imageUrl: null,
     voteCounts: row.vote_counts,
     commentCount: Number(row.comment_count),
+    authorId: row.author_id,
+    authorDisplayName: row.author_display_name,
+    authorAvatarUrl: row.author_avatar_url,
     rank: Number(row.rank),
     createdAt: row.created_at,
   };
@@ -42,6 +48,9 @@ type CommentSearchRow = {
   rank: number;
   created_at: Date;
   total_count: string;
+  author_id: string;
+  author_display_name: string;
+  author_avatar_url: string | null;
 };
 
 function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
@@ -51,6 +60,9 @@ function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
     threadTitle: row.thread_title,
     bodySnippet: row.body_snippet,
     imageUrl: null,
+    authorId: row.author_id,
+    authorDisplayName: row.author_display_name,
+    authorAvatarUrl: row.author_avatar_url,
     rank: Number(row.rank),
     createdAt: row.created_at,
   };
@@ -95,10 +107,14 @@ export async function keywordSearch(
         similarity(t.title, ${query})
       )                                                          AS rank,
       t.created_at,
+      t.author_id,
+      u.display_name                                             AS author_display_name,
+      u.avatar_url                                               AS author_avatar_url,
       ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
       (SELECT COUNT(*) FROM comments WHERE thread_id = t.id AND status = 'visible')::int AS comment_count,
       COUNT(*) OVER()                                            AS total_count
     FROM threads t
+    JOIN users u ON u.id = t.author_id
     WHERE t.forum_id = ${forumId}
       AND t.status != 'deleted'
       AND (
@@ -225,10 +241,14 @@ export async function semanticSearch(
       LEFT(t.body, 200)                                                 AS body_snippet,
       (1 - (t.embedding <=> ${vec}::vector))::float          AS rank,
       t.created_at,
+      t.author_id,
+      u.display_name                                                    AS author_display_name,
+      u.avatar_url                                                      AS author_avatar_url,
       ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
       (SELECT COUNT(*) FROM comments WHERE thread_id = t.id AND status = 'visible')::int AS comment_count,
       COUNT(*) OVER()                                                   AS total_count
     FROM threads t
+    JOIN users u ON u.id = t.author_id
     WHERE t.forum_id = ${forumId}
       AND t.status != 'deleted'
       AND t.embedding IS NOT NULL
@@ -273,9 +293,13 @@ export async function keywordSearchComments(
         similarity(c.body, ${query})
       )                                                          AS rank,
       c.created_at,
+      c.author_id,
+      u.display_name                                             AS author_display_name,
+      u.avatar_url                                                AS author_avatar_url,
       COUNT(*) OVER()                                            AS total_count
     FROM comments c
     JOIN threads t ON t.id = c.thread_id
+    JOIN users u ON u.id = c.author_id
     WHERE t.forum_id = ${forumId}
       AND c.status = 'visible'
       ${threadFilter}
@@ -316,9 +340,13 @@ export async function semanticSearchComments(
       LEFT(c.body, 200)                                         AS body_snippet,
       (1 - (c.embedding <=> ${vec}::vector))::float             AS rank,
       c.created_at,
+      c.author_id,
+      u.display_name                                            AS author_display_name,
+      u.avatar_url                                               AS author_avatar_url,
       COUNT(*) OVER()                                           AS total_count
     FROM comments c
     JOIN threads t ON t.id = c.thread_id
+    JOIN users u ON u.id = c.author_id
     WHERE t.forum_id = ${forumId}
       AND c.status = 'visible'
       AND c.embedding IS NOT NULL

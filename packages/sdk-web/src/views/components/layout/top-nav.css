@@ -100,6 +100,7 @@
   color: var(--text);
   font-size: 14.5px;
   font-family: inherit;
+  font-weight: 400;
 }
 
 .fk-topnav-search-divider {

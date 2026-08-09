@@ -37,15 +37,37 @@ const SECTION_TABS: { key: Section; label: string }[] = [
   { key: 'people', label: 'Profiles' },
 ];
 
+// Shared "who posted this, and when" header used by both Thread and
+// Comment result rows — same avatar+name+time shape as fk-post-card-head,
+// just built from a SearchResult/CommentSearchResult's own author fields
+// instead of a full FeedPost/Comment object.
+function ResultAuthorHead({ authorId, authorDisplayName, authorAvatarUrl, createdAt }: {
+  authorId: string; authorDisplayName: string; authorAvatarUrl: string | null; createdAt: Date;
+}) {
+  const avatar = authorAvatar(authorId, authorDisplayName);
+  return (
+    <div className="fk-post-card-head">
+      <Avatar size={22} gradient={avatar.gradient} letter={avatar.letter} imageUrl={authorAvatarUrl} />
+      <span className="fk-post-card-author">{authorDisplayName}</span>
+      <span className="fk-post-card-time">· {fmtRelativeTime(createdAt)}</span>
+    </div>
+  );
+}
+
 function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
   const netVotes = result.voteCounts.up - result.voteCounts.down;
   return (
     <article className="fk-post-card fk-search-results-thread-row" onClick={onOpen}>
+      <ResultAuthorHead
+        authorId={result.authorId}
+        authorDisplayName={result.authorDisplayName}
+        authorAvatarUrl={result.authorAvatarUrl}
+        createdAt={result.createdAt}
+      />
       <div className="fk-post-card-row">
         <div className="fk-post-card-row-text">
-          <h3 className="fk-post-card-title fk-clamp-2">{result.title}</h3>
+          <h3 className="fk-post-card-title fk-search-results-title fk-clamp-2">{result.title}</h3>
           <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
-          <span className="fk-search-results-row-time">{fmtRelativeTime(result.createdAt)}</span>
         </div>
         {result.imageUrl && (
           <div className="fk-post-card-row-img">
@@ -62,13 +84,18 @@ function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
 function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: () => void }) {
   return (
     <article className="fk-post-card fk-search-results-thread-row" onClick={onOpen}>
+      <ResultAuthorHead
+        authorId={result.authorId}
+        authorDisplayName={result.authorDisplayName}
+        authorAvatarUrl={result.authorAvatarUrl}
+        createdAt={result.createdAt}
+      />
       <div className="fk-post-card-row">
         <div className="fk-post-card-row-text">
-          <h3 className="fk-post-card-title fk-clamp-2">
+          <h3 className="fk-post-card-title fk-search-results-title fk-clamp-2">
             Commented on {result.threadTitle}
           </h3>
           <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
-          <span className="fk-search-results-row-time">{fmtRelativeTime(result.createdAt)}</span>
         </div>
         {result.imageUrl && (
           <div className="fk-post-card-row-img">

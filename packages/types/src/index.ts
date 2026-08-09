@@ -331,6 +331,9 @@ export type SearchResult = {
   // result, same as the feed's compact PostCard view.
   voteCounts: VoteCounts;
   commentCount: number;
+  authorId: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string | null;
   rank: number;
   createdAt: Date;
 };
@@ -346,6 +349,9 @@ export type CommentSearchResult = {
   threadTitle: string;
   bodySnippet: string;
   imageUrl: string | null;
+  authorId: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string | null;
   rank: number;
   createdAt: Date;
 };
