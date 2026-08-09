@@ -327,6 +327,10 @@ export type SearchResult = {
   // Lets the search dropdown/results page show a thumbnail, same as the
   // compact post-card view does on the feed.
   imageUrl: string | null;
+  // Lets the results page show "N votes · N comments" under each thread
+  // result, same as the feed's compact PostCard view.
+  voteCounts: VoteCounts;
+  commentCount: number;
   rank: number;
   createdAt: Date;
 };

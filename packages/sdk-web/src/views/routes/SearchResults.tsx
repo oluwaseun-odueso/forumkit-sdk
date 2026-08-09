@@ -38,6 +38,7 @@ const SECTION_TABS: { key: Section; label: string }[] = [
 ];
 
 function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
+  const netVotes = result.voteCounts.up - result.voteCounts.down;
   return (
     <article className="fk-post-card fk-search-results-thread-row" onClick={onOpen}>
       <div className="fk-post-card-row">
@@ -52,6 +53,8 @@ function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
           </div>
         )}
       </div>
+      <div className="fk-search-results-row-stats">{netVotes} votes · {result.commentCount} comments</div>
+      <div className="fk-post-card-divider" />
     </article>
   );
 }
@@ -73,6 +76,7 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
           </div>
         )}
       </div>
+      <div className="fk-post-card-divider" />
     </article>
   );
 }
@@ -80,12 +84,15 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
 function PersonRow({ result, onOpen }: { result: UserSearchResult; onOpen: () => void }) {
   const { gradient, letter } = authorAvatar(result.id, result.displayName);
   return (
-    <button type="button" className="fk-search-dropdown-row fk-search-results-row" onClick={onOpen}>
-      <Avatar size={40} gradient={gradient} letter={letter} imageUrl={result.avatarUrl} />
-      <span className="fk-search-dropdown-row-text">
-        <span className="fk-search-dropdown-row-title">{result.displayName}</span>
-      </span>
-    </button>
+    <div className="fk-search-results-person-row">
+      <button type="button" className="fk-search-dropdown-row fk-search-results-row" onClick={onOpen}>
+        <Avatar size={40} gradient={gradient} letter={letter} imageUrl={result.avatarUrl} />
+        <span className="fk-search-dropdown-row-text">
+          <span className="fk-search-dropdown-row-title">{result.displayName}</span>
+        </span>
+      </button>
+      <div className="fk-post-card-divider" />
+    </div>
   );
 }
 
@@ -161,20 +168,20 @@ export function SearchResults() {
   const sentinelRef = useInfiniteScroll(() => setDrillPage(p => p + 1), hasMore && !drillItems.loading);
 
   return (
-    <Shell scopeTag="Search" compactSearch mainMaxWidth={1200}>
+    <Shell mainMaxWidth={1200}>
       {/* fk-profile is the existing "narrow centered content column" layout
           already used by the Profile route, widened here via
           fk-search-results-wide (and Shell's mainMaxWidth above, since the
           shell's own column is normally capped narrower than that) — this
           page has no right rail competing for space, so it can use more of
-          the screen while margin:0 auto still keeps it centered. */}
+          the screen while margin:0 auto still keeps it centered. No
+          scopeTag/compactSearch here either — the search pill should look
+          exactly like it does on Feed/Profile, not the shrunk "in-page"
+          variant. */}
       <div className="fk-profile fk-search-results-wide">
         {state.history.length > 0 && (
           <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
         )}
-        <div className="fk-profile-filter-label" style={{ marginBottom: 16 }}>
-          Results for &ldquo;{query}&rdquo;
-        </div>
 
         <div className="fk-profile-tabs">
           {SECTION_TABS.map(tab => (

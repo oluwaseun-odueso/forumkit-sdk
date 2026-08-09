@@ -9,6 +9,8 @@ type SearchRow = {
   rank: number;
   created_at: Date;
   total_count: string;
+  vote_counts: SearchResult['voteCounts'];
+  comment_count: string;
 };
 
 type SearchOpts = { page: number; limit: number };
@@ -25,6 +27,8 @@ function toSearchResult(row: SearchRow): SearchResult {
     title: row.title,
     bodySnippet: row.body_snippet,
     imageUrl: null,
+    voteCounts: row.vote_counts,
+    commentCount: Number(row.comment_count),
     rank: Number(row.rank),
     createdAt: row.created_at,
   };
@@ -91,6 +95,8 @@ export async function keywordSearch(
         similarity(t.title, ${query})
       )                                                          AS rank,
       t.created_at,
+      ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+      (SELECT COUNT(*) FROM comments WHERE thread_id = t.id AND status = 'visible')::int AS comment_count,
       COUNT(*) OVER()                                            AS total_count
     FROM threads t
     WHERE t.forum_id = ${forumId}
@@ -219,6 +225,8 @@ export async function semanticSearch(
       LEFT(t.body, 200)                                                 AS body_snippet,
       (1 - (t.embedding <=> ${vec}::vector))::float          AS rank,
       t.created_at,
+      ${db.unsafe(THREAD_VOTE_COUNTS_SUBQUERY)},
+      (SELECT COUNT(*) FROM comments WHERE thread_id = t.id AND status = 'visible')::int AS comment_count,
       COUNT(*) OVER()                                                   AS total_count
     FROM threads t
     WHERE t.forum_id = ${forumId}
