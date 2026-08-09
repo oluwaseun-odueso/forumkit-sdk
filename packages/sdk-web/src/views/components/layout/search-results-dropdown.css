@@ -178,11 +178,14 @@
 
 .fk-search-results-comment-footer {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.fk-search-results-comment-footer-stats {
   font-size: 12.5px;
   color: var(--muted);
-  margin-bottom: 12px;
 }
 
 .fk-search-results-goto-link {
@@ -194,6 +197,7 @@
   font-weight: 600;
   color: var(--accent);
   cursor: pointer;
+  text-align: left;
 }
 
 .fk-search-results-goto-link:hover {

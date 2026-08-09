@@ -114,13 +114,18 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
         {result.threadTitle}
       </h3>
       <div className="fk-search-results-comment-card">
-        <IdentityLine userId={result.authorId} displayName={result.authorDisplayName} avatarUrl={result.authorAvatarUrl} />
+        <ResultAuthorHead
+          authorId={result.authorId}
+          authorDisplayName={result.authorDisplayName}
+          authorAvatarUrl={result.authorAvatarUrl}
+          createdAt={result.createdAt}
+        />
         <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
         <div className="fk-search-results-comment-card-votes">{commentNetVotes} votes</div>
       </div>
       <div className="fk-search-results-comment-footer">
         <button type="button" className="fk-search-results-goto-link" onClick={onOpen}>Go to thread</button>
-        <span>{threadNetVotes} votes · {result.threadCommentCount} comments</span>
+        <div className="fk-search-results-comment-footer-stats">{threadNetVotes} votes · {result.threadCommentCount} comments</div>
       </div>
       <div className="fk-post-card-divider" />
     </article>
