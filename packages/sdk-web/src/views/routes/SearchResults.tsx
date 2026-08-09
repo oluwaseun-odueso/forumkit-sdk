@@ -20,9 +20,22 @@ import '../components/layout/search-results-dropdown.css';
 // reuses that view's own row/title/snippet classes (fk-post-card-row etc.)
 // rather than inventing a second set of near-identical sizing rules.
 import '../components/feed/post-card.css';
+// The section tabs (All/Threads/Comments/Profiles) reuse ProfileTabs' own
+// pill-tab styling (fk-profile-tabs/-tab) rather than a third near-identical
+// tab implementation.
+import '../components/profile/profile-tabs.css';
+
+type Section = 'all' | 'threads' | 'comments' | 'people';
 
 const SECTION_PAGE_SIZE = 20;
 const PREVIEW_SIZE = 5;
+
+const SECTION_TABS: { key: Section; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'threads', label: 'Threads' },
+  { key: 'comments', label: 'Comments' },
+  { key: 'people', label: 'Profiles' },
+];
 
 function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
   return (
@@ -76,16 +89,14 @@ function PersonRow({ result, onOpen }: { result: UserSearchResult; onOpen: () =>
   );
 }
 
-type Section = 'all' | 'threads' | 'comments' | 'people';
-
 /**
  * The full search results page, reached via "See more results" in the
- * top-nav dropdown or by pressing Enter in the search box. Two layouts:
- * `section === 'all'` shows a short preview of all three result types with
- * a "Show all" link into the single-section view; any other section shows
- * one fully paginated list. Each section fetches its own data locally
- * (rather than through the global reducer) since this page's data is
- * transient and not needed anywhere else in the app.
+ * top-nav dropdown or by pressing Enter in the search box. A row of tabs
+ * (All/Threads/Comments/Profiles) picks `state.search.resultsSection`: 'all'
+ * shows a short preview of all three result types stacked, any other tab
+ * shows one fully paginated list for just that type. Each section fetches
+ * its own data locally (rather than through the global reducer) since this
+ * page's data is transient and not needed anywhere else in the app.
  */
 export function SearchResults() {
   const {
@@ -162,6 +173,19 @@ export function SearchResults() {
           Results for &ldquo;{query}&rdquo;
         </div>
 
+        <div className="fk-profile-tabs">
+          {SECTION_TABS.map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`fk-profile-tab${section === tab.key ? ' fk-profile-tab--active' : ''}`}
+              onClick={() => openSearchResultsSection(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {section === 'all' ? (
           <>
             <div className="fk-profile-filter-row">
@@ -173,9 +197,6 @@ export function SearchResults() {
               <div className="fk-search-dropdown-status">No matching threads</div>
             ) : (
               threads.items.map(r => <ThreadRow key={r.threadId} result={r} onOpen={() => openThread(r.threadId)} />)
-            )}
-            {threads.total > PREVIEW_SIZE && (
-              <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('threads')}>Show all →</button>
             )}
             <div className="fk-profile-divider" />
 
@@ -189,9 +210,6 @@ export function SearchResults() {
             ) : (
               comments.items.map(r => <CommentRow key={r.commentId} result={r} onOpen={() => openThread(r.threadId)} />)
             )}
-            {comments.total > PREVIEW_SIZE && (
-              <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('comments')}>Show all →</button>
-            )}
             <div className="fk-profile-divider" />
 
             <div className="fk-profile-filter-row">
@@ -203,9 +221,6 @@ export function SearchResults() {
               <div className="fk-search-dropdown-status">No matching people</div>
             ) : (
               people.items.map(r => <PersonRow key={r.id} result={r} onOpen={() => openUserProfile(r.id)} />)
-            )}
-            {people.total > PREVIEW_SIZE && (
-              <button type="button" className="fk-search-dropdown-see-more" onClick={() => openSearchResultsSection('people')}>Show all →</button>
             )}
           </>
         ) : (
