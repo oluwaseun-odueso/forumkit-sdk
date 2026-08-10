@@ -145,7 +145,7 @@
 
 /* CommentRow's own outer padding — same values as .fk-post-card (which
    ThreadRow uses directly) but without that class's cursor:pointer, since
-   a comment result's clickable bits are the title and "Go to thread" link
+   a comment result's clickable bits are the title and "Go to Thread" link
    specifically, not the whole row. */
 .fk-search-results-thread-row {
   padding: 14px 8px 6px;

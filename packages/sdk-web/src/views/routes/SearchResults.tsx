@@ -98,7 +98,7 @@ function IdentityLine({ userId, displayName, avatarUrl }: { userId: string; disp
 // Comment results lead with the thread's original poster and title (the
 // context a comment hit needs first), then the matching comment itself in
 // a visually distinct "card" (its own author + body + vote count), and
-// finally a "Go to thread" link alongside the thread's own totals — kept
+// finally a "Go to Thread" link alongside the thread's own totals — kept
 // outside the card since those numbers describe the thread, not the
 // comment.
 function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: () => void }) {
@@ -124,7 +124,7 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
         <div className="fk-search-results-comment-card-votes">{commentNetVotes} votes</div>
       </div>
       <div className="fk-search-results-comment-footer">
-        <button type="button" className="fk-search-results-goto-link" onClick={onOpen}>Go to thread</button>
+        <button type="button" className="fk-search-results-goto-link" onClick={onOpen}>Go to Thread</button>
         <div className="fk-search-results-comment-footer-stats">{threadNetVotes} votes · {result.threadCommentCount} comments</div>
       </div>
       <div className="fk-post-card-divider" />
