@@ -159,7 +159,7 @@ type SearchState = {
   loading: boolean;
   open: boolean;
   resultsQuery: string;
-  resultsSection: 'all' | 'threads' | 'comments' | 'people';
+  resultsSection: 'all' | 'threads' | 'comments' | 'people' | 'media';
 };
 
 // One entry per past navigation, pushed just before the app switches to a

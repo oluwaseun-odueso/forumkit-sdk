@@ -25,7 +25,7 @@ import '../components/feed/post-card.css';
 // tab implementation.
 import '../components/profile/profile-tabs.css';
 
-type Section = 'all' | 'threads' | 'comments' | 'people';
+type Section = 'all' | 'threads' | 'comments' | 'people' | 'media';
 
 const SECTION_PAGE_SIZE = 20;
 const PREVIEW_SIZE = 5;
@@ -35,6 +35,7 @@ const SECTION_TABS: { key: Section; label: string }[] = [
   { key: 'threads', label: 'Threads' },
   { key: 'comments', label: 'Comments' },
   { key: 'people', label: 'Profiles' },
+  { key: 'media', label: 'Media' },
 ];
 
 // Shared "who posted this, and when" header used by both Thread and
@@ -67,7 +68,7 @@ function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
       <div className="fk-post-card-row">
         <div className="fk-post-card-row-text">
           <h3 className="fk-post-card-title fk-search-results-title fk-clamp-2">{result.title}</h3>
-          <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
+          <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet fk-search-results-snippet" />
         </div>
         {result.imageUrl && (
           <div className="fk-post-card-row-img">
@@ -120,7 +121,7 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
           authorAvatarUrl={result.authorAvatarUrl}
           createdAt={result.createdAt}
         />
-        <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet" />
+        <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet fk-search-results-snippet" />
         <div className="fk-search-results-comment-card-votes">{commentNetVotes} votes</div>
       </div>
       <div className="fk-search-results-comment-footer">
@@ -129,6 +130,30 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
       </div>
       <div className="fk-post-card-divider" />
     </article>
+  );
+}
+
+// Media is just thread results that happen to carry an image, shown as a
+// grid instead of a row — there's no dedicated "has an image" backend
+// query, so this reuses the same thread search results already fetched
+// for the Threads tab (see the `threads` state below) and filters down to
+// the ones with imageUrl set.
+function MediaTile({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
+  const avatar = authorAvatar(result.authorId, result.authorDisplayName);
+  return (
+    <div className="fk-search-results-media-tile" onClick={onOpen}>
+      <div className="fk-search-results-media-tile-image">
+        <Thumbnail gradient="" imageUrl={result.imageUrl} radius={12} />
+      </div>
+      <div className="fk-search-results-media-tile-author">
+        <Avatar size={18} gradient={avatar.gradient} letter={avatar.letter} imageUrl={result.authorAvatarUrl} />
+        <span>{result.authorDisplayName}</span>
+      </div>
+      {/* fk-clamp-2 is the app-wide 2-line clamp (line-clamp: 2 + ellipsis)
+          used everywhere a title/snippet needs to wrap but not run on
+          forever — same class the feed's compact PostCard title uses. */}
+      <div className="fk-search-results-media-tile-title fk-clamp-2">{result.title}</div>
+    </div>
   );
 }
 
@@ -197,7 +222,7 @@ export function SearchResults() {
   useEffect(() => {
     if (!fid || !query || section === 'all') return;
     const opts = { page: drillPage, limit: SECTION_PAGE_SIZE };
-    if (section === 'threads') {
+    if (section === 'threads' || section === 'media') {
       setThreads(s => ({ ...s, loading: true }));
       searchThreads(fid, query, opts, token)
         .then(r => setThreads(s => ({ items: drillPage === 1 ? r.results : [...s.items, ...r.results], total: r.total, loading: false })))
@@ -215,9 +240,14 @@ export function SearchResults() {
     }
   }, [fid, token, query, section, drillPage]);
 
-  const drillItems = section === 'threads' ? threads : section === 'comments' ? comments : people;
+  const drillItems = section === 'threads' || section === 'media' ? threads : section === 'comments' ? comments : people;
   const hasMore = section !== 'all' && drillItems.items.length < drillItems.total;
   const sentinelRef = useInfiniteScroll(() => setDrillPage(p => p + 1), hasMore && !drillItems.loading);
+  // Media has no dedicated backend total to compare against (see MediaTile's
+  // comment) — "no results"/"loaded" checks for it use this filtered count
+  // instead of drillItems.items.length, which is the raw (unfiltered) thread
+  // count and would under-report how often the grid is actually empty.
+  const mediaItems = threads.items.filter(r => r.imageUrl);
 
   return (
     <Shell mainMaxWidth={1200}>
@@ -284,6 +314,22 @@ export function SearchResults() {
             ) : (
               people.items.map(r => <PersonRow key={r.id} result={r} onOpen={() => openUserProfile(r.id)} />)
             )}
+            <div className="fk-profile-divider" />
+
+            <div className="fk-profile-filter-row">
+              <div className="fk-profile-filter-label">Media</div>
+            </div>
+            {threads.loading && threads.items.length === 0 ? (
+              <div className="fk-search-dropdown-status"><MascotIcon size={32} /></div>
+            ) : mediaItems.length === 0 ? (
+              <div className="fk-search-dropdown-status">No matching media</div>
+            ) : (
+              <div className="fk-search-results-media-grid">
+                {mediaItems.map(r => (
+                  <MediaTile key={r.threadId} result={r} onOpen={() => openThread(r.threadId)} />
+                ))}
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -296,7 +342,14 @@ export function SearchResults() {
             {section === 'people' && people.items.map(r => (
               <PersonRow key={r.id} result={r} onOpen={() => openUserProfile(r.id)} />
             ))}
-            {drillItems.items.length === 0 && !drillItems.loading && (
+            {section === 'media' && (
+              <div className="fk-search-results-media-grid">
+                {mediaItems.map(r => (
+                  <MediaTile key={r.threadId} result={r} onOpen={() => openThread(r.threadId)} />
+                ))}
+              </div>
+            )}
+            {(section === 'media' ? mediaItems.length === 0 : drillItems.items.length === 0) && !drillItems.loading && (
               <div className="fk-search-dropdown-status">No results</div>
             )}
             {hasMore && <div ref={sentinelRef} />}

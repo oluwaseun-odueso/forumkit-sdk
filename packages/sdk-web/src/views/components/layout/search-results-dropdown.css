@@ -127,6 +127,19 @@
    carries the bold weight for this row. */
 .fk-search-results-title {
   font-weight: 600;
+  /* A touch darker than the feed's full-brightness --text — a page full of
+     stacked white titles against the dark background read as too sharp a
+     contrast. Blended rather than swapped to a different token outright,
+     so it's a subtle step down, not a jump to --text-2's much dimmer tone. */
+  color: color-mix(in srgb, var(--text), var(--text-2));
+}
+
+/* Same "just a little" nudge as the title above, but the opposite
+   direction — RenderedBody's default --muted reads a bit too dim once the
+   title next to it is toned down, so lighten it slightly rather than
+   swapping to a brighter token wholesale. */
+.fk-search-results-snippet {
+  color: color-mix(in srgb, var(--muted), var(--text-2));
 }
 
 /* PersonRow isn't a fk-post-card, so it needs its own wrapper to hang the
@@ -159,12 +172,14 @@
   text-decoration: underline;
 }
 
-/* The comment itself, set apart from the thread context above it — same
-   "inset surface" token RenderedBody already uses for code blocks/spoilers,
-   reused here so a "darker card" reads as a familiar UI pattern rather
-   than a one-off. */
+/* The comment itself, set apart from the thread context above it — but
+   only just: --surface-2 (RenderedBody's usual "inset surface" token for
+   code blocks/spoilers) read as too strong a block of color here, so this
+   uses --nav instead — the same near-invisible-against-the-page tone the
+   sidebar's hamburger button uses, just enough to draw a boundary around
+   the comment without it looking like a separate panel. */
 .fk-search-results-comment-card {
-  background: var(--surface-2);
+  background: var(--nav);
   border-radius: 12px;
   padding: 10px 12px 12px;
   margin: 6px 0 10px;
@@ -202,4 +217,39 @@
 
 .fk-search-results-goto-link:hover {
   text-decoration: underline;
+}
+
+/* Media tab/preview — thread results that have an image, shown as a grid
+   of square thumbnails instead of full rows. */
+.fk-search-results-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.fk-search-results-media-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.fk-search-results-media-tile-image {
+  aspect-ratio: 1;
+}
+
+.fk-search-results-media-tile-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.fk-search-results-media-tile-title {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.3;
 }
