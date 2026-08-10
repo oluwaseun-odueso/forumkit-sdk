@@ -37,7 +37,7 @@ export default function Shell({
   const {
     state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
     setSearchQuery, closeSearchDropdown, openSearchResults,
-    reportScroll, goBack, clearPendingScroll,
+    reportScroll, clearPendingScroll,
   } = useForum();
   const mainRef = useRef<HTMLElement>(null);
 
@@ -70,8 +70,6 @@ export default function Shell({
         onCloseSearchDropdown={closeSearchDropdown}
         onSelectSearchResult={(threadId) => { closeSearchDropdown(); openThread(threadId); }}
         onSubmitSearch={openSearchResults}
-        canGoBack={state.history.length > 0}
-        onBack={goBack}
       />
       <div className="fk-shell-body">
         <Sidebar
