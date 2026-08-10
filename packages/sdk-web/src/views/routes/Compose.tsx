@@ -11,7 +11,7 @@ export function Compose() {
   } = useForum();
 
   return (
-    <Shell>
+    <Shell mainAlign="start">
       <div className="fk-compose">
         <ComposerModal
           composer={state.composer}

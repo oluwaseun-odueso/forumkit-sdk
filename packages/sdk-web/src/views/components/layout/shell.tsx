@@ -18,6 +18,12 @@ type ShellProps = {
   // cap here instead — passed as an inline style so it wins over the CSS
   // class's flex-basis regardless of import order.
   mainMaxWidth?: number;
+  // .fk-shell-content centers .fk-shell-main in the space left after the
+  // sidebar (and rail, if any) by default — right for every other route,
+  // but Compose has no rail and wants its content anchored to the left
+  // edge of that space instead, not floating in the middle of a mostly
+  // empty row. Defaults to the existing centered behavior everywhere else.
+  mainAlign?: 'center' | 'start';
 };
 
 /**
@@ -25,7 +31,9 @@ type ShellProps = {
  * persistent collapsible sidebar, a scrollable main column, and an optional
  * right rail. Routes only supply their own center content (and rail).
  */
-export default function Shell({ children, rail, onAsk, compactSearch, scrollMain = true, scopeTag, mainMaxWidth }: ShellProps) {
+export default function Shell({
+  children, rail, onAsk, compactSearch, scrollMain = true, scopeTag, mainMaxWidth, mainAlign = 'center',
+}: ShellProps) {
   const {
     state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
     setSearchQuery, closeSearchDropdown, openSearchResults,
@@ -72,7 +80,7 @@ export default function Shell({ children, rail, onAsk, compactSearch, scrollMain
           activeScope={state.view === 'feed' ? state.feed.scope : null}
           onSelectScope={setFeedScope}
         />
-        <div className="fk-shell-content">
+        <div className="fk-shell-content" style={{ justifyContent: mainAlign === 'start' ? 'flex-start' : 'center' }}>
           <main
             ref={mainRef}
             className="fk-shell-main"
