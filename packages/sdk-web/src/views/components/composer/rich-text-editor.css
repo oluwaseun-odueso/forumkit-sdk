@@ -27,6 +27,17 @@
   margin: 0 0 0.7em;
 }
 
+/* The Placeholder extension marks the empty first paragraph with this class
+   and a data-placeholder attribute rather than rendering real text — this
+   is TipTap's standard recipe for showing it. */
+.fk-rte-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 .fk-rte-content .ProseMirror h2 {
   font-size: 1.3em;
   font-weight: 700;

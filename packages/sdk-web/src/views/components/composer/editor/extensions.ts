@@ -1,6 +1,7 @@
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import ImageExtension from '@tiptap/extension-image';
+import Placeholder from '@tiptap/extension-placeholder';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
@@ -23,6 +24,13 @@ export const editorExtensions = [
   TableCell,
   Video,
   Spoiler,
+  // Renders via a ::before on the empty paragraph (see .is-editor-empty in
+  // rich-text-editor.css) — TipTap has no native `placeholder` attribute
+  // like a plain <textarea>, so this extension is what the body field
+  // needs to show its explainer text when empty.
+  Placeholder.configure({
+    placeholder: 'What are your thoughts?',
+  }),
   Markdown.configure({
     html: false,
     tightLists: true,
