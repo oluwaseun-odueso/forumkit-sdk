@@ -151,6 +151,16 @@
   font-family: inherit;
 }
 
+/* --text is already the brightest general-purpose token, but in dark
+   theme it's a soft off-white (#e7eaef per tokens.css), not pure white —
+   bumped further here since this label wants to stand out more than body
+   text. Scoped to dark only (light theme's --text is near-black, already
+   the right kind of "bright" there via contrast, not luminance). */
+:host(:not([data-theme='light'])) .fk-topnav-ask,
+.fk-root:not([data-theme='light']) .fk-topnav-ask {
+  color: #ffffff;
+}
+
 .fk-topnav-ask:hover:not(:disabled) {
   background: var(--hover);
 }
