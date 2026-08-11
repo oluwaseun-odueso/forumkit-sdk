@@ -327,6 +327,10 @@ export type SearchResult = {
   // Lets the search dropdown/results page show a thumbnail, same as the
   // compact post-card view does on the feed.
   imageUrl: string | null;
+  // Total image attachments on the thread — lets the Media tab show a
+  // "1/N" counter badge on tiles from a multi-image post, same as a
+  // gallery-post carousel indicator.
+  mediaCount: number;
   // Lets the results page show "N votes · N comments" under each thread
   // result, same as the feed's compact PostCard view.
   voteCounts: VoteCounts;
@@ -349,6 +353,7 @@ export type CommentSearchResult = {
   threadTitle: string;
   bodySnippet: string;
   imageUrl: string | null;
+  mediaCount: number;
   // Who wrote the comment — shown inside the comment's own "card" in the
   // results-page row.
   authorId: string;

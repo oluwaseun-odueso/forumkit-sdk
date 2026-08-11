@@ -221,28 +221,58 @@
 
 /* Media tab/preview — thread results that have an image, shown as a grid
    of square thumbnails instead of full rows. */
+/* Brick/masonry layout via CSS multi-column instead of a row grid — each
+   tile keeps its image's natural aspect ratio (see MediaTile's <img>) so
+   tiles end up different heights, then flow down whichever column is
+   currently shortest, Pinterest-style. */
 .fk-search-results-media-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  columns: 220px;
+  column-gap: 12px;
   margin-bottom: 12px;
 }
 
 .fk-search-results-media-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: inline-block;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: 16px;
   cursor: pointer;
 }
 
 .fk-search-results-media-tile-image {
-  aspect-ratio: 1;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-2);
+  margin-bottom: 6px;
+}
+
+.fk-search-results-media-tile-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* The "1/N" gallery-count badge — top-right corner of the image, same
+   placement/style convention as PostCard's own "+N" multi-image badge
+   (fk-post-card-more-badge). */
+.fk-search-results-media-tile-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
 }
 
 .fk-search-results-media-tile-author {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: 4px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-2);

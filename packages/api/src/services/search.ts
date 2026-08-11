@@ -58,7 +58,9 @@ function overfetchOpts(opts: SearchOpts): SearchOpts {
 // Resolves each result's thumbnail: looks up every distinct threadId in the
 // (already paginated — only the page actually being returned, not the
 // overfetched candidate set) results, finds each thread's first image
-// attachment, and stamps its download URL onto imageUrl. Same
+// attachment, and stamps its download URL onto imageUrl — plus how many
+// image attachments the thread has in total onto mediaCount, so the Media
+// tab can show a gallery-style "1/N" badge on multi-image posts. Same
 // find-first-image-per-thread pattern services/thread.ts's surfaceRelated
 // already uses for the "Similar Posts" rail. Works for both SearchResult
 // and CommentSearchResult since both carry a threadId — a comment shows its
@@ -68,18 +70,24 @@ async function hydrateImages<T extends { threadId: string }>(
   publicApiUrl: string,
   forumId: string,
   results: T[],
-): Promise<(T & { imageUrl: string | null })[]> {
+): Promise<(T & { imageUrl: string | null; mediaCount: number })[]> {
   if (results.length === 0) return [];
   const threadIds = [...new Set(results.map((r) => r.threadId))];
   const attachments = await attachmentRepo.listAttachmentsByThreadIds(db, threadIds);
   const firstImageByThread = new Map<string, string>();
+  const imageCountByThread = new Map<string, number>();
   for (const a of attachments) {
     if (!a.threadId || !a.mimeType.startsWith('image/')) continue;
     if (!firstImageByThread.has(a.threadId)) {
       firstImageByThread.set(a.threadId, rawAttachmentUrl(publicApiUrl, forumId, a.id));
     }
+    imageCountByThread.set(a.threadId, (imageCountByThread.get(a.threadId) ?? 0) + 1);
   }
-  return results.map((r) => ({ ...r, imageUrl: firstImageByThread.get(r.threadId) ?? null }));
+  return results.map((r) => ({
+    ...r,
+    imageUrl: firstImageByThread.get(r.threadId) ?? null,
+    mediaCount: imageCountByThread.get(r.threadId) ?? 0,
+  }));
 }
 
 export async function searchThreads(

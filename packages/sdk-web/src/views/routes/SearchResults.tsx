@@ -137,13 +137,20 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
 // grid instead of a row — there's no dedicated "has an image" backend
 // query, so this reuses the same thread search results already fetched
 // for the Threads tab (see the `threads` state below) and filters down to
-// the ones with imageUrl set.
+// the ones with imageUrl set. Laid out as a brick/masonry grid (CSS
+// columns, not a fixed-row grid) so tiles keep each image's natural aspect
+// ratio instead of being cropped to a uniform square — a plain <img> (not
+// the Thumbnail component's fixed-size background-image div) is what lets
+// each tile's height vary and drive the masonry effect.
 function MediaTile({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
   const avatar = authorAvatar(result.authorId, result.authorDisplayName);
   return (
     <div className="fk-search-results-media-tile" onClick={onOpen}>
       <div className="fk-search-results-media-tile-image">
-        <Thumbnail gradient="" imageUrl={result.imageUrl} radius={12} />
+        {result.imageUrl && <img src={result.imageUrl} alt="" loading="lazy" />}
+        {result.mediaCount > 1 && (
+          <span className="fk-search-results-media-tile-count">1/{result.mediaCount}</span>
+        )}
       </div>
       <div className="fk-search-results-media-tile-author">
         <Avatar size={18} gradient={avatar.gradient} letter={avatar.letter} imageUrl={result.authorAvatarUrl} />
