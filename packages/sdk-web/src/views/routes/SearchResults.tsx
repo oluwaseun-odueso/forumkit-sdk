@@ -287,7 +287,7 @@ export function SearchResults() {
           <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
         )}
 
-        <div className="fk-profile-tabs">
+        <div className="fk-profile-tabs fk-search-results-tabs">
           {SECTION_TABS.map(tab => (
             <button
               key={tab.key}
