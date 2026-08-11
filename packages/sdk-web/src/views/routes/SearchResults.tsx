@@ -142,14 +142,16 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
 // ratio instead of being cropped to a uniform square — a plain <img> (not
 // the Thumbnail component's fixed-size background-image div) is what lets
 // each tile's height vary and drive the masonry effect.
-function MediaTile({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
+function MediaTile({ result, onOpen, onImageLoad }: { result: SearchResult; onOpen: () => void; onImageLoad: () => void }) {
   const avatar = authorAvatar(result.authorId, result.authorDisplayName);
   // Images arrive with unknown dimensions (the API doesn't carry width/
   // height), so the browser can't reserve their final height up front —
   // each one popping in at full opacity as it finishes loading, while the
   // column layout keeps rebalancing under it, is what reads as "dazzling."
   // Fading each tile in only once its image has actually loaded smooths
-  // that out, even though it can't eliminate the underlying reflow.
+  // that out for incremental (load-more) arrivals; MediaGrid below handles
+  // the *first* batch differently (a skeleton until everything's ready)
+  // since fading in one at a time over a reflowing layout was still messy.
   const [loaded, setLoaded] = useState(false);
   return (
     <div className="fk-search-results-media-tile" onClick={onOpen}>
@@ -158,9 +160,12 @@ function MediaTile({ result, onOpen }: { result: SearchResult; onOpen: () => voi
           <img
             src={result.imageUrl}
             alt=""
-            loading="lazy"
             className={loaded ? 'fk-search-results-media-tile-img--loaded' : ''}
-            onLoad={() => setLoaded(true)}
+            onLoad={() => { setLoaded(true); onImageLoad(); }}
+            // A broken/unreachable image must still count as "settled" —
+            // otherwise one bad URL in the batch permanently stalls
+            // MediaGrid's skeleton, since allLoaded would never become true.
+            onError={onImageLoad}
           />
         )}
         {result.mediaCount > 1 && (
@@ -175,6 +180,53 @@ function MediaTile({ result, onOpen }: { result: SearchResult; onOpen: () => voi
           used everywhere a title/snippet needs to wrap but not run on
           forever — same class the feed's compact PostCard title uses. */}
       <div className="fk-search-results-media-tile-title fk-clamp-2">{result.title}</div>
+    </div>
+  );
+}
+
+// Wraps the actual masonry grid: until every tile in the *current* batch
+// has finished loading its image, shows a throbbing skeleton grid instead
+// (the real grid still renders underneath — hidden, not display:none, so
+// its images keep loading and lazy-loading's viewport check still works —
+// it's just not what the user sees yet). Once a batch has fully loaded
+// once, `everLoaded` latches true and stays true, so later infinite-scroll
+// pages don't re-trigger the skeleton and hide already-visible results —
+// those just fade in individually via MediaTile's own transition instead.
+function MediaGrid({ items, onOpen }: { items: SearchResult[]; onOpen: (threadId: string) => void }) {
+  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
+  const [everLoaded, setEverLoaded] = useState(false);
+  const allLoaded = items.length > 0 && items.every(r => loadedIds.has(r.threadId));
+
+  useEffect(() => {
+    if (allLoaded) setEverLoaded(true);
+  }, [allLoaded]);
+
+  // Safety net: if some image request never fires load *or* error (a
+  // stalled connection, not just a 404), don't leave the skeleton spinning
+  // forever — reveal whatever's actually ready after a few seconds.
+  useEffect(() => {
+    const timer = setTimeout(() => setEverLoaded(true), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  function markLoaded(threadId: string) {
+    setLoadedIds(prev => (prev.has(threadId) ? prev : new Set(prev).add(threadId)));
+  }
+
+  return (
+    <div className="fk-search-results-media-wrap">
+      {!everLoaded && (
+        <div className="fk-search-results-media-grid fk-search-results-media-skeleton">
+          {Array.from({ length: Math.min(items.length, 9) }).map((_, i) => (
+            <div key={i} className="fk-search-results-media-skeleton-tile" />
+          ))}
+        </div>
+      )}
+      <div className="fk-search-results-media-grid" style={everLoaded ? undefined : { position: 'absolute', top: 0, left: 0, width: '100%', visibility: 'hidden', pointerEvents: 'none' }}>
+        {items.map(r => (
+          <MediaTile key={r.threadId} result={r} onOpen={() => onOpen(r.threadId)} onImageLoad={() => markLoaded(r.threadId)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -346,11 +398,7 @@ export function SearchResults() {
             ) : mediaItems.length === 0 ? (
               <div className="fk-search-dropdown-status">No matching media</div>
             ) : (
-              <div className="fk-search-results-media-grid">
-                {mediaItems.map(r => (
-                  <MediaTile key={r.threadId} result={r} onOpen={() => openThread(r.threadId)} />
-                ))}
-              </div>
+              <MediaGrid key={query} items={mediaItems} onOpen={openThread} />
             )}
           </>
         ) : (
@@ -364,12 +412,8 @@ export function SearchResults() {
             {section === 'people' && people.items.map(r => (
               <PersonRow key={r.id} result={r} onOpen={() => openUserProfile(r.id)} />
             ))}
-            {section === 'media' && (
-              <div className="fk-search-results-media-grid">
-                {mediaItems.map(r => (
-                  <MediaTile key={r.threadId} result={r} onOpen={() => openThread(r.threadId)} />
-                ))}
-              </div>
+            {section === 'media' && mediaItems.length > 0 && (
+              <MediaGrid key={query} items={mediaItems} onOpen={openThread} />
             )}
             {(section === 'media' ? mediaItems.length === 0 : drillItems.items.length === 0) && !drillItems.loading && (
               <div className="fk-search-dropdown-status">No results</div>
