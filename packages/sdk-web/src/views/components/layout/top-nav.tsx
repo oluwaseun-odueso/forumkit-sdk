@@ -80,7 +80,7 @@ export default function TopNav({
               aria-label="Clear search"
               onClick={() => { onSearchChange(''); onCloseSearchDropdown(); }}
             >
-              <CloseIcon size={12} />
+              <CloseIcon size={15} />
             </button>
           )}
           {!compact && !showTag && (

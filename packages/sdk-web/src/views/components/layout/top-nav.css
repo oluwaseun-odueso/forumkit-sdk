@@ -121,7 +121,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--muted);
+  color: var(--text-2);
   padding: 0;
 }
 
