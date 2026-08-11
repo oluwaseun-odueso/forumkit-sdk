@@ -1,15 +1,15 @@
 import type { ReactElement } from 'react';
 import { useSidebarHover } from '../../hooks/use-sidebar-hover';
 import type { FeedScope } from '../../hooks/use-forum-state';
-import { HamburgerIcon, HomeIcon, PopularIcon, NewsIcon, ExploreIcon } from '../shared/icons';
+import { HamburgerIcon, HomeIcon, PopularIcon, NewsIcon } from '../shared/icons';
 import './sidebar.css';
 
 const NAV_ITEMS: { label: string; icon: ReactElement; scope: FeedScope | null }[] = [
   { label: 'Home', icon: <HomeIcon />, scope: 'home' },
   { label: 'Popular', icon: <PopularIcon />, scope: 'popular' },
   { label: 'News', icon: <NewsIcon />, scope: 'news' },
-  // No backend concept exists for "Explore" yet — stays inert, consistent with today.
-  { label: 'Explore', icon: <ExploreIcon />, scope: null },
+  // "Explore" (communities) removed for now — no backend concept exists
+  // yet and it's planned as future work, not a stub worth showing today.
 ];
 
 type SidebarProps = {
