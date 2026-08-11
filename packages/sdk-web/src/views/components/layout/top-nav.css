@@ -167,7 +167,10 @@
 
 .fk-topnav-ask:disabled {
   cursor: default;
-  opacity: 0.5;
+  /* Feed/Profile/SearchResults don't wire onAsk yet (only Thread does),
+     so this button is disabled there most of the time — 0.5 opacity was
+     washing out the brightened white text from above, undoing it. */
+  opacity: 0.85;
 }
 
 .fk-topnav-actions {
