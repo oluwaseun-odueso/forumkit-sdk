@@ -144,10 +144,25 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
 // each tile's height vary and drive the masonry effect.
 function MediaTile({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
   const avatar = authorAvatar(result.authorId, result.authorDisplayName);
+  // Images arrive with unknown dimensions (the API doesn't carry width/
+  // height), so the browser can't reserve their final height up front —
+  // each one popping in at full opacity as it finishes loading, while the
+  // column layout keeps rebalancing under it, is what reads as "dazzling."
+  // Fading each tile in only once its image has actually loaded smooths
+  // that out, even though it can't eliminate the underlying reflow.
+  const [loaded, setLoaded] = useState(false);
   return (
     <div className="fk-search-results-media-tile" onClick={onOpen}>
       <div className="fk-search-results-media-tile-image">
-        {result.imageUrl && <img src={result.imageUrl} alt="" loading="lazy" />}
+        {result.imageUrl && (
+          <img
+            src={result.imageUrl}
+            alt=""
+            loading="lazy"
+            className={loaded ? 'fk-search-results-media-tile-img--loaded' : ''}
+            onLoad={() => setLoaded(true)}
+          />
+        )}
         {result.mediaCount > 1 && (
           <span className="fk-search-results-media-tile-count">1/{result.mediaCount}</span>
         )}

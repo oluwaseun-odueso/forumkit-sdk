@@ -226,7 +226,7 @@
    tiles end up different heights, then flow down whichever column is
    currently shortest, Pinterest-style. */
 .fk-search-results-media-grid {
-  columns: 220px;
+  column-count: 3;
   column-gap: 12px;
   margin-bottom: 12px;
 }
@@ -251,6 +251,12 @@
   display: block;
   width: 100%;
   height: auto;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.fk-search-results-media-tile-image img.fk-search-results-media-tile-img--loaded {
+  opacity: 1;
 }
 
 /* The "1/N" gallery-count badge — top-right corner of the image, same
