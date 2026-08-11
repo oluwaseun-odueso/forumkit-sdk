@@ -52,6 +52,12 @@
     linear-gradient(90deg, #3f7ee2, #7b5cff 55%, #37e0e6) border-box;
   box-shadow: 0 0 0 3px var(--accent-soft);
   color: var(--muted);
+  /* Above the dropdown's own backdrop (z-index 55, search-results-
+     dropdown.css) — without this, the backdrop (there to close the
+     dropdown on an outside click) sits on top of this pill too, silently
+     eating clicks meant for the input or the clear button below it. */
+  position: relative;
+  z-index: 56;
 }
 
 .fk-topnav-search--compact {
@@ -102,6 +108,26 @@
   font-size: 14.5px;
   font-family: inherit;
   font-weight: 400;
+}
+
+.fk-topnav-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 20px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0;
+}
+
+.fk-topnav-search-clear:hover {
+  background: var(--hover-2);
+  color: var(--text);
 }
 
 .fk-topnav-search-divider {

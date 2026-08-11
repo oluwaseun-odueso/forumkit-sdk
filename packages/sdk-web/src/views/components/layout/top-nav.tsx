@@ -73,6 +73,16 @@ export default function TopNav({
             onChange={e => onSearchChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && searchQuery.trim()) onSubmitSearch(searchQuery.trim()); }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="fk-topnav-search-clear"
+              aria-label="Clear search"
+              onClick={() => { onSearchChange(''); onCloseSearchDropdown(); }}
+            >
+              <CloseIcon size={12} />
+            </button>
+          )}
           {!compact && !showTag && (
             <>
               <div className="fk-topnav-search-divider" />
