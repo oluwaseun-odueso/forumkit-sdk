@@ -53,17 +53,21 @@ function describe(n: Notification): string {
 // 'share' (which gets its own facepile treatment, see AvatarCluster below)
 // and 'vote' (which splits into up/down based on the message field, not
 // just the type) maps directly.
+// Deliberately distinct, saturated hues per type (not just the existing
+// --up/--down tokens reused everywhere else) so the badges read as a clear
+// color-coded system at a glance rather than everything blurring into the
+// same one or two accent colors.
 const TYPE_BADGE: Partial<Record<NotificationType, { Icon: typeof CommentIcon; color: string }>> = {
-  comment_reply: { Icon: CommentIcon, color: 'var(--accent)' },
-  share: { Icon: ShareIcon, color: 'var(--accent)' },
-  report: { Icon: ReportIcon, color: 'var(--muted)' },
+  comment_reply: { Icon: CommentIcon, color: '#3f7ee2' },  // blue
+  share: { Icon: ShareIcon, color: '#2ec16a' },             // green
+  report: { Icon: ReportIcon, color: '#ef4444' },           // red
 };
 
 function getBadge(n: Notification): { Icon: typeof CommentIcon; color: string } {
   if (n.type === 'vote') {
     return n.message === 'down'
-      ? { Icon: DownvoteIcon, color: 'var(--down)' }
-      : { Icon: UpvoteIcon, color: 'var(--up)' };
+      ? { Icon: DownvoteIcon, color: '#a855f7' }  // purple
+      : { Icon: UpvoteIcon, color: '#f0521f' };   // orange
   }
   return TYPE_BADGE[n.type] ?? { Icon: CommentIcon, color: 'var(--accent)' };
 }
@@ -81,14 +85,14 @@ function AvatarCluster({ n }: { n: Notification }) {
   if (isSharedByOthers) {
     const authorAvatarData = authorAvatar(n.threadAuthorId ?? undefined, n.threadAuthorDisplayName ?? 'Someone');
     return (
-      <div className="fk-notification-avatar-wrap">
-        <Avatar size={36} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+      <div className="fk-notification-facepile">
+        <Avatar size={28} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
         <Avatar
-          size={20}
+          size={28}
           gradient={authorAvatarData.gradient}
           letter={authorAvatarData.letter}
           imageUrl={n.threadAuthorAvatarUrl}
-          style={{ position: 'absolute', bottom: -3, right: -3, border: '2px solid var(--bg)' }}
+          style={{ position: 'absolute', top: 14, left: 14, border: '2px solid var(--bg)' }}
         />
       </div>
     );

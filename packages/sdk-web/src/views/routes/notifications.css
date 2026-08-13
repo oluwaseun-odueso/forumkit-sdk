@@ -13,6 +13,16 @@
   flex-shrink: 0;
 }
 
+/* Share facepile — sharer + thread-author avatars at equal size, the
+   second diagonally offset over the first with a background-colored ring
+   so both stay individually legible instead of one dwarfing the other. */
+.fk-notification-facepile {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+}
+
 /* Type-icon badge, positioned like Avatar's own .fk-avatar-online dot
    (bottom-right corner, ringed in the page background so it reads as
    "cut out" from the avatar behind it) but sized to hold a small icon. */
