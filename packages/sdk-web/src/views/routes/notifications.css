@@ -9,8 +9,8 @@
 
 .fk-notifications-heading {
   margin: 0;
-  font-size: 26px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text);
 }
 
@@ -20,15 +20,22 @@
   gap: 14px;
 }
 
+/* A teeny bit bigger than the shared fk-search-results-goto-link class's
+   own 12.5px default — scoped to this header only, not a change to that
+   class itself, which is also reused elsewhere (SearchResults' "Go to
+   Thread" link). */
+.fk-notifications-header-actions .fk-search-results-goto-link {
+  font-size: 13.5px;
+}
+
 .fk-notifications-header-divider {
   width: 1px;
   height: 18px;
   background: var(--border);
 }
 
-/* Single rounded card containing every notification row — rows are
-   separated by a hairline divider, not individually boxed, matching a
-   compact inbox-list layout rather than a stack of separate cards. */
+/* Single rounded card containing every notification row — no dividers
+   between rows, just the card's own background carrying the grouping. */
 .fk-notifications-card {
   background: var(--elev);
   border: 1px solid var(--border);
@@ -40,11 +47,6 @@
   position: relative;
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--border);
-}
-
-.fk-notification-row-v2:last-child {
-  border-bottom: none;
 }
 
 .fk-notification-row-v2:hover {
@@ -52,7 +54,7 @@
 }
 
 .fk-notification-row-v2--unread {
-  background: var(--accent-soft);
+  background: var(--surface-2);
 }
 
 .fk-notification-row-v2-main {
@@ -150,4 +152,12 @@
 
 .fk-notification-row-v2 .fk-profile-comment-card-context {
   font-size: 13px;
+}
+
+/* Dulled down from the shared class's own var(--text-2)/weight-600 default
+   — scoped to notification rows only, since profile-comment-card.css's
+   class is also used by the (unrelated) profile activity feed. */
+.fk-notification-row-v2 .fk-profile-comment-card-thread-title {
+  color: var(--muted);
+  font-weight: 500;
 }

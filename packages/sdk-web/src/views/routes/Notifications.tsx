@@ -7,7 +7,7 @@ import PillButton from '../components/shared/pill-button';
 import IconButton from '../components/shared/icon-button';
 import MascotIcon from '../components/layout/mascot-icon';
 import {
-  ChevronLeftIcon, UpvoteIcon, DownvoteIcon, CommentIcon, ShareIcon, ReportIcon, GearIcon, CloseIcon,
+  ChevronLeftIcon, UpvoteIcon, DownvoteIcon, CommentIcon, ShareIcon, ReportIcon, GearIcon, TrashIcon,
 } from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
@@ -145,7 +145,7 @@ function NotificationRow({ n, onOpen, onDelete }: { n: Notification; onOpen: () 
         aria-label="Delete notification"
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
       >
-        <CloseIcon size={13} />
+        <TrashIcon size={13} />
       </button>
     </div>
   );
