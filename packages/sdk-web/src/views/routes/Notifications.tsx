@@ -53,21 +53,26 @@ function describe(n: Notification): string {
 // 'share' (which gets its own facepile treatment, see AvatarCluster below)
 // and 'vote' (which splits into up/down based on the message field, not
 // just the type) maps directly.
-// Deliberately distinct, saturated hues per type (not just the existing
-// --up/--down tokens reused everywhere else) so the badges read as a clear
-// color-coded system at a glance rather than everything blurring into the
-// same one or two accent colors.
+// Deliberately distinct hues per type (not just the existing --up/--down
+// tokens reused everywhere else) so the badges read as a clear color-coded
+// system at a glance — each blended with black so it sits at a lower,
+// deeper saturation than the raw hue, which otherwise reads as too sharp/
+// glowing against the card's dark background.
+function dim(hex: string): string {
+  return `color-mix(in srgb, ${hex} 65%, black)`;
+}
+
 const TYPE_BADGE: Partial<Record<NotificationType, { Icon: typeof CommentIcon; color: string }>> = {
-  comment_reply: { Icon: CommentIcon, color: '#3f7ee2' },  // blue
-  share: { Icon: ShareIcon, color: '#2ec16a' },             // green
-  report: { Icon: ReportIcon, color: '#ef4444' },           // red
+  comment_reply: { Icon: CommentIcon, color: dim('#3f7ee2') },  // blue
+  share: { Icon: ShareIcon, color: dim('#2ec16a') },             // green
+  report: { Icon: ReportIcon, color: dim('#ef4444') },           // red
 };
 
 function getBadge(n: Notification): { Icon: typeof CommentIcon; color: string } {
   if (n.type === 'vote') {
     return n.message === 'down'
-      ? { Icon: DownvoteIcon, color: '#a855f7' }  // purple
-      : { Icon: UpvoteIcon, color: '#f0521f' };   // orange
+      ? { Icon: DownvoteIcon, color: dim('#a855f7') }  // purple
+      : { Icon: UpvoteIcon, color: dim('#f0521f') };   // orange
   }
   return TYPE_BADGE[n.type] ?? { Icon: CommentIcon, color: 'var(--accent)' };
 }
@@ -86,13 +91,13 @@ function AvatarCluster({ n }: { n: Notification }) {
     const authorAvatarData = authorAvatar(n.threadAuthorId ?? undefined, n.threadAuthorDisplayName ?? 'Someone');
     return (
       <div className="fk-notification-facepile">
-        <Avatar size={28} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+        <Avatar size={44} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
         <Avatar
-          size={28}
+          size={44}
           gradient={authorAvatarData.gradient}
           letter={authorAvatarData.letter}
           imageUrl={n.threadAuthorAvatarUrl}
-          style={{ position: 'absolute', top: 14, left: 14, border: '2px solid var(--bg)' }}
+          style={{ position: 'absolute', top: 22, left: 22, border: '3px solid var(--bg)' }}
         />
       </div>
     );
@@ -101,9 +106,9 @@ function AvatarCluster({ n }: { n: Notification }) {
   const badge = getBadge(n);
   return (
     <div className="fk-notification-avatar-wrap">
-      <Avatar size={36} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+      <Avatar size={52} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
       <span className="fk-notification-badge" style={{ background: badge.color }}>
-        <badge.Icon size={11} />
+        <badge.Icon size={14} />
       </span>
     </div>
   );
@@ -131,7 +136,7 @@ function NotificationRow({ n, onOpen }: { n: Notification; onOpen: () => void })
           </div>
           {n.threadTitle && (
             <div className="fk-post-card-row-img">
-              <Thumbnail gradient="linear-gradient(135deg,#3f7ee2,#7b5cff)" imageUrl={n.threadImageUrl} width={64} height={64} radius={12} />
+              <Thumbnail gradient="linear-gradient(135deg,#3f7ee2,#7b5cff)" imageUrl={n.threadImageUrl} width={110} height={110} radius={14} />
             </div>
           )}
         </div>
@@ -204,7 +209,7 @@ export function Notifications() {
   const hasUnread = items.some(n => !n.readAt);
 
   return (
-    <Shell mainMaxWidth={700} mainAlign="start">
+    <Shell mainMaxWidth={860} mainAlign="start">
       <div className="fk-profile fk-notifications-left">
         {state.history.length > 0 && (
           <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>

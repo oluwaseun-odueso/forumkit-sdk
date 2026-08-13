@@ -5,7 +5,8 @@
 
 .fk-notification-row {
   align-items: flex-start;
-  padding: 12px 10px;
+  gap: 18px;
+  padding: 20px 16px;
 }
 
 .fk-notification-avatar-wrap {
@@ -19,8 +20,8 @@
 .fk-notification-facepile {
   position: relative;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 66px;
+  height: 66px;
 }
 
 /* Type-icon badge, positioned like Avatar's own .fk-avatar-online dot
@@ -28,16 +29,16 @@
    "cut out" from the avatar behind it) but sized to hold a small icon. */
 .fk-notification-badge {
   position: absolute;
-  bottom: -3px;
-  right: -3px;
-  width: 20px;
-  height: 20px;
+  bottom: -4px;
+  right: -4px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  border: 2px solid var(--bg);
+  border: 3px solid var(--bg);
 }
 
 /* A touch darker than full-brightness --text, same reasoning
@@ -45,7 +46,15 @@
    stacked full-white titles against the dark background reads as too
    sharp a contrast. */
 .fk-notification-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: color-mix(in srgb, var(--text), var(--text-2));
+}
+
+/* Scoped bumps to the reused context-line/snippet classes — only inside a
+   notification row, so SearchResults/profile-activity's own usage of these
+   same shared classes elsewhere is untouched. */
+.fk-notification-row .fk-profile-comment-card-context,
+.fk-notification-row .fk-search-dropdown-row-snippet {
+  font-size: 13.5px;
 }

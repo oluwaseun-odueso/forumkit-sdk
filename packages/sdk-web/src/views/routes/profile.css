@@ -48,6 +48,7 @@ button.fk-profile-filter-label {
    inset matching compose.css's .fk-compose exactly) rather than
    .fk-profile's own centered margin: 0 auto default. */
 .fk-notifications-left {
+  max-width: 900px;
   margin: 0;
   margin-left: 80px;
   padding-left: 100px;
