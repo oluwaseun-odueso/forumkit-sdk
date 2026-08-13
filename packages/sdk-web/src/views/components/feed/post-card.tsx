@@ -134,7 +134,7 @@ export default function PostCard({
       )}
 
       <div className="fk-post-card-actions" onClick={stop}>
-        <VotePill votes={post.votes} dir={vote} onVote={onVote} />
+        <VotePill voteCounts={post.voteCounts} dir={vote} onVote={onVote} />
         <button type="button" className="fk-post-card-chip">
           <CommentIcon />
           {post.commentCount}

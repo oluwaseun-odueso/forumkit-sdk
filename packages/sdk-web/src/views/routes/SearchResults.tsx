@@ -6,7 +6,7 @@ import Avatar from '../components/shared/avatar';
 import RenderedBody from '../components/shared/rendered-body';
 import MascotIcon from '../components/layout/mascot-icon';
 import PillButton from '../components/shared/pill-button';
-import { ChevronLeftIcon } from '../components/shared/icons';
+import { ChevronLeftIcon, UpvoteIcon, DownvoteIcon } from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
 import { searchThreads, searchComments, searchUsers } from '../api/search';
@@ -56,7 +56,6 @@ function ResultAuthorHead({ authorId, authorDisplayName, authorAvatarUrl, create
 }
 
 function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => void }) {
-  const netVotes = result.voteCounts.up - result.voteCounts.down;
   return (
     <article className="fk-post-card fk-search-results-thread-row" onClick={onOpen}>
       <ResultAuthorHead
@@ -76,7 +75,9 @@ function ThreadRow({ result, onOpen }: { result: SearchResult; onOpen: () => voi
           </div>
         )}
       </div>
-      <div className="fk-search-results-row-stats">{netVotes} votes · {result.commentCount} comments</div>
+      <div className="fk-search-results-row-stats">
+        <UpvoteIcon size={12} />{result.voteCounts.up} <DownvoteIcon size={12} />{result.voteCounts.down} · {result.commentCount} comments
+      </div>
       <div className="fk-post-card-divider" />
     </article>
   );
@@ -103,8 +104,6 @@ function IdentityLine({ userId, displayName, avatarUrl }: { userId: string; disp
 // outside the card since those numbers describe the thread, not the
 // comment.
 function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: () => void }) {
-  const commentNetVotes = result.commentVoteCounts.up - result.commentVoteCounts.down;
-  const threadNetVotes = result.threadVoteCounts.up - result.threadVoteCounts.down;
   return (
     <article className="fk-search-results-thread-row">
       <IdentityLine userId={result.threadAuthorId} displayName={result.threadAuthorDisplayName} avatarUrl={result.threadAuthorAvatarUrl} />
@@ -122,11 +121,15 @@ function CommentRow({ result, onOpen }: { result: CommentSearchResult; onOpen: (
           createdAt={result.createdAt}
         />
         <RenderedBody body={result.bodySnippet} className="fk-post-card-snippet fk-search-results-snippet" />
-        <div className="fk-search-results-comment-card-votes">{commentNetVotes} votes</div>
+        <div className="fk-search-results-comment-card-votes">
+          <UpvoteIcon size={12} />{result.commentVoteCounts.up} <DownvoteIcon size={12} />{result.commentVoteCounts.down}
+        </div>
       </div>
       <div className="fk-search-results-comment-footer">
         <button type="button" className="fk-search-results-goto-link" onClick={onOpen}>Go to Thread</button>
-        <div className="fk-search-results-comment-footer-stats">{threadNetVotes} votes · {result.threadCommentCount} comments</div>
+        <div className="fk-search-results-comment-footer-stats">
+          <UpvoteIcon size={12} />{result.threadVoteCounts.up} <DownvoteIcon size={12} />{result.threadVoteCounts.down} · {result.threadCommentCount} comments
+        </div>
       </div>
       <div className="fk-post-card-divider" />
     </article>

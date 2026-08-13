@@ -12,7 +12,7 @@ export type FeedPost = {
   videoUrl?: string | null;
   domain: string | null;
   votes: number;
-  voteCounts?: { up: number; down: number };
+  voteCounts: { up: number; down: number };
   myVote?: 1 | -1 | null;
   commentCount: number;
   saved: boolean;
@@ -26,7 +26,7 @@ export type CommentNodeData = {
   time: string;
   body: string;
   votes: number;
-  voteCounts?: { up: number; down: number };
+  voteCounts: { up: number; down: number };
   myVote?: 1 | -1 | null;
   isSaved: boolean;
   replies: CommentNodeData[];
@@ -40,6 +40,7 @@ export type RailItem = {
   authorAvatarUrl?: string | null;
   time: string;
   votes: number;
+  voteCounts: { up: number; down: number };
   commentCount: number;
   thumbGradient: string;
   imageUrl: string | null;

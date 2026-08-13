@@ -192,7 +192,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
       })()}
 
       <div className="fk-thread-actions">
-        <VotePill votes={activePost.votes} dir={activePost.myVote ?? 0} onVote={dir => votePost(activePost.id, dir)} />
+        <VotePill voteCounts={activePost.voteCounts} dir={activePost.myVote ?? 0} onVote={dir => votePost(activePost.id, dir)} />
         <div className="fk-thread-chip fk-thread-chip--static">
           <CommentIcon size={18} />
           {activePost.commentCount}

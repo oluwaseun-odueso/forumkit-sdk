@@ -152,7 +152,7 @@ export default function Comment({
 
           <div className="fk-comment-actions">
             <VotePill
-              votes={comment.votes}
+              voteCounts={comment.voteCounts}
               dir={comment.myVote ?? 0}
               onVote={dir => onVote(comment.id, dir)}
               variant="inline"
