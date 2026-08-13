@@ -390,10 +390,10 @@ export async function getForumConfigByThreadId(
 export async function getThreadInfo(
   db: DB,
   threadId: string,
-): Promise<{ status: Thread['status']; authorId: string } | null> {
-  const rows = await db<[{ status: Thread['status']; author_id: string }]>`
-    SELECT status, author_id FROM threads WHERE id = ${threadId}
+): Promise<{ status: Thread['status']; authorId: string; forumId: string } | null> {
+  const rows = await db<[{ status: Thread['status']; author_id: string; forum_id: string }]>`
+    SELECT status, author_id, forum_id FROM threads WHERE id = ${threadId}
   `;
   const row = rows[0];
-  return row ? { status: row.status, authorId: row.author_id } : null;
+  return row ? { status: row.status, authorId: row.author_id, forumId: row.forum_id } : null;
 }

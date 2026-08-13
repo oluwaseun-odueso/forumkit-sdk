@@ -7,7 +7,7 @@ import type { Result } from '../lib/result';
 import * as repo from '../repositories/comment';
 import * as threadRepo from '../repositories/thread';
 import { attachToExistingComment } from './storage';
-import { notifyReport } from './notification';
+import { notifyReport, notifyCommentReply } from './notification';
 
 export type CommentError = 'comment_not_found' | 'thread_not_found' | 'thread_locked' | 'forbidden';
 
@@ -40,6 +40,10 @@ export async function createComment(
 
   void embedComment(db, embedFn, comment.id, comment.body);
   void moderateComment(db, moderateFn, comment.id, opts.threadId, comment.body);
+
+  if (opts.parentCommentId) {
+    void notifyParentCommentAuthor(db, thread.forumId, opts.threadId, opts.parentCommentId, opts.authorId, comment.id);
+  }
 
   return ok(comment);
 }
@@ -157,6 +161,25 @@ export async function acceptAnswer(
 
   const updated = await repo.setAcceptedAnswer(db, opts.commentId, opts.threadId);
   return ok(updated);
+}
+
+async function notifyParentCommentAuthor(
+  db: DB,
+  forumId: string,
+  threadId: string,
+  parentCommentId: string,
+  replierId: string,
+  replyCommentId: string,
+): Promise<void> {
+  const parent = await repo.getCommentById(db, parentCommentId);
+  if (!parent) return;
+  await notifyCommentReply(db, {
+    forumId,
+    threadId,
+    replyCommentId,
+    replierId,
+    parentCommentAuthorId: parent.authorId,
+  });
 }
 
 async function embedComment(

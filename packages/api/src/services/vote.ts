@@ -5,6 +5,11 @@ import type { Result } from '../lib/result';
 import * as voteRepo from '../repositories/vote';
 import * as commentRepo from '../repositories/comment';
 import * as threadRepo from '../repositories/thread';
+import { notifyVote } from './notification';
+
+function directionLabel(direction: VoteDirection): 'up' | 'down' {
+  return direction === 1 ? 'up' : 'down';
+}
 
 export type VoteError = 'thread_not_found' | 'comment_not_found';
 
@@ -28,6 +33,14 @@ export async function voteOnThread(
     await voteRepo.removeVote(db, target, userId);
   } else {
     await voteRepo.upsertVote(db, target, userId, direction);
+    void notifyVote(db, {
+      forumId: thread.forumId,
+      kind: 'thread',
+      threadId,
+      voterId: userId,
+      authorId: thread.authorId,
+      direction: directionLabel(direction),
+    });
   }
 
   const voteCounts = await voteRepo.getVoteCounts(db, target);
@@ -67,6 +80,20 @@ export async function voteOnComment(
     await voteRepo.removeVote(db, target, userId);
   } else {
     await voteRepo.upsertVote(db, target, userId, direction);
+    if (userId !== comment.authorId) {
+      const thread = await threadRepo.getThreadById(db, comment.threadId);
+      if (thread) {
+        void notifyVote(db, {
+          forumId: thread.forumId,
+          kind: 'comment',
+          threadId: comment.threadId,
+          commentId,
+          voterId: userId,
+          authorId: comment.authorId,
+          direction: directionLabel(direction),
+        });
+      }
+    }
   }
 
   const voteCounts = await voteRepo.getVoteCounts(db, target);
