@@ -1,0 +1,41 @@
+/* Card-style notification row: avatar cluster on the left, text in the
+   middle, thread thumbnail on the right. Reuses fk-search-dropdown-row's
+   button/hover chrome and fk-post-card-row's "text left, thumbnail right"
+   layout — this file only adds what neither of those already covers. */
+
+.fk-notification-row {
+  align-items: flex-start;
+  padding: 12px 10px;
+}
+
+.fk-notification-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Type-icon badge, positioned like Avatar's own .fk-avatar-online dot
+   (bottom-right corner, ringed in the page background so it reads as
+   "cut out" from the avatar behind it) but sized to hold a small icon. */
+.fk-notification-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border: 2px solid var(--bg);
+}
+
+/* A touch darker than full-brightness --text, same reasoning
+   SearchResults' own title color-mix already documents: a page full of
+   stacked full-white titles against the dark background reads as too
+   sharp a contrast. */
+.fk-notification-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text), var(--text-2));
+}

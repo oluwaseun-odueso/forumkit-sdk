@@ -1,22 +1,29 @@
 import { useEffect, useState } from 'react';
-import type { Notification } from '@forumkit/types';
+import type { Notification, NotificationType } from '@forumkit/types';
 import Shell from '../components/layout/shell';
 import Avatar from '../components/shared/avatar';
+import Thumbnail from '../components/shared/thumbnail';
 import PillButton from '../components/shared/pill-button';
 import MascotIcon from '../components/layout/mascot-icon';
-import { ChevronLeftIcon } from '../components/shared/icons';
+import {
+  ChevronLeftIcon, UpvoteIcon, DownvoteIcon, CommentIcon, ShareIcon, ReportIcon,
+} from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
 import { listNotifications, markNotificationRead, markAllNotificationsRead } from '../api/notifications';
 import { useForum } from '../hooks/use-forum-state';
 import { useInfiniteScroll } from '../hooks/use-infinite-scroll';
-// Reuses the top-nav search dropdown's row/status classes (same convention
-// SearchResults.tsx already established for a full-page list built out of
-// dropdown-style rows) rather than a parallel notifications-specific
-// stylesheet — only the unread-state modifier is new (added there, not here).
+// Reuses the top-nav search dropdown's status/divider classes, the feed
+// post-card's "text left, thumbnail right" row shape (fk-post-card-row
+// etc.), and the profile activity feed's "on {thread title}" context line
+// (fk-profile-comment-card-context/-thread-title) rather than three
+// parallel stylesheets — only the badge/facepile/title-color rules below
+// are new.
 import '../components/layout/search-results-dropdown.css';
 import '../components/feed/post-card.css';
+import '../components/profile/profile-comment-card.css';
 import './profile.css';
+import './notifications.css';
 
 const PAGE_SIZE = 20;
 
@@ -42,21 +49,88 @@ function describe(n: Notification): string {
   }
 }
 
+// Icon + accent color for the small corner badge — everything except
+// 'share' (which gets its own facepile treatment, see AvatarCluster below)
+// and 'vote' (which splits into up/down based on the message field, not
+// just the type) maps directly.
+const TYPE_BADGE: Partial<Record<NotificationType, { Icon: typeof CommentIcon; color: string }>> = {
+  comment_reply: { Icon: CommentIcon, color: 'var(--accent)' },
+  share: { Icon: ShareIcon, color: 'var(--accent)' },
+  report: { Icon: ReportIcon, color: 'var(--muted)' },
+};
+
+function getBadge(n: Notification): { Icon: typeof CommentIcon; color: string } {
+  if (n.type === 'vote') {
+    return n.message === 'down'
+      ? { Icon: DownvoteIcon, color: 'var(--down)' }
+      : { Icon: UpvoteIcon, color: 'var(--up)' };
+  }
+  return TYPE_BADGE[n.type] ?? { Icon: CommentIcon, color: 'var(--accent)' };
+}
+
+// The avatar side of a notification row: for a share where the sharer isn't
+// the thread's own author, overlaps the sharer's avatar with the thread
+// author's (a small facepile) so the row reads "X shared Y's thread with
+// you" at a glance — falls back to the plain icon-badge (same as every
+// other type) when someone shares their own thread, since two identical
+// overlapping avatars would look like a bug, not a feature.
+function AvatarCluster({ n }: { n: Notification }) {
+  const actorAvatarData = authorAvatar(n.actorId ?? undefined, n.actorDisplayName ?? 'Someone');
+
+  const isSharedByOthers = n.type === 'share' && n.threadAuthorId && n.threadAuthorId !== n.actorId;
+  if (isSharedByOthers) {
+    const authorAvatarData = authorAvatar(n.threadAuthorId ?? undefined, n.threadAuthorDisplayName ?? 'Someone');
+    return (
+      <div className="fk-notification-avatar-wrap">
+        <Avatar size={36} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+        <Avatar
+          size={20}
+          gradient={authorAvatarData.gradient}
+          letter={authorAvatarData.letter}
+          imageUrl={n.threadAuthorAvatarUrl}
+          style={{ position: 'absolute', bottom: -3, right: -3, border: '2px solid var(--bg)' }}
+        />
+      </div>
+    );
+  }
+
+  const badge = getBadge(n);
+  return (
+    <div className="fk-notification-avatar-wrap">
+      <Avatar size={36} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+      <span className="fk-notification-badge" style={{ background: badge.color }}>
+        <badge.Icon size={11} />
+      </span>
+    </div>
+  );
+}
+
 function NotificationRow({ n, onOpen }: { n: Notification; onOpen: () => void }) {
-  const avatar = authorAvatar(n.actorId ?? undefined, n.actorDisplayName ?? 'Someone');
   const unread = !n.readAt;
   return (
     <div className="fk-search-results-person-row">
       <button
         type="button"
-        className={`fk-search-dropdown-row fk-search-results-row${unread ? ' fk-search-dropdown-row--unread' : ''}`}
+        className={`fk-search-dropdown-row fk-search-results-row fk-notification-row${unread ? ' fk-search-dropdown-row--unread' : ''}`}
         onClick={onOpen}
       >
-        <Avatar size={36} gradient={avatar.gradient} letter={avatar.letter} imageUrl={n.actorAvatarUrl} />
-        <span className="fk-search-dropdown-row-text">
-          <span className="fk-search-dropdown-row-title">{describe(n)}</span>
-          <span className="fk-search-dropdown-row-snippet">{fmtRelativeTime(n.createdAt)}</span>
-        </span>
+        <AvatarCluster n={n} />
+        <div className="fk-post-card-row" style={{ flex: 1, minWidth: 0 }}>
+          <div className="fk-post-card-row-text">
+            <span className="fk-notification-title">{describe(n)}</span>
+            {n.threadTitle && (
+              <div className="fk-profile-comment-card-context" style={{ marginTop: 3, marginBottom: 0 }}>
+                on <span className="fk-profile-comment-card-thread-title">{n.threadTitle}</span>
+              </div>
+            )}
+            <span className="fk-search-dropdown-row-snippet">{fmtRelativeTime(n.createdAt)}</span>
+          </div>
+          {n.threadTitle && (
+            <div className="fk-post-card-row-img">
+              <Thumbnail gradient="linear-gradient(135deg,#3f7ee2,#7b5cff)" imageUrl={n.threadImageUrl} width={64} height={64} radius={12} />
+            </div>
+          )}
+        </div>
       </button>
       <div className="fk-post-card-divider" />
     </div>
