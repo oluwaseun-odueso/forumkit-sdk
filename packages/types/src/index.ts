@@ -387,6 +387,46 @@ export type SearchResponse<T> = {
   mode: 'hybrid' | 'keyword';
 };
 
+// The `notifications.type` column is plain TEXT in Postgres (not an ENUM,
+// which is annoying to extend) — but that doesn't mean the TypeScript side
+// needs to be a loose `string` too. A real union costs nothing in migration
+// terms and buys typo-catching + exhaustiveness checking wherever a type is
+// mapped to display text; adding a future trigger is one more literal here.
+export type NotificationType = 'share' | 'comment_reply' | 'vote';
+
+// One row per event a user should see on the Notifications page.
+export type Notification = {
+  id: string;
+  forumId: string;
+  userId: string;
+  actorId: string | null;
+  actorDisplayName: string | null;
+  actorAvatarUrl: string | null;
+  type: NotificationType;
+  threadId: string | null;
+  commentId: string | null;
+  // Only meaningful for type: 'vote' today ('up' | 'down') — kept as a
+  // plain nullable string rather than a second typed field, since it's
+  // genuinely just "extra type-specific detail," not a first-class column
+  // every notification has an opinion about.
+  message: string | null;
+  readAt: Date | null;
+  createdAt: Date;
+};
+
+export type NotificationListResponse = {
+  results: Notification[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export type NotificationPrefs = {
+  commentReply: boolean;
+  share: boolean;
+  vote: boolean;
+};
+
 // GET /forums/:forumId/search/users — People section of the search results
 // page. Fuzzy-only (trigram similarity on display_name), no semantic mode:
 // a display name is one short string, not a document worth embedding.
@@ -480,4 +520,10 @@ export type ForumKitConfig = {
   onLogout?: () => void;             // host owns the real sign-out flow; if provided, the
                                       // account menu shows a "Log Out" item that calls this.
                                       // Omitted entirely (no dead button) if not provided.
+  // 'web': Share offers both a copyable link and in-app member sharing.
+  // 'native': Share skips the link (nowhere meaningful to paste one inside
+  // a native app shell) and goes straight to in-app member sharing.
+  // Declared explicitly by the host, not auto-detected — there's no
+  // reliable runtime signal for "am I inside a native app" today.
+  platform?: 'web' | 'native';       // defaults to 'web'
 };
