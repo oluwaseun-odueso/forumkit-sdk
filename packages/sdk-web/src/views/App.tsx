@@ -19,6 +19,7 @@ function Router() {
     closeDraftsList, resumeDraft, deleteDraftFromList,
     closeShareModal,
     closeReportModal, submitReport,
+    setNotificationPref,
   } = useForum();
   const { profile } = state;
 
@@ -39,6 +40,8 @@ function Router() {
           bannerUrl={profile.bannerUrl}
           themePreference={profile.themePreference}
           onToggleTheme={toggleTheme}
+          notificationPrefs={profile.notificationPrefs}
+          onToggleNotificationPref={(type, enabled) => void setNotificationPref(type, enabled)}
           onSave={saveProfile}
           onClose={closeSettings}
         />

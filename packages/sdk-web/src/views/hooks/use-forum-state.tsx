@@ -5,7 +5,7 @@ import {
 import type {
   SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow,
   ProfileActivityItem, ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
-  Draft, DraftContent, SearchResult,
+  Draft, DraftContent, SearchResult, NotificationPrefs,
 } from '@forumkit/types';
 import { searchThreads as apiSearchThreads } from '../api/search';
 import { getUnreadCount as apiGetUnreadCount } from '../api/notifications';
@@ -16,7 +16,7 @@ import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
 import {
-  getMyProfile, updateMyProfile, updateThemePreference, getProfileActivity,
+  getMyProfile, updateMyProfile, updateThemePreference, updateNotificationPrefs as apiUpdateNotificationPrefs, getProfileActivity,
   getUserProfile, getUserActivity,
 } from '../api/profile';
 import { getForum } from '../api/forums';
@@ -132,6 +132,7 @@ type ProfileState = {
   postKarma: number;
   commentKarma: number;
   themePreference: 'light' | 'dark' | null;
+  notificationPrefs: NotificationPrefs;
   activityItems: ActivityItemView[];
   activityTotal: number;
   activityPage: number;
@@ -149,7 +150,7 @@ type ProfileState = {
 // case. Derived from ProfileState via Omit/& rather than hand-duplicated:
 // same shape plus userId, minus themePreference (that's a personal setting,
 // meaningless when looking at someone else's profile).
-type ViewedProfileState = Omit<ProfileState, 'themePreference' | 'id'> & { userId: string };
+type ViewedProfileState = Omit<ProfileState, 'themePreference' | 'notificationPrefs' | 'id'> & { userId: string };
 
 // Covers both the top-nav live dropdown (query/results/loading/open — open
 // is whether that small dropdown panel is currently visible, separate from
@@ -290,6 +291,7 @@ type Action =
       commentKarma: number; themePreference: 'light' | 'dark' | null;
     }
   | { type: 'SET_THEME_PREFERENCE'; themePreference: 'light' | 'dark' | null }
+  | { type: 'SET_NOTIFICATION_PREFS'; prefs: NotificationPrefs }
   | { type: 'SET_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
   | { type: 'APPEND_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
   | { type: 'SET_PROFILE_ACTIVITY_LOADING'; loading: boolean }
@@ -552,6 +554,7 @@ const initialState: State = {
   profile: {
     activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null,
     joinedAt: null, postKarma: 0, commentKarma: 0, themePreference: null,
+    notificationPrefs: { commentReply: true, share: true, vote: true, moderationReport: true },
     activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
     activitySort: 'new', activityContentType: 'all',
   },
@@ -966,6 +969,8 @@ function reducer(state: State, action: Action): State {
       };
     case 'SET_THEME_PREFERENCE':
       return { ...state, profile: { ...state.profile, themePreference: action.themePreference } };
+    case 'SET_NOTIFICATION_PREFS':
+      return { ...state, profile: { ...state.profile, notificationPrefs: action.prefs } };
     case 'SET_PROFILE_ACTIVITY':
       return {
         ...state,
@@ -1450,6 +1455,14 @@ function useForumStateInternal() {
     if (forumId) await updateThemePreference(forumId, next, sessionToken);
   }, [state.profile.themePreference, themeHost, forumId, sessionToken]);
 
+  // Same "fires immediately, not gated behind Save" pattern as toggleTheme
+  // above — each Settings switch calls this directly on click.
+  const setNotificationPref = useCallback(async (type: keyof NotificationPrefs, enabled: boolean) => {
+    const next = { ...state.profile.notificationPrefs, [type]: enabled };
+    dispatch({ type: 'SET_NOTIFICATION_PREFS', prefs: next });
+    if (forumId) await apiUpdateNotificationPrefs(forumId, next, sessionToken);
+  }, [state.profile.notificationPrefs, forumId, sessionToken]);
+
   // ForumKit never owns credentials (JWT identity delegation — see
   // CLAUDE.md); it can't log anyone out itself. The host app opts in by
   // providing ForumKitConfig.onLogout — canLogOut lets the account menu
@@ -1630,6 +1643,7 @@ function useForumStateInternal() {
         commentKarma: profile.commentKarma,
         themePreference: profile.themePreference,
       });
+      dispatch({ type: 'SET_NOTIFICATION_PREFS', prefs: profile.notificationPrefs });
       // A saved server preference overrides whatever the host app initialised
       // ForumKit with — same localStorage key use-theme.ts already reads, so
       // top-nav's own theme toggle picks this up on its next mount too.
@@ -2024,6 +2038,7 @@ function useForumStateInternal() {
     openReportModal,
     closeReportModal,
     submitReport,
+    setNotificationPref,
   };
 }
 

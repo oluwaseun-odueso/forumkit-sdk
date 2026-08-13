@@ -207,6 +207,42 @@
   cursor: pointer;
 }
 
+/* Boolean on/off switch used by the notification-preference rows below —
+   Display Mode above is a two-icon cycle button, not a boolean, so it
+   doesn't share this; this is the first real switch control in the app. */
+.fk-edit-modal-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.fk-edit-modal-switch--on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.fk-edit-modal-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.15s ease;
+}
+
+.fk-edit-modal-switch--on .fk-edit-modal-switch-knob {
+  transform: translateX(16px);
+  background: white;
+}
+
 .fk-edit-modal-theme-toggle:hover {
   background: var(--hover-2);
 }

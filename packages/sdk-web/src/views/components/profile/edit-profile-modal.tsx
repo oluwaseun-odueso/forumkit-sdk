@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import type { NotificationPrefs } from '@forumkit/types';
 import type { SocialLink } from '../../hooks/use-forum-state';
 import { resizeImage } from '../../utils/resize-image';
 import PillButton from '../shared/pill-button';
@@ -71,14 +72,24 @@ type EditProfileModalProps = {
   bannerUrl: string | null;
   themePreference: 'light' | 'dark' | null;
   onToggleTheme: () => void;
+  notificationPrefs: NotificationPrefs;
+  onToggleNotificationPref: (type: keyof NotificationPrefs, enabled: boolean) => void;
   onSave: (payload: SavePayload) => Promise<void>;
   onClose: () => void;
 };
 
+const NOTIFICATION_PREF_ROWS: { key: keyof NotificationPrefs; label: string; sub: string }[] = [
+  { key: 'commentReply', label: 'Comment replies', sub: 'When someone replies to your comment' },
+  { key: 'share', label: 'Shares', sub: 'When someone shares a post with you' },
+  { key: 'vote', label: 'Upvotes & downvotes', sub: 'When someone votes on your post or comment' },
+  { key: 'moderationReport', label: 'Moderation reports', sub: 'When a member reports a post or comment (admins/moderators only)' },
+];
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EditProfileModal({
-  displayName, bio, socialLinks, avatarUrl, bannerUrl, themePreference, onToggleTheme, onSave, onClose,
+  displayName, bio, socialLinks, avatarUrl, bannerUrl, themePreference, onToggleTheme,
+  notificationPrefs, onToggleNotificationPref, onSave, onClose,
 }: EditProfileModalProps) {
   const isDark = themePreference !== 'light';
   const [draftName, setDraftName] = useState(displayName);
@@ -306,6 +317,28 @@ export default function EditProfileModal({
               {isDark ? <MoonIcon size={17} /> : <SunIcon size={17} />}
             </button>
           </div>
+
+          {NOTIFICATION_PREF_ROWS.map(row => {
+            const enabled = notificationPrefs[row.key];
+            return (
+              <div className="fk-edit-modal-preference-row" key={row.key}>
+                <div>
+                  <div className="fk-edit-modal-preference-label">{row.label}</div>
+                  <div className="fk-edit-modal-preference-sub">{row.sub}</div>
+                </div>
+                <button
+                  type="button"
+                  className={`fk-edit-modal-switch${enabled ? ' fk-edit-modal-switch--on' : ''}`}
+                  role="switch"
+                  aria-checked={enabled}
+                  aria-label={row.label}
+                  onClick={() => onToggleNotificationPref(row.key, !enabled)}
+                >
+                  <span className="fk-edit-modal-switch-knob" />
+                </button>
+              </div>
+            );
+          })}
 
           {saveError && <p className="fk-edit-modal-save-error">{saveError}</p>}
         </div>
