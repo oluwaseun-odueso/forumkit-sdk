@@ -34,6 +34,12 @@ export async function markRead(db: DB, id: string, userId: string): Promise<Resu
   return ok(undefined);
 }
 
+export async function deleteNotification(db: DB, id: string, userId: string): Promise<Result<void, NotificationError>> {
+  const deleted = await repo.deleteNotification(db, id, userId);
+  if (!deleted) return err('not_found');
+  return ok(undefined);
+}
+
 export async function markAllRead(db: DB, forumId: string, userId: string): Promise<void> {
   await repo.markAllRead(db, forumId, userId);
 }

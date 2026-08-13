@@ -49,6 +49,15 @@ export async function markNotificationRead(forumId: string, id: string, token?: 
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+// DELETE /forums/:forumId/notifications/:id
+export async function deleteNotification(forumId: string, id: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/forums/${forumId}/notifications/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 // PATCH /forums/:forumId/notifications/read-all
 export async function markAllNotificationsRead(forumId: string, token?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/notifications/read-all`, {

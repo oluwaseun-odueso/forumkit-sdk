@@ -200,6 +200,17 @@ export async function markRead(db: DB, id: string, userId: string): Promise<bool
   return rows.length > 0;
 }
 
+// Scoped to userId, same as markRead — a user can only ever delete their own
+// notifications, never guess another user's row id.
+export async function deleteNotification(db: DB, id: string, userId: string): Promise<boolean> {
+  const rows = await db<[{ id: string }] | []>`
+    DELETE FROM notifications
+    WHERE id = ${id} AND user_id = ${userId}
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
 export async function markAllRead(db: DB, forumId: string, userId: string): Promise<void> {
   await db`
     UPDATE notifications

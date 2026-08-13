@@ -83,6 +83,22 @@ export async function notificationsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
+   * DELETE /forums/:forumId/notifications/:id
+   */
+  app.delete('/:forumId/notifications/:id', { preHandler: authenticate }, async (request, reply) => {
+    const { forumId, id } = request.params as { forumId: string; id: string };
+
+    const user = await resolveUser(request, forumId);
+    if (!user) return sendSessionRequired(reply);
+
+    const result = await notificationService.deleteNotification(request.server.db, id, user.id);
+    if (!result.ok) {
+      return reply.status(404).send({ error: 'not_found', message: 'Notification not found', statusCode: 404 });
+    }
+    return reply.status(204).send();
+  });
+
+  /**
    * PATCH /forums/:forumId/notifications/read-all
    */
   app.patch('/:forumId/notifications/read-all', { preHandler: authenticate }, async (request, reply) => {

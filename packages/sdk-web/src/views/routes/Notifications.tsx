@@ -4,21 +4,23 @@ import Shell from '../components/layout/shell';
 import Avatar from '../components/shared/avatar';
 import Thumbnail from '../components/shared/thumbnail';
 import PillButton from '../components/shared/pill-button';
+import IconButton from '../components/shared/icon-button';
 import MascotIcon from '../components/layout/mascot-icon';
 import {
-  ChevronLeftIcon, UpvoteIcon, DownvoteIcon, CommentIcon, ShareIcon, ReportIcon,
+  ChevronLeftIcon, UpvoteIcon, DownvoteIcon, CommentIcon, ShareIcon, ReportIcon, GearIcon, CloseIcon,
 } from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
-import { listNotifications, markNotificationRead, markAllNotificationsRead } from '../api/notifications';
+import {
+  listNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification,
+} from '../api/notifications';
 import { useForum } from '../hooks/use-forum-state';
 import { useInfiniteScroll } from '../hooks/use-infinite-scroll';
-// Reuses the top-nav search dropdown's status/divider classes, the feed
-// post-card's "text left, thumbnail right" row shape (fk-post-card-row
-// etc.), and the profile activity feed's "on {thread title}" context line
-// (fk-profile-comment-card-context/-thread-title) rather than three
-// parallel stylesheets — only the badge/facepile/title-color rules below
-// are new.
+// Reuses the feed post-card's "text left, thumbnail right" row shape
+// (fk-post-card-row etc.) and the profile activity feed's "on {thread
+// title}" context line (fk-profile-comment-card-context/-thread-title)
+// rather than parallel stylesheets — only the card/row/badge/facepile
+// rules in notifications.css are new.
 import '../components/layout/search-results-dropdown.css';
 import '../components/feed/post-card.css';
 import '../components/profile/profile-comment-card.css';
@@ -91,13 +93,13 @@ function AvatarCluster({ n }: { n: Notification }) {
     const authorAvatarData = authorAvatar(n.threadAuthorId ?? undefined, n.threadAuthorDisplayName ?? 'Someone');
     return (
       <div className="fk-notification-facepile">
-        <Avatar size={44} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+        <Avatar size={36} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
         <Avatar
-          size={44}
+          size={36}
           gradient={authorAvatarData.gradient}
           letter={authorAvatarData.letter}
           imageUrl={n.threadAuthorAvatarUrl}
-          style={{ position: 'absolute', top: 22, left: 22, border: '3px solid var(--bg)' }}
+          style={{ position: 'absolute', top: 16, left: 16, border: '2px solid var(--elev)' }}
         />
       </div>
     );
@@ -106,42 +108,45 @@ function AvatarCluster({ n }: { n: Notification }) {
   const badge = getBadge(n);
   return (
     <div className="fk-notification-avatar-wrap">
-      <Avatar size={52} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+      <Avatar size={40} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
       <span className="fk-notification-badge" style={{ background: badge.color }}>
-        <badge.Icon size={14} />
+        <badge.Icon size={11} />
       </span>
     </div>
   );
 }
 
-function NotificationRow({ n, onOpen }: { n: Notification; onOpen: () => void }) {
+function NotificationRow({ n, onOpen, onDelete }: { n: Notification; onOpen: () => void; onDelete: () => void }) {
   const unread = !n.readAt;
   return (
-    <div className="fk-search-results-person-row">
-      <button
-        type="button"
-        className={`fk-search-dropdown-row fk-search-results-row fk-notification-row${unread ? ' fk-search-dropdown-row--unread' : ''}`}
-        onClick={onOpen}
-      >
+    <div className={`fk-notification-row-v2${unread ? ' fk-notification-row-v2--unread' : ''}`}>
+      <button type="button" className="fk-notification-row-v2-main" onClick={onOpen}>
         <AvatarCluster n={n} />
         <div className="fk-post-card-row" style={{ flex: 1, minWidth: 0 }}>
           <div className="fk-post-card-row-text">
             <span className="fk-notification-title">{describe(n)}</span>
             {n.threadTitle && (
-              <div className="fk-profile-comment-card-context" style={{ marginTop: 3, marginBottom: 0 }}>
+              <div className="fk-profile-comment-card-context" style={{ marginTop: 2, marginBottom: 0 }}>
                 on <span className="fk-profile-comment-card-thread-title">{n.threadTitle}</span>
               </div>
             )}
-            <span className="fk-search-dropdown-row-snippet">{fmtRelativeTime(n.createdAt)}</span>
+            <span className="fk-notification-time">{fmtRelativeTime(n.createdAt)}</span>
           </div>
           {n.threadTitle && (
             <div className="fk-post-card-row-img">
-              <Thumbnail gradient="linear-gradient(135deg,#3f7ee2,#7b5cff)" imageUrl={n.threadImageUrl} width={110} height={110} radius={14} />
+              <Thumbnail gradient="linear-gradient(135deg,#3f7ee2,#7b5cff)" imageUrl={n.threadImageUrl} width={56} height={56} radius={10} />
             </div>
           )}
         </div>
       </button>
-      <div className="fk-post-card-divider" />
+      <button
+        type="button"
+        className="fk-notification-delete"
+        aria-label="Delete notification"
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+      >
+        <CloseIcon size={13} />
+      </button>
     </div>
   );
 }
@@ -151,10 +156,12 @@ function NotificationRow({ n, onOpen }: { n: Notification; onOpen: () => void })
  * that's ever notified this user (read rows stay visible, just un-highlighted
  * — same "read inbox" convention as email). Clicking a row is a combined
  * mark-read + navigate action, mirroring how opening a thread elsewhere in
- * the app is a single click too.
+ * the app is a single click too. Hovering a row reveals a delete button;
+ * the settings gear opens the same notification-preferences toggles
+ * already in the profile Settings modal, not a separate duplicate UI.
  */
 export function Notifications() {
-  const { state, goBack, openThread, forumId: fid, sessionToken: token, refreshUnreadCount } = useForum();
+  const { state, goBack, openThread, openSettings, forumId: fid, sessionToken: token, refreshUnreadCount } = useForum();
 
   const [items, setItems] = useState<Notification[]>([]);
   const [total, setTotal] = useState(0);
@@ -206,6 +213,20 @@ export function Notifications() {
     refreshUnreadCount();
   }
 
+  async function handleDelete(n: Notification) {
+    if (!fid) return;
+    const wasUnread = !n.readAt;
+    setItems(prev => prev.filter(item => item.id !== n.id));
+    setTotal(t => Math.max(0, t - 1));
+    try {
+      await deleteNotification(fid, n.id, token);
+    } catch {
+      // Best-effort — if the delete failed server-side, the row simply
+      // reappears next time the list is fetched; not worth a rollback.
+    }
+    if (wasUnread) refreshUnreadCount();
+  }
+
   const hasUnread = items.some(n => !n.readAt);
 
   return (
@@ -215,13 +236,19 @@ export function Notifications() {
           <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
         )}
 
-        <div className="fk-profile-filter-row">
-          <div className="fk-profile-filter-label">Notifications</div>
-          {hasUnread && (
-            <button type="button" className="fk-search-results-goto-link" onClick={handleMarkAllRead}>
-              Mark all read
-            </button>
-          )}
+        <div className="fk-notifications-header">
+          <h2 className="fk-notifications-heading">Notifications</h2>
+          <div className="fk-notifications-header-actions">
+            {hasUnread && (
+              <button type="button" className="fk-search-results-goto-link" onClick={handleMarkAllRead}>
+                Mark all as read
+              </button>
+            )}
+            <span className="fk-notifications-header-divider" />
+            <IconButton label="Notification settings" size={34} onClick={openSettings}>
+              <GearIcon size={18} />
+            </IconButton>
+          </div>
         </div>
 
         {loading && items.length === 0 ? (
@@ -229,7 +256,11 @@ export function Notifications() {
         ) : items.length === 0 ? (
           <div className="fk-search-dropdown-status">No notifications yet</div>
         ) : (
-          items.map(n => <NotificationRow key={n.id} n={n} onOpen={() => handleOpen(n)} />)
+          <div className="fk-notifications-card">
+            {items.map(n => (
+              <NotificationRow key={n.id} n={n} onOpen={() => handleOpen(n)} onDelete={() => handleDelete(n)} />
+            ))}
+          </div>
         )}
 
         {hasMore && <div ref={sentinelRef} />}
