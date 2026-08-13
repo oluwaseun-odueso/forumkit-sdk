@@ -413,6 +413,16 @@ export type Notification = {
   message: string | null;
   readAt: Date | null;
   createdAt: Date;
+  // Resolved from threadId (or, for comment-only 'report' rows, from
+  // commentId -> comments.thread_id) at read time — never null in practice
+  // since every notification type here always has a resolvable thread, but
+  // typed nullable defensively. threadAuthor* is only actually consumed by
+  // the frontend for type: 'share' (the sharer/thread-author facepile).
+  threadTitle: string | null;
+  threadImageUrl: string | null;
+  threadAuthorId: string | null;
+  threadAuthorDisplayName: string | null;
+  threadAuthorAvatarUrl: string | null;
 };
 
 export type NotificationListResponse = {

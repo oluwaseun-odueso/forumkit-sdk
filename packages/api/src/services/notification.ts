@@ -12,6 +12,7 @@ const MAX_LIMIT = 50;
 
 export async function listNotifications(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   userId: string,
   page: number | undefined,
@@ -19,7 +20,7 @@ export async function listNotifications(
 ): Promise<{ results: Notification[]; total: number; page: number; limit: number }> {
   const p = Math.max(1, page ?? DEFAULT_PAGE);
   const l = Math.min(MAX_LIMIT, Math.max(1, limit ?? DEFAULT_LIMIT));
-  const { results, total } = await repo.listNotifications(db, forumId, userId, { page: p, limit: l });
+  const { results, total } = await repo.listNotifications(db, forumId, userId, { page: p, limit: l }, publicApiUrl);
   return { results, total, page: p, limit: l };
 }
 

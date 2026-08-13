@@ -48,7 +48,7 @@ export async function notificationsRoutes(app: FastifyInstance): Promise<void> {
     if (!user) return sendSessionRequired(reply);
 
     const result = await notificationService.listNotifications(
-      request.server.db, forumId, user.id, parsed.data.page, parsed.data.limit,
+      request.server.db, request.server.config.publicApiUrl, forumId, user.id, parsed.data.page, parsed.data.limit,
     );
     return reply.status(200).send(result);
   });
