@@ -9,6 +9,7 @@ import type {
 } from '@forumkit/types';
 import { searchThreads as apiSearchThreads } from '../api/search';
 import { getUnreadCount as apiGetUnreadCount } from '../api/notifications';
+import { shareThreadWithUsers as apiShareThreadWithUsers } from '../api/threads';
 import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
@@ -198,6 +199,7 @@ type State = {
   draftsModal: DraftsModalState;
   search: SearchState;
   notifications: { unreadCount: number };
+  shareModal: { open: boolean; threadId: string | null };
   history: NavEntry[];
   // Set by GO_BACK to the scroll position the previous page was at; Shell
   // applies it to the scrollable main column then clears it via
@@ -226,6 +228,8 @@ type Action =
   | { type: 'SET_FEATURED_RAIL'; items: RailItem[] }
   | { type: 'SET_FORUM_CONFIG'; config: ForumConfig }
   | { type: 'SET_UNREAD_COUNT'; count: number }
+  | { type: 'OPEN_SHARE_MODAL'; threadId: string }
+  | { type: 'CLOSE_SHARE_MODAL' }
   | { type: 'TOGGLE_SORT_MENU' }
   | { type: 'TOGGLE_VIEW_MENU' }
   | { type: 'TOGGLE_TOP_WINDOW_MENU' }
@@ -551,6 +555,7 @@ const initialState: State = {
   draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
   search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
   notifications: { unreadCount: 0 },
+  shareModal: { open: false, threadId: null },
   history: [],
   pendingScrollTop: null,
 };
@@ -679,6 +684,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, forumConfig: action.config };
     case 'SET_UNREAD_COUNT':
       return { ...state, notifications: { unreadCount: action.count } };
+    case 'OPEN_SHARE_MODAL':
+      return { ...state, shareModal: { open: true, threadId: action.threadId } };
+    case 'CLOSE_SHARE_MODAL':
+      return { ...state, shareModal: { open: false, threadId: null } };
     case 'TOGGLE_SORT_MENU':
       return { ...state, feed: { ...state.feed, sortMenuOpen: !state.feed.sortMenuOpen, viewMenuOpen: false, topWindowMenuOpen: false } };
     case 'TOGGLE_VIEW_MENU':
@@ -1801,6 +1810,47 @@ function useForumStateInternal() {
     refreshUnreadCount();
   }, [refreshUnreadCount]);
 
+  // ─── Share ────────────────────────────────────────────────────────────────
+  // Web mode offers both a link and in-app member sharing; native mode offers
+  // only member sharing (see ForumKitConfig.platform's own doc comment for
+  // why there's no reliable way to auto-detect this instead).
+
+  const openShareModal = useCallback((threadId: string) => dispatch({ type: 'OPEN_SHARE_MODAL', threadId }), []);
+  const closeShareModal = useCallback(() => dispatch({ type: 'CLOSE_SHARE_MODAL' }), []);
+
+  // Builds a URL that, when loaded, auto-opens this thread (see the fk_thread
+  // bootstrap effect below) — the current location's own params are kept so
+  // sharing a link doesn't drop whatever other query state a host page has.
+  const copyShareLink = useCallback((threadId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('fk_thread', threadId);
+    const shareUrl = url.toString();
+    if (navigator.share) {
+      navigator.share({ url: shareUrl }).catch(() => {});
+    } else {
+      void navigator.clipboard.writeText(shareUrl);
+    }
+  }, []);
+
+  const shareThreadWithMembers = useCallback(async (recipientUserIds: string[], message: string | undefined) => {
+    const threadId = state.shareModal.threadId;
+    if (!threadId) throw new Error('No thread selected to share');
+    await apiShareThreadWithUsers(forumId, threadId, recipientUserIds, message, sessionToken);
+  }, [state.shareModal.threadId, forumId, sessionToken]);
+
+  // One-shot: a shared link lands here with ?fk_thread=<id> in the URL, and
+  // this opens that thread automatically once the session is ready. Guarded
+  // by a ref (not state) so it fires exactly once and doesn't re-trigger on
+  // use-session's own 80%-TTL refresh cycle.
+  const firedThreadBootstrap = useRef(false);
+  useEffect(() => {
+    if (firedThreadBootstrap.current || !sessionToken || !forumId) return;
+    const threadId = new URLSearchParams(window.location.search).get('fk_thread');
+    if (!threadId) return;
+    firedThreadBootstrap.current = true;
+    openThread(threadId);
+  }, [sessionToken, forumId, openThread]);
+
   // ─── Featured rail: pinned threads, admin-curated so it rarely changes ──────
 
   useEffect(() => {
@@ -1942,6 +1992,10 @@ function useForumStateInternal() {
     goBack,
     clearPendingScroll,
     refreshUnreadCount,
+    openShareModal,
+    closeShareModal,
+    copyShareLink,
+    shareThreadWithMembers,
   };
 }
 

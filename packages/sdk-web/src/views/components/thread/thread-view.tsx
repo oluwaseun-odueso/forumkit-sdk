@@ -8,7 +8,9 @@ import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
-import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon } from '../shared/icons';
+import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon } from '../shared/icons';
+import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
+import { useShare } from '../../hooks/use-share';
 import CommentSort from './comment-sort';
 import Comment from './comment';
 import './thread-view.css';
@@ -47,6 +49,10 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [postEditError, setPostEditError] = useState<string | null>(null);
+  // Called unconditionally (before the activePost null-check below) since
+  // hooks can't be conditional — activePost.id is stable once non-null, so
+  // an empty-string placeholder while it's still loading is harmless.
+  const share = useShare(activePost?.id ?? '');
 
   if (!activePost) return null;
   const avatar = authorAvatar(activePost.authorId, activePost.author);
@@ -191,10 +197,16 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           <CommentIcon size={18} />
           {activePost.commentCount}
         </div>
-        <button type="button" className="fk-thread-chip">
-          <ShareIcon size={18} />
-          Share
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button type="button" className="fk-thread-chip" onClick={share.handleShareClick}>
+            <ShareIcon size={18} />
+            Share
+          </button>
+          <DropdownMenu open={share.menuOpen} onClose={share.closeMenu} style={{ top: 40, left: 0, width: 210, padding: 6 }}>
+            <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={share.handleCopyLink} />
+            <DropdownMenuItem icon={<ShareIcon />} label="Share with a member" onClick={share.handleShareWithMember} />
+          </DropdownMenu>
+        </div>
         {isMyPost && !postEditOpen && (
           <button type="button" className="fk-thread-chip" onClick={openPostEdit}>
             Edit
@@ -267,6 +279,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         <Comment
           key={comment.id}
           comment={comment}
+          threadId={activePost.id}
           collapsed={state.thread.collapsed}
           currentUserId={currentUserId}
           onToggleCollapsed={toggleCommentCollapsed}

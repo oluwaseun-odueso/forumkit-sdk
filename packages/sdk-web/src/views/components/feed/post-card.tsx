@@ -8,7 +8,8 @@ import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon } from '../shared/icons';
+import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon, LinkIcon } from '../shared/icons';
+import { useShare } from '../../hooks/use-share';
 import './post-card.css';
 
 type PostCardProps = {
@@ -30,6 +31,7 @@ export default function PostCard({
 }: PostCardProps) {
   const avatar = authorAvatar(post.authorId, post.author);
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const share = useShare(post.id);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [snippetExpanded, setSnippetExpanded] = useState(false);
@@ -136,10 +138,16 @@ export default function PostCard({
           {post.commentCount}
         </button>
         <div className="fk-post-card-spacer" />
-        <button type="button" className="fk-post-card-chip">
-          <ShareIcon />
-          Share
-        </button>
+        <div className="fk-post-card-menu-anchor">
+          <button type="button" className="fk-post-card-chip" onClick={share.handleShareClick}>
+            <ShareIcon />
+            Share
+          </button>
+          <DropdownMenu open={share.menuOpen} onClose={share.closeMenu} style={{ top: 40, right: 0, width: 210, padding: 6 }}>
+            <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={share.handleCopyLink} />
+            <DropdownMenuItem icon={<ShareIcon />} label="Share with a member" onClick={share.handleShareWithMember} />
+          </DropdownMenu>
+        </div>
         <div className="fk-post-card-menu-anchor">
           <button type="button" className={`fk-post-card-ellipsis${menuOpen ? ' fk-post-card-ellipsis--open' : ''}`} onClick={onToggleMenu}>
             <EllipsisIcon />

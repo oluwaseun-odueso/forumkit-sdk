@@ -117,3 +117,27 @@ export async function unsaveThread(forumId: string, threadId: string, token?: st
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
+
+export async function reportThread(forumId: string, threadId: string, reason: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function shareThreadWithUsers(
+  forumId: string,
+  threadId: string,
+  recipientUserIds: string[],
+  message: string | undefined,
+  token?: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/share`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ recipientUserIds, message }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}

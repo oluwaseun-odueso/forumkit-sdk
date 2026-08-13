@@ -4,10 +4,17 @@ import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import VotePill from '../shared/vote-pill';
 import RenderedBody from '../shared/rendered-body';
+import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
+import { ShareIcon, LinkIcon } from '../shared/icons';
+import { useShare } from '../../hooks/use-share';
 import './comment.css';
 
 type CommentProps = {
   comment: CommentNodeData;
+  // Comments don't have their own shareable target — Share on a comment
+  // shares the parent thread, same as clicking Share anywhere else on that
+  // thread would.
+  threadId: string;
   depth?: number;
   collapsed: Record<string, boolean>;
   currentUserId: string | null;
@@ -23,12 +30,13 @@ type CommentProps = {
  * "link chain" connector line with a +/− toggle sitting on the line itself.
  */
 export default function Comment({
-  comment, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave,
+  comment, threadId, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave,
 }: CommentProps) {
   const isCollapsed = collapsed[comment.id] ?? false;
   const size = depth === 0 ? 'md' : 'sm';
   const isMine = currentUserId !== null && comment.authorId === currentUserId;
   const avatar = authorAvatar(comment.authorId, comment.author);
+  const share = useShare(threadId);
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -150,7 +158,15 @@ export default function Comment({
             <button type="button" className="fk-comment-action" onClick={() => onSave(comment.id)}>
               {comment.isSaved ? 'Saved' : 'Save'}
             </button>
-            {depth === 0 && <span className="fk-comment-action">Share</span>}
+            {depth === 0 && (
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <button type="button" className="fk-comment-action" onClick={share.handleShareClick}>Share</button>
+                <DropdownMenu open={share.menuOpen} onClose={share.closeMenu} style={{ top: 26, left: 0, width: 200, padding: 6 }}>
+                  <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={share.handleCopyLink} />
+                  <DropdownMenuItem icon={<ShareIcon />} label="Share with a member" onClick={share.handleShareWithMember} />
+                </DropdownMenu>
+              </div>
+            )}
           </div>
 
           {replyOpen && (
@@ -183,6 +199,7 @@ export default function Comment({
             <Comment
               key={reply.id}
               comment={reply}
+              threadId={threadId}
               depth={depth + 1}
               collapsed={collapsed}
               currentUserId={currentUserId}
