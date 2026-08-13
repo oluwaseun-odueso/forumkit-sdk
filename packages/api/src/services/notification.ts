@@ -104,6 +104,32 @@ export async function notifyVote(db: DB, input: NotifyVoteInput): Promise<void> 
   });
 }
 
+type NotifyShareInput = {
+  forumId: string;
+  threadId: string;
+  sharerId: string;
+  recipientUserIds: string[];
+  message?: string | null;
+};
+
+// One row per recipient, same broadcast shape as notifyReport — a share can
+// target several members at once (up to 20, enforced at the route layer).
+export async function notifyShare(db: DB, input: NotifyShareInput): Promise<void> {
+  await Promise.all(input.recipientUserIds.map(async (recipientId) => {
+    if (recipientId === input.sharerId) return;
+    const prefs = await repo.getNotificationPrefs(db, recipientId);
+    if (!prefs.share) return;
+    await repo.insertNotification(db, {
+      forumId: input.forumId,
+      userId: recipientId,
+      actorId: input.sharerId,
+      type: 'share',
+      threadId: input.threadId,
+      message: input.message ?? null,
+    });
+  }));
+}
+
 type NotifyReportInput = {
   forumId: string;
   reporterId: string;

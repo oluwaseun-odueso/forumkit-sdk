@@ -47,6 +47,12 @@ const voteBodySchema = z.object({ direction: z.union([z.literal(1), z.literal(-1
 // Same bounds as comments.ts's reportBodySchema.
 const reportBodySchema = z.object({ reason: z.string().min(1).max(500) });
 
+// max(20) matches the ShareModal's own recipient cap on the frontend.
+const shareBodySchema = z.object({
+  recipientUserIds: z.array(z.string()).min(1).max(20),
+  message: z.string().max(500).optional(),
+});
+
 type UserRow = { id: string };
 
 async function resolveUser(request: FastifyRequest, forumId: string): Promise<UserRow | null> {
@@ -406,6 +412,38 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
       if (!user) return sendSessionRequired(reply);
 
       const result = await threadService.reportThread(request.server.db, forumId, threadId, user.id, parsed.data.reason);
+      if (!result.ok) {
+        sendThreadError(result.code, reply);
+        return;
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  /**
+   * POST /forums/:forumId/threads/:threadId/share
+   */
+  app.post(
+    '/:forumId/threads/:threadId/share',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const parsed = shareBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'invalid_body',
+          message: parsed.error.issues.map((i) => i.message).join(', '),
+          statusCode: 400,
+        });
+      }
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await threadService.shareThread(
+        request.server.db, forumId, threadId, user.id, parsed.data.recipientUserIds, parsed.data.message ?? null,
+      );
       if (!result.ok) {
         sendThreadError(result.code, reply);
         return;

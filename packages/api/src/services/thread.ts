@@ -12,7 +12,7 @@ import type { Attachment } from '@forumkit/types';
 import { attachToExistingThread } from './storage';
 import { rawAttachmentUrl } from '../lib/attachment-url';
 import { ok, err, type Result } from '../lib/result';
-import { notifyReport } from './notification';
+import { notifyReport, notifyShare } from './notification';
 
 export type ThreadError = 'thread_not_found' | 'forbidden';
 export type ThreadWithAttachments = ThreadWithMetaData & { attachments: AttachmentSummary[] };
@@ -168,6 +168,24 @@ export async function reportThread(
   if (!thread) return err('thread_not_found');
   await threadRepo.insertReport(db, threadId, reporterId, reason);
   void notifyReport(db, { forumId, reporterId, reason, threadId });
+  return ok(undefined);
+}
+
+export async function shareThread(
+  db: DB,
+  forumId: string,
+  threadId: string,
+  sharerId: string,
+  recipientUserIds: string[],
+  message: string | null,
+): Promise<Result<void, 'thread_not_found'>> {
+  const thread = await threadRepo.getThreadById(db, threadId);
+  if (!thread) return err('thread_not_found');
+  // Unlike notifyReport/notifyCommentReply/notifyVote (side effects of some
+  // other primary write that must never fail because of them), the
+  // notification rows here ARE the share — there's no other record of it,
+  // so this is awaited rather than fire-and-forget.
+  await notifyShare(db, { forumId, threadId, sharerId, recipientUserIds, message });
   return ok(undefined);
 }
 
