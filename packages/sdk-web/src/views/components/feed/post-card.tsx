@@ -10,6 +10,7 @@ import VotePill from '../shared/vote-pill';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon, LinkIcon } from '../shared/icons';
 import { useShare } from '../../hooks/use-share';
+import { useForum } from '../../hooks/use-forum-state';
 import './post-card.css';
 
 type PostCardProps = {
@@ -32,6 +33,7 @@ export default function PostCard({
   const avatar = authorAvatar(post.authorId, post.author);
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   const share = useShare(post.id);
+  const { openReportModal } = useForum();
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [snippetExpanded, setSnippetExpanded] = useState(false);
@@ -154,7 +156,11 @@ export default function PostCard({
           </button>
           <DropdownMenu open={menuOpen} onClose={onCloseMenu} style={{ top: 40, right: 0, width: 190, padding: 6 }}>
             <DropdownMenuItem icon={<SaveIcon />} label={saved ? 'Unsave' : 'Save'} onClick={onSave} />
-            <DropdownMenuItem icon={<ReportIcon />} label="Report" />
+            <DropdownMenuItem
+              icon={<ReportIcon />}
+              label="Report"
+              onClick={() => { onCloseMenu(); openReportModal({ type: 'thread', threadId: post.id }); }}
+            />
           </DropdownMenu>
         </div>
       </div>

@@ -5,8 +5,13 @@ import Avatar from '../shared/avatar';
 import VotePill from '../shared/vote-pill';
 import RenderedBody from '../shared/rendered-body';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { ShareIcon, LinkIcon } from '../shared/icons';
+import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon } from '../shared/icons';
 import { useShare } from '../../hooks/use-share';
+import { useForum } from '../../hooks/use-forum-state';
+// Reuses post-card's ellipsis/menu-anchor classes (generic circular icon
+// button + positioned dropdown) rather than a parallel set of near-identical
+// rules just for comments.
+import '../feed/post-card.css';
 import './comment.css';
 
 type CommentProps = {
@@ -37,6 +42,8 @@ export default function Comment({
   const isMine = currentUserId !== null && comment.authorId === currentUserId;
   const avatar = authorAvatar(comment.authorId, comment.author);
   const share = useShare(threadId);
+  const { openReportModal } = useForum();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -167,6 +174,24 @@ export default function Comment({
                 </DropdownMenu>
               </div>
             )}
+            <div className="fk-post-card-menu-anchor" style={{ marginLeft: 'auto' }}>
+              <button
+                type="button"
+                className={`fk-post-card-ellipsis${menuOpen ? ' fk-post-card-ellipsis--open' : ''}`}
+                style={{ width: 26, height: 26 }}
+                onClick={() => setMenuOpen(o => !o)}
+                aria-label="More actions"
+              >
+                <EllipsisIcon />
+              </button>
+              <DropdownMenu open={menuOpen} onClose={() => setMenuOpen(false)} style={{ top: 30, right: 0, width: 170, padding: 6 }}>
+                <DropdownMenuItem
+                  icon={<ReportIcon />}
+                  label="Report"
+                  onClick={() => { setMenuOpen(false); openReportModal({ type: 'comment', threadId, commentId: comment.id }); }}
+                />
+              </DropdownMenu>
+            </div>
           </div>
 
           {replyOpen && (

@@ -11,12 +11,14 @@ import { Notifications } from './routes/Notifications';
 import EditProfileModal from './components/profile/edit-profile-modal';
 import DraftsListModal from './components/composer/drafts-list-modal';
 import ShareModal from './components/shared/share-modal';
+import ReportModal from './components/shared/report-modal';
 
 function Router() {
   const {
     state, closeSettings, saveProfile, toggleTheme,
     closeDraftsList, resumeDraft, deleteDraftFromList,
     closeShareModal,
+    closeReportModal, submitReport,
   } = useForum();
   const { profile } = state;
 
@@ -52,6 +54,9 @@ function Router() {
         />
       )}
       {state.shareModal.open && <ShareModal onClose={closeShareModal} />}
+      {state.reportModal.open && state.reportModal.target && (
+        <ReportModal target={state.reportModal.target} onClose={closeReportModal} onSubmit={submitReport} />
+      )}
     </>
   );
 }

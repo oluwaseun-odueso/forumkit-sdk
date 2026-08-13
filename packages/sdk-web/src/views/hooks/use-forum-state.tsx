@@ -9,7 +9,9 @@ import type {
 } from '@forumkit/types';
 import { searchThreads as apiSearchThreads } from '../api/search';
 import { getUnreadCount as apiGetUnreadCount } from '../api/notifications';
-import { shareThreadWithUsers as apiShareThreadWithUsers } from '../api/threads';
+import { shareThreadWithUsers as apiShareThreadWithUsers, reportThread as apiReportThread } from '../api/threads';
+import { reportComment as apiReportComment } from '../api/comments';
+import type { ReportTarget } from '../components/shared/report-modal';
 import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
@@ -200,6 +202,7 @@ type State = {
   search: SearchState;
   notifications: { unreadCount: number };
   shareModal: { open: boolean; threadId: string | null };
+  reportModal: { open: boolean; target: ReportTarget | null };
   history: NavEntry[];
   // Set by GO_BACK to the scroll position the previous page was at; Shell
   // applies it to the scrollable main column then clears it via
@@ -230,6 +233,8 @@ type Action =
   | { type: 'SET_UNREAD_COUNT'; count: number }
   | { type: 'OPEN_SHARE_MODAL'; threadId: string }
   | { type: 'CLOSE_SHARE_MODAL' }
+  | { type: 'OPEN_REPORT_MODAL'; target: ReportTarget }
+  | { type: 'CLOSE_REPORT_MODAL' }
   | { type: 'TOGGLE_SORT_MENU' }
   | { type: 'TOGGLE_VIEW_MENU' }
   | { type: 'TOGGLE_TOP_WINDOW_MENU' }
@@ -556,6 +561,7 @@ const initialState: State = {
   search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
   notifications: { unreadCount: 0 },
   shareModal: { open: false, threadId: null },
+  reportModal: { open: false, target: null },
   history: [],
   pendingScrollTop: null,
 };
@@ -688,6 +694,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, shareModal: { open: true, threadId: action.threadId } };
     case 'CLOSE_SHARE_MODAL':
       return { ...state, shareModal: { open: false, threadId: null } };
+    case 'OPEN_REPORT_MODAL':
+      return { ...state, reportModal: { open: true, target: action.target } };
+    case 'CLOSE_REPORT_MODAL':
+      return { ...state, reportModal: { open: false, target: null } };
     case 'TOGGLE_SORT_MENU':
       return { ...state, feed: { ...state.feed, sortMenuOpen: !state.feed.sortMenuOpen, viewMenuOpen: false, topWindowMenuOpen: false } };
     case 'TOGGLE_VIEW_MENU':
@@ -1851,6 +1861,21 @@ function useForumStateInternal() {
     openThread(threadId);
   }, [sessionToken, forumId, openThread]);
 
+  // ─── Report ───────────────────────────────────────────────────────────────
+
+  const openReportModal = useCallback((target: ReportTarget) => dispatch({ type: 'OPEN_REPORT_MODAL', target }), []);
+  const closeReportModal = useCallback(() => dispatch({ type: 'CLOSE_REPORT_MODAL' }), []);
+
+  const submitReport = useCallback(async (reason: string) => {
+    const target = state.reportModal.target;
+    if (!target) throw new Error('No report target selected');
+    if (target.type === 'thread') {
+      await apiReportThread(forumId, target.threadId, reason, sessionToken);
+    } else {
+      await apiReportComment(target.threadId, target.commentId, reason, sessionToken);
+    }
+  }, [state.reportModal.target, forumId, sessionToken]);
+
   // ─── Featured rail: pinned threads, admin-curated so it rarely changes ──────
 
   useEffect(() => {
@@ -1996,6 +2021,9 @@ function useForumStateInternal() {
     closeShareModal,
     copyShareLink,
     shareThreadWithMembers,
+    openReportModal,
+    closeReportModal,
+    submitReport,
   };
 }
 

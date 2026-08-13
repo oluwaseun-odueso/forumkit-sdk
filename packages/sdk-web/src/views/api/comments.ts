@@ -56,3 +56,12 @@ export async function unsaveComment(threadId: string, commentId: string, token?:
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
+
+export async function reportComment(threadId: string, commentId: string, reason: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
