@@ -8,6 +8,7 @@ import type {
   Draft, DraftContent, SearchResult,
 } from '@forumkit/types';
 import { searchThreads as apiSearchThreads } from '../api/search';
+import { getUnreadCount as apiGetUnreadCount } from '../api/notifications';
 import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
@@ -30,7 +31,7 @@ import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search';
+export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search' | 'notifications';
 export type FeedView = 'card' | 'compact';
 export type FeedSort = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
 export type FeedScope = 'home' | 'popular' | 'news';
@@ -196,6 +197,7 @@ type State = {
   settings: { open: boolean };
   draftsModal: DraftsModalState;
   search: SearchState;
+  notifications: { unreadCount: number };
   history: NavEntry[];
   // Set by GO_BACK to the scroll position the previous page was at; Shell
   // applies it to the scrollable main column then clears it via
@@ -223,6 +225,7 @@ type Action =
   | { type: 'SET_SIMILAR_RAIL'; items: RailItem[] }
   | { type: 'SET_FEATURED_RAIL'; items: RailItem[] }
   | { type: 'SET_FORUM_CONFIG'; config: ForumConfig }
+  | { type: 'SET_UNREAD_COUNT'; count: number }
   | { type: 'TOGGLE_SORT_MENU' }
   | { type: 'TOGGLE_VIEW_MENU' }
   | { type: 'TOGGLE_TOP_WINDOW_MENU' }
@@ -547,6 +550,7 @@ const initialState: State = {
   settings: { open: false },
   draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
   search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
+  notifications: { unreadCount: 0 },
   history: [],
   pendingScrollTop: null,
 };
@@ -673,6 +677,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, rail: { ...state.rail, featured: action.items } };
     case 'SET_FORUM_CONFIG':
       return { ...state, forumConfig: action.config };
+    case 'SET_UNREAD_COUNT':
+      return { ...state, notifications: { unreadCount: action.count } };
     case 'TOGGLE_SORT_MENU':
       return { ...state, feed: { ...state.feed, sortMenuOpen: !state.feed.sortMenuOpen, viewMenuOpen: false, topWindowMenuOpen: false } };
     case 'TOGGLE_VIEW_MENU':
@@ -1777,6 +1783,24 @@ function useForumStateInternal() {
     });
   }, [sessionToken, forumId]);
 
+  // ─── Notifications: unread count for the bell dot ───────────────────────────
+  // Pull-based, not push (see Notifications backend plan) — fetched once the
+  // session is ready, and again whenever refreshUnreadCount is called
+  // explicitly (Notifications.tsx does this after any mark-read action).
+
+  const refreshUnreadCount = useCallback(() => {
+    if (!sessionToken || !forumId) return;
+    void apiGetUnreadCount(forumId, sessionToken).then(count => {
+      dispatch({ type: 'SET_UNREAD_COUNT', count });
+    }).catch(err => {
+      console.error('[useForum] unread notification count fetch failed', err);
+    });
+  }, [sessionToken, forumId]);
+
+  useEffect(() => {
+    refreshUnreadCount();
+  }, [refreshUnreadCount]);
+
   // ─── Featured rail: pinned threads, admin-curated so it rarely changes ──────
 
   useEffect(() => {
@@ -1917,6 +1941,7 @@ function useForumStateInternal() {
     reportScroll,
     goBack,
     clearPendingScroll,
+    refreshUnreadCount,
   };
 }
 

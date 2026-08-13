@@ -14,6 +14,8 @@ type TopNavProps = {
   onHome: () => void;
   onOpenComposer: () => void;
   onViewProfile: () => void;
+  onOpenNotifications: () => void;
+  unreadCount: number;
   onAsk?: (() => void) | undefined;
   compact?: boolean | undefined;
   scopeTag?: string | undefined;
@@ -31,7 +33,7 @@ type TopNavProps = {
 
 /** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */
 export default function TopNav({
-  onHome, onOpenComposer, onViewProfile, onAsk, compact, scopeTag, avatarUrl, displayName,
+  onHome, onOpenComposer, onViewProfile, onOpenNotifications, unreadCount, onAsk, compact, scopeTag, avatarUrl, displayName,
   searchQuery, onSearchChange, searchOpen, searchLoading, searchResults,
   onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch,
 }: TopNavProps) {
@@ -115,9 +117,9 @@ export default function TopNav({
             Create
           </button>
         </div>
-        <IconButton label="Notifications" style={{ position: 'relative' }}>
+        <IconButton label="Notifications" onClick={onOpenNotifications} style={{ position: 'relative' }}>
           <BellIcon />
-          <span className="fk-topnav-notif-dot" />
+          {unreadCount > 0 && <span className="fk-topnav-notif-dot" />}
         </IconButton>
         <button
           type="button"

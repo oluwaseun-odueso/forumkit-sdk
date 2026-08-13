@@ -57,6 +57,8 @@ export default function Shell({
         onHome={() => setView('feed')}
         onOpenComposer={openComposer}
         onViewProfile={() => setView('profile')}
+        onOpenNotifications={() => setView('notifications')}
+        unreadCount={state.notifications.unreadCount}
         onAsk={onAsk}
         compact={compactSearch}
         scopeTag={scopeTag}

@@ -47,6 +47,13 @@
   background: var(--hover);
 }
 
+/* Notifications page only — an unread row gets a faint accent tint, same
+   "unread" signal an inbox uses; the row title is already bold by default
+   above, so read rows don't need a separate de-emphasized style. */
+.fk-search-dropdown-row--unread {
+  background: var(--accent-soft);
+}
+
 .fk-search-dropdown-row-text {
   flex: 1;
   min-width: 0;
