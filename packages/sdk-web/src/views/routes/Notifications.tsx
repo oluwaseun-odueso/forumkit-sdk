@@ -209,7 +209,7 @@ export function Notifications() {
   const hasUnread = items.some(n => !n.readAt);
 
   return (
-    <Shell mainMaxWidth={860} mainAlign="start">
+    <Shell mainAlign="start">
       <div className="fk-profile fk-notifications-left">
         {state.history.length > 0 && (
           <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>

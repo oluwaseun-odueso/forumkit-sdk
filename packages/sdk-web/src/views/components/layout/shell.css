@@ -25,14 +25,20 @@
 }
 
 .fk-shell-main {
-  /* A definite flex-basis (not "auto") so this column always claims its
-     full intended width and only shrinks under real viewport pressure —
-     "auto" sizes to the *content's* intrinsic width, which made narrow
-     content (e.g. plain-text comment rows, no images/titles) collapse
-     the whole column down instead of filling it. 800px covers the
-     widest route content (feed/thread); narrower routes (profile, 760px)
-     just center within it via their own max-width + margin auto. */
-  flex: 0 1 800px;
+  /* Always fills the full width left over after the sidebar (and rail, if
+     any) — NOT capped to the reading column's own width. This is the
+     scrollable element (overflow-y: auto below), so its own scrollbar
+     track sits at the true right edge of that available space rather than
+     hugging the edge of a narrower content box with dead, unscrollable
+     space beyond it. Every route already caps its own visual reading
+     width via its own root class (fk-feed/fk-thread/fk-profile/etc., each
+     with max-width + margin: 0 auto or an explicit left margin) — this
+     element existing at full width doesn't change how wide any of them
+     render, only where the scrollbar itself lands.
+     Note: this makes mainAlign's justify-content on .fk-shell-content a
+     no-op, since there's only ever one flex child now and it always fills
+     100% — left in place harmlessly rather than ripped out along with this. */
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
   overflow-y: auto;

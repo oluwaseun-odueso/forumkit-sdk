@@ -327,13 +327,12 @@ export function SearchResults() {
   const mediaItems = threads.items.filter(r => r.imageUrl);
 
   return (
-    <Shell mainMaxWidth={1200}>
+    <Shell>
       {/* fk-profile is the existing "narrow centered content column" layout
           already used by the Profile route, widened here via
-          fk-search-results-wide (and Shell's mainMaxWidth above, since the
-          shell's own column is normally capped narrower than that) — this
-          page has no right rail competing for space, so it can use more of
-          the screen while margin:0 auto still keeps it centered. No
+          fk-search-results-wide's own max-width override — this page has
+          no right rail competing for space, so it can use more of the
+          screen while margin:0 auto still keeps it centered. No
           scopeTag/compactSearch here either — the search pill should look
           exactly like it does on Feed/Profile, not the shrunk "in-page"
           variant. */}
