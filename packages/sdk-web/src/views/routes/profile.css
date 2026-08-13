@@ -42,3 +42,13 @@ button.fk-profile-filter-label {
   background: var(--border);
   margin: 16px 4px 0;
 }
+
+/* Notifications page only — left-justified against the sidebar like
+   Compose (mainAlign="start" on Shell, plus this page's own left
+   inset matching compose.css's .fk-compose exactly) rather than
+   .fk-profile's own centered margin: 0 auto default. */
+.fk-notifications-left {
+  margin: 0;
+  margin-left: 80px;
+  padding-left: 100px;
+}
