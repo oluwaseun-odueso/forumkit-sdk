@@ -38,6 +38,7 @@
    between rows, just the card's own background carrying the grouping. */
 .fk-notifications-card {
   background: var(--elev);
+  border-radius: 2px;
   overflow: hidden;
 }
 
