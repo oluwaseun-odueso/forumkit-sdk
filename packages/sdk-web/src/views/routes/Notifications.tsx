@@ -170,11 +170,18 @@ export function Notifications() {
 
   useEffect(() => {
     if (!fid) return;
+    // Guards against a stale response clobbering state set in the
+    // meantime (e.g. React StrictMode's dev-only double-invoke firing this
+    // effect twice — the first call's now-irrelevant response can otherwise
+    // land after a mark-read/mark-all-read/delete action and silently
+    // overwrite the optimistic update with the old, still-unread data).
+    let cancelled = false;
     setLoading(true);
     listNotifications(fid, { page: 1, limit: PAGE_SIZE }, token)
-      .then(r => { setItems(r.results); setTotal(r.total); setPage(1); })
-      .catch(() => { setItems([]); setTotal(0); })
-      .finally(() => setLoading(false));
+      .then(r => { if (!cancelled) { setItems(r.results); setTotal(r.total); setPage(1); } })
+      .catch(() => { if (!cancelled) { setItems([]); setTotal(0); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [fid, token]);
 
   const hasMore = items.length < total;
