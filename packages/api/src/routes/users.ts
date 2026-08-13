@@ -5,6 +5,7 @@ import * as userRepo from '../repositories/user';
 import * as threadRepo from '../repositories/thread';
 import * as commentRepo from '../repositories/comment';
 import * as profileActivityService from '../services/profile-activity';
+import * as notificationService from '../services/notification';
 
 type UserRow = { id: string };
 
@@ -31,6 +32,13 @@ const updateProfileSchema = z.object({
 
 const updateThemeSchema = z.object({
   themePreference: z.enum(['light', 'dark']).nullable(),
+});
+
+const updateNotificationPrefsSchema = z.object({
+  commentReply: z.boolean(),
+  share: z.boolean(),
+  vote: z.boolean(),
+  moderationReport: z.boolean(),
 });
 
 const activityQuerySchema = z.object({
@@ -66,16 +74,17 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    const [profile, postKarma, commentKarma] = await Promise.all([
+    const [profile, postKarma, commentKarma, notificationPrefs] = await Promise.all([
       userRepo.findProfileById(request.server.db, user.id),
       threadRepo.getThreadKarma(request.server.db, forumId, user.id),
       commentRepo.getCommentKarma(request.server.db, forumId, user.id),
+      notificationService.getNotificationPrefs(request.server.db, user.id),
     ]);
     if (!profile) {
       return reply.status(404).send({ error: 'user_not_found', message: 'User not found', statusCode: 404 });
     }
 
-    return reply.status(200).send({ ...profile, postKarma, commentKarma });
+    return reply.status(200).send({ ...profile, postKarma, commentKarma, notificationPrefs });
   });
 
   app.patch('/:forumId/me', { preHandler: authenticate }, async (request, reply) => {
@@ -145,6 +154,35 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
 
     await userRepo.updateThemePreference(request.server.db, user.id, parsed.data.themePreference);
     return reply.status(200).send({ themePreference: parsed.data.themePreference });
+  });
+
+  /**
+   * PATCH /forums/:forumId/me/notification-prefs
+   *
+   * Same "applies instantly, not gated behind a Save button" pattern as the
+   * theme toggle above — each switch in Settings fires this directly.
+   */
+  app.patch('/:forumId/me/notification-prefs', { preHandler: authenticate }, async (request, reply) => {
+    const user = await resolveUser(request);
+    if (!user) {
+      return reply.status(401).send({
+        error: 'session_not_initialised',
+        message: 'Call POST /auth/session first',
+        statusCode: 401,
+      });
+    }
+
+    const parsed = updateNotificationPrefsSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: 'invalid_body',
+        message: parsed.error.issues.map(i => i.message).join(', '),
+        statusCode: 400,
+      });
+    }
+
+    await notificationService.updateNotificationPrefs(request.server.db, user.id, parsed.data);
+    return reply.status(200).send(parsed.data);
   });
 
   /**
