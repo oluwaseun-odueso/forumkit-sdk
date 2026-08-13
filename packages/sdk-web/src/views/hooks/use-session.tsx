@@ -3,16 +3,17 @@ import type { ForumKitConfig } from '@forumkit/types';
 import { createSession } from '../api/auth';
 
 type SessionState =
-  | { status: 'loading'; forumId: string; apiUrl: string; sessionToken: null; error: null; onLogout: (() => void) | undefined }
-  | { status: 'ready'; forumId: string; apiUrl: string; sessionToken: string; error: null; onLogout: (() => void) | undefined }
-  | { status: 'error'; forumId: string; apiUrl: string; sessionToken: null; error: string; onLogout: (() => void) | undefined };
+  | { status: 'loading'; forumId: string; apiUrl: string; sessionToken: null; error: null; onLogout: (() => void) | undefined; platform: 'web' | 'native' }
+  | { status: 'ready'; forumId: string; apiUrl: string; sessionToken: string; error: null; onLogout: (() => void) | undefined; platform: 'web' | 'native' }
+  | { status: 'error'; forumId: string; apiUrl: string; sessionToken: null; error: string; onLogout: (() => void) | undefined; platform: 'web' | 'native' };
 
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ config, children }: { config: ForumKitConfig; children: ReactNode }) {
   const apiUrl = config.apiUrl ?? '';
+  const platform = config.platform ?? 'web';
   const [state, setState] = useState<SessionState>({
-    status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null, onLogout: config.onLogout,
+    status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null, onLogout: config.onLogout, platform,
   });
 
   useEffect(() => {
@@ -33,24 +34,24 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
       return createSession(apiUrl, config.token)
         .then(result => {
           if (cancelled) return;
-          setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, error: null, onLogout: config.onLogout });
+          setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, error: null, onLogout: config.onLogout, platform });
           scheduleRefresh(result.expiresIn);
         })
         .catch((err: unknown) => {
           if (cancelled) return;
           const message = err instanceof Error ? err.message : 'Failed to create session';
-          setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message, onLogout: config.onLogout });
+          setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message, onLogout: config.onLogout, platform });
         });
     }
 
-    setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null, onLogout: config.onLogout });
+    setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null, onLogout: config.onLogout, platform });
     void refresh();
 
     return () => {
       cancelled = true;
       if (refreshTimer) clearTimeout(refreshTimer);
     };
-  }, [config.forumId, config.token, apiUrl, config.onLogout]);
+  }, [config.forumId, config.token, apiUrl, config.onLogout, platform]);
 
   return (
     <SessionContext.Provider value={state}>

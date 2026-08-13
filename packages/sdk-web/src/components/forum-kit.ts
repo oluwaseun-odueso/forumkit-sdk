@@ -24,7 +24,7 @@ export class ForumKitElement extends HTMLElement {
   private _root: Root | null = null;
 
   static get observedAttributes(): string[] {
-    return ['forum-id', 'token', 'theme', 'api-url'];
+    return ['forum-id', 'token', 'theme', 'api-url', 'platform'];
   }
 
   constructor() {
@@ -68,11 +68,15 @@ export class ForumKitElement extends HTMLElement {
     const themeRaw = this.getAttribute('theme');
     const theme = themeRaw ? (JSON.parse(themeRaw) as ThemeTokens) : {};
 
+    const platformAttr = this.getAttribute('platform');
+    const platform = platformAttr === 'native' ? 'native' : 'web';
+
     return {
       forumId,
       token,
       theme,
       apiUrl: this.getAttribute('api-url') ?? DEFAULT_API_URL,
+      platform,
     };
   }
 
