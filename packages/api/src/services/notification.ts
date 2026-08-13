@@ -2,6 +2,7 @@ import type { DB } from '../db';
 import type { Notification, NotificationPrefs } from '@forumkit/types';
 import { ok, err, type Result } from '../lib/result';
 import * as repo from '../repositories/notification';
+import * as userRepo from '../repositories/user';
 
 export type NotificationError = 'not_found';
 
@@ -101,4 +102,33 @@ export async function notifyVote(db: DB, input: NotifyVoteInput): Promise<void> 
     commentId: input.kind === 'comment' ? input.commentId ?? null : null,
     message: input.direction,
   });
+}
+
+type NotifyReportInput = {
+  forumId: string;
+  reporterId: string;
+  reason: string;
+  threadId?: string | null;
+  commentId?: string | null;
+};
+
+// Broadcast, not single-recipient: every admin/moderator in the forum gets
+// their own row (each still respects their own moderationReport pref), not
+// just whichever one happens to open the queue first.
+export async function notifyReport(db: DB, input: NotifyReportInput): Promise<void> {
+  const moderatorIds = await userRepo.listModeratorIds(db, input.forumId);
+  await Promise.all(moderatorIds.map(async (moderatorId) => {
+    if (moderatorId === input.reporterId) return;
+    const prefs = await repo.getNotificationPrefs(db, moderatorId);
+    if (!prefs.moderationReport) return;
+    await repo.insertNotification(db, {
+      forumId: input.forumId,
+      userId: moderatorId,
+      actorId: input.reporterId,
+      type: 'report',
+      threadId: input.threadId ?? null,
+      commentId: input.commentId ?? null,
+      message: input.reason,
+    });
+  }));
 }

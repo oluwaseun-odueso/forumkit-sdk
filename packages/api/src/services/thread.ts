@@ -12,6 +12,7 @@ import type { Attachment } from '@forumkit/types';
 import { attachToExistingThread } from './storage';
 import { rawAttachmentUrl } from '../lib/attachment-url';
 import { ok, err, type Result } from '../lib/result';
+import { notifyReport } from './notification';
 
 export type ThreadError = 'thread_not_found' | 'forbidden';
 export type ThreadWithAttachments = ThreadWithMetaData & { attachments: AttachmentSummary[] };
@@ -150,6 +151,23 @@ export async function deleteThread(
   }
 
   await threadRepo.softDeleteThread(db, threadId);
+  return ok(undefined);
+}
+
+// Mirrors services/comment.ts's reportComment, plus notifying the forum's
+// moderators/admins (services/comment.ts's reportComment gets the same
+// addition below).
+export async function reportThread(
+  db: DB,
+  forumId: string,
+  threadId: string,
+  reporterId: string,
+  reason: string,
+): Promise<Result<void, 'thread_not_found'>> {
+  const thread = await threadRepo.getThreadById(db, threadId);
+  if (!thread) return err('thread_not_found');
+  await threadRepo.insertReport(db, threadId, reporterId, reason);
+  void notifyReport(db, { forumId, reporterId, reason, threadId });
   return ok(undefined);
 }
 

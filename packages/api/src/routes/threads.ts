@@ -44,6 +44,8 @@ const duplicatesQuerySchema = z.object({
 const lockBodySchema = z.object({ locked: z.boolean() });
 const pinBodySchema = z.object({ pinned: z.boolean() });
 const voteBodySchema = z.object({ direction: z.union([z.literal(1), z.literal(-1)]) });
+// Same bounds as comments.ts's reportBodySchema.
+const reportBodySchema = z.object({ reason: z.string().min(1).max(500) });
 
 type UserRow = { id: string };
 
@@ -374,6 +376,36 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
         user.id,
         payload.role,
       );
+      if (!result.ok) {
+        sendThreadError(result.code, reply);
+        return;
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  /**
+   * POST /forums/:forumId/threads/:threadId/report
+   */
+  app.post(
+    '/:forumId/threads/:threadId/report',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const parsed = reportBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'invalid_body',
+          message: parsed.error.issues.map((i) => i.message).join(', '),
+          statusCode: 400,
+        });
+      }
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await threadService.reportThread(request.server.db, forumId, threadId, user.id, parsed.data.reason);
       if (!result.ok) {
         sendThreadError(result.code, reply);
         return;

@@ -392,7 +392,7 @@ export type SearchResponse<T> = {
 // needs to be a loose `string` too. A real union costs nothing in migration
 // terms and buys typo-catching + exhaustiveness checking wherever a type is
 // mapped to display text; adding a future trigger is one more literal here.
-export type NotificationType = 'share' | 'comment_reply' | 'vote';
+export type NotificationType = 'share' | 'comment_reply' | 'vote' | 'report';
 
 // One row per event a user should see on the Notifications page.
 export type Notification = {
@@ -405,10 +405,11 @@ export type Notification = {
   type: NotificationType;
   threadId: string | null;
   commentId: string | null;
-  // Only meaningful for type: 'vote' today ('up' | 'down') — kept as a
-  // plain nullable string rather than a second typed field, since it's
-  // genuinely just "extra type-specific detail," not a first-class column
-  // every notification has an opinion about.
+  // Type-specific extra detail: the vote direction ('up'/'down') for
+  // type: 'vote', or the reporter's reason text for type: 'report'. Kept
+  // as a plain nullable string rather than a second typed field, since
+  // it's genuinely just "extra detail for this type," not a first-class
+  // column every notification has an opinion about.
   message: string | null;
   readAt: Date | null;
   createdAt: Date;
@@ -425,6 +426,10 @@ export type NotificationPrefs = {
   commentReply: boolean;
   share: boolean;
   vote: boolean;
+  // Only relevant to admins/moderators (whether they get notified when a
+  // new report comes in) — regular members never receive this type
+  // regardless of the setting, since they're never a report's recipient.
+  moderationReport: boolean;
 };
 
 // GET /forums/:forumId/search/users — People section of the search results

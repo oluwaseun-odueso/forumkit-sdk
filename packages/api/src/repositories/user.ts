@@ -117,3 +117,15 @@ export async function searchUsers(
     total: Number(rows[0]?.total_count ?? 0),
   };
 }
+
+// Recipients for the "a report came in" notification (services/notification.ts's
+// notifyReport) — every active admin/moderator in the forum.
+export async function listModeratorIds(db: DB, forumId: string): Promise<string[]> {
+  const rows = await db<{ id: string }[]>`
+    SELECT id FROM users
+    WHERE forum_id = ${forumId}
+      AND banned_at IS NULL
+      AND role IN ('admin', 'moderator')
+  `;
+  return rows.map(r => r.id);
+}

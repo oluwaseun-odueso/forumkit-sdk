@@ -5,7 +5,9 @@ import { embedOne, safeModerate } from '@forumkit/ai';
 import { ok, err } from '../lib/result';
 import type { Result } from '../lib/result';
 import * as repo from '../repositories/comment';
+import * as threadRepo from '../repositories/thread';
 import { attachToExistingComment } from './storage';
+import { notifyReport } from './notification';
 
 export type CommentError = 'comment_not_found' | 'thread_not_found' | 'thread_locked' | 'forbidden';
 
@@ -119,6 +121,10 @@ export async function reportComment(
   const comment = await repo.getCommentById(db, commentId);
   if (!comment) return err('comment_not_found');
   await repo.insertReport(db, commentId, reporterId, reason);
+  // forumId isn't on hand from the comment lookup alone — thread's own
+  // record has it (comments don't carry forum_id directly, only threads do).
+  const thread = await threadRepo.getThreadById(db, comment.threadId);
+  if (thread) void notifyReport(db, { forumId: thread.forumId, reporterId, reason, commentId });
   return ok(undefined);
 }
 

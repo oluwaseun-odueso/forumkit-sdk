@@ -115,15 +115,28 @@ export async function markAllRead(db: DB, forumId: string, userId: string): Prom
   `;
 }
 
-const DEFAULT_PREFS: NotificationPrefs = { commentReply: true, share: true, vote: true };
+const DEFAULT_PREFS: NotificationPrefs = { commentReply: true, share: true, vote: true, moderationReport: true };
 
 export async function getNotificationPrefs(db: DB, userId: string): Promise<NotificationPrefs> {
-  const rows = await db<[{ notification_prefs: { comment_reply: boolean; share: boolean; vote: boolean } }]>`
+  const rows = await db<[{
+    notification_prefs: {
+      comment_reply?: boolean; share?: boolean; vote?: boolean; moderation_report?: boolean;
+    };
+  }]>`
     SELECT notification_prefs FROM users WHERE id = ${userId}
   `;
   const prefs = rows[0]?.notification_prefs;
   if (!prefs) return DEFAULT_PREFS;
-  return { commentReply: prefs.comment_reply, share: prefs.share, vote: prefs.vote };
+  // Rows written before moderation_report existed (014_notifications.ts's
+  // original 3-key default) just don't have that key — missing means "not
+  // explicitly opted out," so it defaults to enabled, same as every other
+  // key would if it were somehow absent.
+  return {
+    commentReply: prefs.comment_reply ?? true,
+    share: prefs.share ?? true,
+    vote: prefs.vote ?? true,
+    moderationReport: prefs.moderation_report ?? true,
+  };
 }
 
 export async function updateNotificationPrefs(
@@ -131,7 +144,12 @@ export async function updateNotificationPrefs(
   userId: string,
   prefs: NotificationPrefs,
 ): Promise<void> {
-  const jsonPrefs = { comment_reply: prefs.commentReply, share: prefs.share, vote: prefs.vote };
+  const jsonPrefs = {
+    comment_reply: prefs.commentReply,
+    share: prefs.share,
+    vote: prefs.vote,
+    moderation_report: prefs.moderationReport,
+  };
   await db`
     UPDATE users SET notification_prefs = ${db.json(jsonPrefs)} WHERE id = ${userId}
   `;

@@ -481,3 +481,19 @@ export async function updateThreadEmbedding(
     WHERE id = ${threadId}
   `;
 }
+
+// Mirrors repositories/comment.ts's insertReport, targeting thread_id
+// instead of comment_id — moderation_queue's CHECK constraint (see
+// migrations/015_moderation_thread_reports.ts) enforces exactly one of the
+// two is set.
+export async function insertReport(
+  db: DB,
+  threadId: string,
+  reporterId: string,
+  reason: string,
+): Promise<void> {
+  await db`
+    INSERT INTO moderation_queue (thread_id, reporter_id, reason)
+    VALUES (${threadId}, ${reporterId}, ${reason})
+  `;
+}
