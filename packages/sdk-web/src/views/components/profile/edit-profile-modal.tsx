@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
 import type { NotificationPrefs } from '@forumkit/types';
 import type { SocialLink } from '../../hooks/use-forum-state';
-import { resizeImage } from '../../utils/resize-image';
 import PillButton from '../shared/pill-button';
 import Modal from '../shared/modal';
+import ImageEditorModal from './image-editor-modal';
 import {
   CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon, SunIcon, MoonIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
@@ -107,35 +107,37 @@ export default function EditProfileModal({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Picking a file opens the editor instead of immediately auto-cropping —
+  // resizeImage/handleXFile below only run once the user confirms inside it.
+  const [editingImage, setEditingImage] = useState<{ kind: 'avatar' | 'banner'; file: File } | null>(null);
+
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    try {
-      const blob = await resizeImage(file, 1200, 300);
-      const url = URL.createObjectURL(blob);
-      setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
-      setBannerBlob(blob);
-    } catch {
-      setSaveError('That image could not be used — try a different file.');
-    }
+    setEditingImage({ kind: 'banner', file });
   }
 
-  async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    try {
-      const blob = await resizeImage(file, 400, 400);
-      const url = URL.createObjectURL(blob);
+    setEditingImage({ kind: 'avatar', file });
+  }
+
+  function handleImageEditorConfirm(blob: Blob) {
+    const url = URL.createObjectURL(blob);
+    if (editingImage?.kind === 'banner') {
+      setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
+      setBannerBlob(blob);
+    } else {
       setAvatarPreview(prev => { if (prev && prev !== avatarUrl) URL.revokeObjectURL(prev); return url; });
       setAvatarBlob(blob);
-    } catch {
-      setSaveError('That image could not be used — try a different file.');
     }
+    setEditingImage(null);
   }
 
   function addLink() {
@@ -178,6 +180,7 @@ export default function EditProfileModal({
   }
 
   return (
+    <>
     <Modal onClose={onClose} maxWidth={600}>
       <div
         className="fk-edit-modal-banner"
@@ -350,5 +353,17 @@ export default function EditProfileModal({
         </PillButton>
       </div>
     </Modal>
+
+    {editingImage && (
+      <ImageEditorModal
+        file={editingImage.file}
+        aspect={editingImage.kind === 'avatar' ? 1 : 4}
+        targetWidth={editingImage.kind === 'avatar' ? 400 : 1200}
+        targetHeight={editingImage.kind === 'avatar' ? 400 : 300}
+        onCancel={() => setEditingImage(null)}
+        onConfirm={handleImageEditorConfirm}
+      />
+    )}
+    </>
   );
 }

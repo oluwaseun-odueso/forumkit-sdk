@@ -1,0 +1,140 @@
+.fk-image-editor {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+
+.fk-image-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fk-image-editor-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fk-image-editor-body {
+  display: flex;
+  gap: 20px;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.fk-image-editor-preview {
+  position: relative;
+  width: 380px;
+  height: 380px;
+  flex-shrink: 0;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fk-image-editor-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.fk-image-editor-controls {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fk-image-editor-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+
+.fk-image-editor-slider-label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 8px 0 4px;
+}
+
+.fk-image-editor-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.fk-image-editor-rotate90-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.fk-image-editor-rotate90-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.fk-image-editor-rotate90-btn:hover {
+  background: var(--hover-2);
+}
+
+.fk-image-editor-filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fk-image-editor-filter-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.fk-image-editor-filter-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  border: 2px solid transparent;
+}
+
+.fk-image-editor-filter-swatch--active .fk-image-editor-filter-thumb {
+  border-color: var(--accent);
+}
+
+.fk-image-editor-filter-name {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.fk-image-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+}
