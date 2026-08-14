@@ -1,118 +1,12 @@
 import { useRef } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import { editorExtensions } from './editor/extensions';
-import { requestUploadUrl, putFile, confirmUpload } from '../../api/attachments';
+import {
+  ToolbarButton, LinkIcon, ImageIcon, VideoIcon, BulletListIcon, NumberedListIcon, SpoilerIcon, CodeBlockIcon, TableIcon,
+} from './editor/toolbar-buttons';
+import { uploadInline } from './editor/upload-inline';
 import './rich-text-toolbar.css';
 import './rich-text-editor.css';
-
-const svgBase = {
-  viewBox: '0 0 24 24',
-  width: 18,
-  height: 18,
-  fill: 'none' as const,
-  stroke: 'currentColor',
-  strokeWidth: 1.7,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
-};
-
-function LinkIcon() {
-  return (
-    <svg {...svgBase}>
-      <path d="M10 13a5 5 0 007 0l2-2a5 5 0 00-7-7l-1 1" />
-      <path d="M14 11a5 5 0 00-7 0l-2 2a5 5 0 007 7l1-1" />
-    </svg>
-  );
-}
-
-function ImageIcon() {
-  return (
-    <svg {...svgBase}>
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
-      <circle cx="9" cy="10" r="2" />
-      <path d="M4 17l5-4 4 3 3-2 4 3" />
-    </svg>
-  );
-}
-
-function VideoIcon() {
-  return (
-    <svg {...svgBase}>
-      <rect x="3.5" y="5.5" width="13" height="13" rx="2.5" />
-      <path d="M16.5 10l4-2.5v9l-4-2.5" />
-    </svg>
-  );
-}
-
-function BulletListIcon() {
-  return (
-    <svg {...svgBase}>
-      <path d="M8 6h12M8 12h12M8 18h12" />
-      <circle cx="4" cy="6" r="1" />
-      <circle cx="4" cy="12" r="1" />
-      <circle cx="4" cy="18" r="1" />
-    </svg>
-  );
-}
-
-function NumberedListIcon() {
-  return (
-    <svg {...svgBase}>
-      <path d="M9 6h11M9 12h11M9 18h11" />
-      <path d="M4 6h1v3M4 12h2M4 18h2" />
-    </svg>
-  );
-}
-
-function SpoilerIcon() {
-  return (
-    <svg {...svgBase}>
-      <path d="M9 8l-4 4 4 4M15 8l4 4-4 4" />
-    </svg>
-  );
-}
-
-function CodeBlockIcon() {
-  return (
-    <svg {...svgBase}>
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
-      <path d="M9.5 9l-2.5 3 2.5 3M14.5 9l2.5 3-2.5 3" />
-    </svg>
-  );
-}
-
-function TableIcon() {
-  return (
-    <svg {...svgBase}>
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
-      <path d="M3.5 9h17M9 9v10.5" />
-    </svg>
-  );
-}
-
-type ToolbarButtonProps = {
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-  style?: React.CSSProperties;
-  children: React.ReactNode;
-};
-
-function ToolbarButton({ label, active, onClick, style, children }: ToolbarButtonProps) {
-  return (
-    <button
-      type="button"
-      className={`fk-rte-btn${active ? ' fk-rte-btn--active' : ''}`}
-      aria-label={label}
-      aria-pressed={active}
-      data-tooltip={label}
-      style={style}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
 
 type RichTextEditorProps = {
   content: string;
@@ -120,25 +14,6 @@ type RichTextEditorProps = {
   forumId: string;
   sessionToken?: string | undefined;
 };
-
-async function uploadInline(forumId: string, sessionToken: string | undefined, file: File): Promise<string> {
-  const upload = await requestUploadUrl({ forumId, filename: file.name, mimeType: file.type, byteSize: file.size, purpose: 'attachment', token: sessionToken });
-  await putFile(upload.uploadUrl, upload.uploadHeaders, file);
-  let width: number | null = null;
-  let height: number | null = null;
-  if (file.type.startsWith('image/')) {
-    try {
-      const bitmap = await createImageBitmap(file);
-      width = bitmap.width;
-      height = bitmap.height;
-      bitmap.close();
-    } catch {
-      // dimensions are a display hint only — safe to skip if unsupported
-    }
-  }
-  const attachment = await confirmUpload(forumId, upload.attachmentId, { width, height }, sessionToken);
-  return attachment.downloadUrl;
-}
 
 export default function RichTextEditor({ content, onChange, forumId, sessionToken }: RichTextEditorProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +50,7 @@ export default function RichTextEditor({ content, onChange, forumId, sessionToke
   async function handleFileSelected(kind: 'image' | 'video', file: File | undefined) {
     if (!file) return;
     try {
-      const url = await uploadInline(forumId, sessionToken, file);
+      const { url } = await uploadInline(forumId, sessionToken, file);
       if (kind === 'image') {
         run(e => e.chain().focus().setImage({ src: url }).run());
       } else {
