@@ -204,6 +204,7 @@ type State = {
   notifications: { unreadCount: number };
   shareModal: { open: boolean; threadId: string | null };
   reportModal: { open: boolean; target: ReportTarget | null };
+  notificationSettingsModal: { open: boolean };
   history: NavEntry[];
   // Set by GO_BACK to the scroll position the previous page was at; Shell
   // applies it to the scrollable main column then clears it via
@@ -236,6 +237,8 @@ type Action =
   | { type: 'CLOSE_SHARE_MODAL' }
   | { type: 'OPEN_REPORT_MODAL'; target: ReportTarget }
   | { type: 'CLOSE_REPORT_MODAL' }
+  | { type: 'OPEN_NOTIFICATION_SETTINGS_MODAL' }
+  | { type: 'CLOSE_NOTIFICATION_SETTINGS_MODAL' }
   | { type: 'TOGGLE_SORT_MENU' }
   | { type: 'TOGGLE_VIEW_MENU' }
   | { type: 'TOGGLE_TOP_WINDOW_MENU' }
@@ -567,6 +570,7 @@ const initialState: State = {
   notifications: { unreadCount: 0 },
   shareModal: { open: false, threadId: null },
   reportModal: { open: false, target: null },
+  notificationSettingsModal: { open: false },
   history: [],
   pendingScrollTop: null,
 };
@@ -703,6 +707,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, reportModal: { open: true, target: action.target } };
     case 'CLOSE_REPORT_MODAL':
       return { ...state, reportModal: { open: false, target: null } };
+    case 'OPEN_NOTIFICATION_SETTINGS_MODAL':
+      return { ...state, notificationSettingsModal: { open: true } };
+    case 'CLOSE_NOTIFICATION_SETTINGS_MODAL':
+      return { ...state, notificationSettingsModal: { open: false } };
     case 'TOGGLE_SORT_MENU':
       return { ...state, feed: { ...state.feed, sortMenuOpen: !state.feed.sortMenuOpen, viewMenuOpen: false, topWindowMenuOpen: false } };
     case 'TOGGLE_VIEW_MENU':
@@ -1892,6 +1900,11 @@ function useForumStateInternal() {
     }
   }, [state.reportModal.target, forumId, sessionToken]);
 
+  // ─── Notification settings modal ─────────────────────────────────────────
+
+  const openNotificationSettingsModal = useCallback(() => dispatch({ type: 'OPEN_NOTIFICATION_SETTINGS_MODAL' }), []);
+  const closeNotificationSettingsModal = useCallback(() => dispatch({ type: 'CLOSE_NOTIFICATION_SETTINGS_MODAL' }), []);
+
   // ─── Featured rail: pinned threads, admin-curated so it rarely changes ──────
 
   useEffect(() => {
@@ -2041,6 +2054,8 @@ function useForumStateInternal() {
     closeReportModal,
     submitReport,
     setNotificationPref,
+    openNotificationSettingsModal,
+    closeNotificationSettingsModal,
   };
 }
 

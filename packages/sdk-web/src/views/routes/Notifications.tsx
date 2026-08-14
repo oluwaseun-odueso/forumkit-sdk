@@ -161,7 +161,9 @@ function NotificationRow({ n, onOpen, onDelete }: { n: Notification; onOpen: () 
  * already in the profile Settings modal, not a separate duplicate UI.
  */
 export function Notifications() {
-  const { state, goBack, openThread, openSettings, forumId: fid, sessionToken: token, refreshUnreadCount } = useForum();
+  const {
+    state, goBack, openThread, openNotificationSettingsModal, forumId: fid, sessionToken: token, refreshUnreadCount,
+  } = useForum();
 
   const [items, setItems] = useState<Notification[]>([]);
   const [total, setTotal] = useState(0);
@@ -252,7 +254,7 @@ export function Notifications() {
               </button>
             )}
             <span className="fk-notifications-header-divider" />
-            <IconButton label="Notification settings" size={34} onClick={openSettings}>
+            <IconButton label="Notification settings" size={34} onClick={openNotificationSettingsModal}>
               <GearIcon size={18} />
             </IconButton>
           </div>

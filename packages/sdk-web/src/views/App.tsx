@@ -12,6 +12,7 @@ import EditProfileModal from './components/profile/edit-profile-modal';
 import DraftsListModal from './components/composer/drafts-list-modal';
 import ShareModal from './components/shared/share-modal';
 import ReportModal from './components/shared/report-modal';
+import NotificationSettingsModal from './components/shared/notification-settings-modal';
 
 function Router() {
   const {
@@ -20,6 +21,7 @@ function Router() {
     closeShareModal,
     closeReportModal, submitReport,
     setNotificationPref,
+    closeNotificationSettingsModal,
   } = useForum();
   const { profile } = state;
 
@@ -40,8 +42,6 @@ function Router() {
           bannerUrl={profile.bannerUrl}
           themePreference={profile.themePreference}
           onToggleTheme={toggleTheme}
-          notificationPrefs={profile.notificationPrefs}
-          onToggleNotificationPref={(type, enabled) => void setNotificationPref(type, enabled)}
           onSave={saveProfile}
           onClose={closeSettings}
         />
@@ -59,6 +59,13 @@ function Router() {
       {state.shareModal.open && <ShareModal onClose={closeShareModal} />}
       {state.reportModal.open && state.reportModal.target && (
         <ReportModal target={state.reportModal.target} onClose={closeReportModal} onSubmit={submitReport} />
+      )}
+      {state.notificationSettingsModal.open && (
+        <NotificationSettingsModal
+          notificationPrefs={profile.notificationPrefs}
+          onToggleNotificationPref={(type, enabled) => void setNotificationPref(type, enabled)}
+          onClose={closeNotificationSettingsModal}
+        />
       )}
     </>
   );

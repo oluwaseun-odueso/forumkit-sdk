@@ -1,0 +1,71 @@
+import type { NotificationPrefs } from '@forumkit/types';
+import Modal from './modal';
+import { CloseIcon } from './icons';
+// Reuses the drafts modal's header/close shell and the edit-profile
+// modal's preference-row/switch styling (same rows this used to render
+// inline in EditProfileModal's own Preferences section) rather than a
+// parallel stylesheet.
+import '../composer/drafts-list-modal.css';
+import '../profile/edit-profile-modal.css';
+
+const NOTIFICATION_PREF_ROWS: { key: keyof NotificationPrefs; label: string; sub: string }[] = [
+  { key: 'commentReply', label: 'Comment replies', sub: 'When someone replies to your comment' },
+  { key: 'share', label: 'Shares', sub: 'When someone shares a post with you' },
+  { key: 'vote', label: 'Upvotes & downvotes', sub: 'When someone votes on your post or comment' },
+  { key: 'moderationReport', label: 'Moderation reports', sub: 'When a member reports a post or comment (admins/moderators only)' },
+];
+
+type NotificationSettingsModalProps = {
+  notificationPrefs: NotificationPrefs;
+  onToggleNotificationPref: (type: keyof NotificationPrefs, enabled: boolean) => void;
+  onClose: () => void;
+};
+
+/**
+ * Standalone notification-preferences modal, reached from the gear icon on
+ * the Notifications page. Previously these same four toggles lived inside
+ * EditProfileModal's Preferences section (alongside Display Mode); pulled
+ * out into their own modal so the settings gear on Notifications doesn't
+ * have to open the much larger profile-editing modal just to reach them.
+ * Each toggle fires immediately on click (same "no Save button" pattern
+ * the Display Mode toggle still uses in EditProfileModal) rather than
+ * being gated behind a save action.
+ */
+export default function NotificationSettingsModal({
+  notificationPrefs, onToggleNotificationPref, onClose,
+}: NotificationSettingsModalProps) {
+  return (
+    <Modal onClose={onClose} maxWidth={440} blurBackground>
+      <div className="fk-drafts-modal-header">
+        <h3 className="fk-drafts-modal-title">Notification settings</h3>
+        <button type="button" className="fk-drafts-modal-close" onClick={onClose}>
+          <CloseIcon size={18} />
+        </button>
+      </div>
+
+      <div className="fk-drafts-modal-body">
+        {NOTIFICATION_PREF_ROWS.map(row => {
+          const enabled = notificationPrefs[row.key];
+          return (
+            <div className="fk-edit-modal-preference-row" key={row.key}>
+              <div>
+                <div className="fk-edit-modal-preference-label">{row.label}</div>
+                <div className="fk-edit-modal-preference-sub">{row.sub}</div>
+              </div>
+              <button
+                type="button"
+                className={`fk-edit-modal-switch${enabled ? ' fk-edit-modal-switch--on' : ''}`}
+                role="switch"
+                aria-checked={enabled}
+                aria-label={row.label}
+                onClick={() => onToggleNotificationPref(row.key, !enabled)}
+              >
+                <span className="fk-edit-modal-switch-knob" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
