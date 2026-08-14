@@ -30,9 +30,16 @@ export default function Shell({
   const {
     state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
     setSearchQuery, closeSearchDropdown, openSearchResults,
-    reportScroll, clearPendingScroll,
+    reportScroll, clearPendingScroll, toggleTheme,
   } = useForum();
   const mainRef = useRef<HTMLElement>(null);
+
+  // state.profile.themePreference starts null until the profile-init effect
+  // resolves it from the backend; fall back to the same localStorage key
+  // use-theme.ts used to seed from, so the icon doesn't flash to the wrong
+  // state on first paint.
+  const theme = state.profile.themePreference
+    ?? (typeof window !== 'undefined' && localStorage.getItem('fk_theme') === 'light' ? 'light' : 'dark');
 
   // Applies a GO_BACK's one-shot pendingScrollTop to the actual DOM once
   // the page we're returning to has (re-)rendered, then clears it — this
@@ -65,6 +72,8 @@ export default function Shell({
         onCloseSearchDropdown={closeSearchDropdown}
         onSelectSearchResult={(threadId) => { closeSearchDropdown(); openThread(threadId); }}
         onSubmitSearch={openSearchResults}
+        theme={theme}
+        onToggleTheme={() => void toggleTheme()}
       />
       <div className="fk-shell-body">
         <Sidebar

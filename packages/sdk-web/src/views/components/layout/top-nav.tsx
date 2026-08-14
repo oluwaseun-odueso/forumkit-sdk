@@ -6,7 +6,7 @@ import SearchResultsDropdown from './search-results-dropdown';
 import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
 import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
-import { useTheme } from '../../hooks/use-theme';
+import type { Theme } from '../../hooks/use-theme';
 import { authorAvatar } from '../../lib/author-avatar';
 import './top-nav.css';
 
@@ -29,15 +29,16 @@ type TopNavProps = {
   onCloseSearchDropdown: () => void;
   onSelectSearchResult: (threadId: string) => void;
   onSubmitSearch: (query: string) => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 };
 
 /** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */
 export default function TopNav({
   onHome, onOpenComposer, onViewProfile, onOpenNotifications, unreadCount, onAsk, compact, scopeTag, avatarUrl, displayName,
   searchQuery, onSearchChange, searchOpen, searchLoading, searchResults,
-  onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch,
+  onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch, theme, onToggleTheme,
 }: TopNavProps) {
-  const { theme, toggleTheme } = useTheme();
   const { gradient, letter } = authorAvatar(displayName || undefined, displayName || 'You');
   const [menuOpen, setMenuOpen] = useState(false);
   const [tagActive, setTagActive] = useState(true);
@@ -109,7 +110,7 @@ export default function TopNav({
 
       <div className="fk-topnav-actions">
         <div className="fk-topnav-create-group">
-          <IconButton label="Toggle theme" onClick={toggleTheme} style={{ marginTop: '3px' }}>
+          <IconButton label="Toggle theme" onClick={onToggleTheme} style={{ marginTop: '3px' }}>
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </IconButton>
           <button type="button" className="fk-topnav-create" onClick={onOpenComposer}>
