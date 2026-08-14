@@ -34,7 +34,7 @@ function filterComments(list: CommentNodeData[], q: string): CommentNodeData[] {
 export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {
     state, activePost, sortedComments, currentUserId,
-    votePost, voteComment, toggleSaveComment, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
+    votePost, voteComment, toggleSaveComment, toggleAcceptedAnswer, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
     submitReply, editComment, editPost,
     summarize, suggest,
   } = forum;
@@ -58,6 +58,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const avatar = authorAvatar(activePost.authorId, activePost.author);
   const displayComments = commentSearch ? filterComments(sortedComments, commentSearch) : sortedComments;
   const isMyPost = currentUserId !== null && activePost.authorId === currentUserId;
+  const canAcceptAnswer = isMyPost || state.profile.role === 'moderator' || state.profile.role === 'admin';
 
   function handleSummarise() {
     if (aiPanel === 'summary') {
@@ -257,7 +258,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
       <div className="fk-thread-composer">
         <input
           className="fk-thread-composer-input"
-          placeholder="Add a comment"
+          placeholder="Join the conversation"
           value={state.thread.commentInput}
           onChange={e => setCommentInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') void submitComment(); }}
@@ -287,6 +288,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           onReply={submitReply}
           onEdit={editComment}
           onSave={toggleSaveComment}
+          onAcceptAnswer={canAcceptAnswer ? (id: string) => void toggleAcceptedAnswer(id) : undefined}
         />
       ))}
     </div>

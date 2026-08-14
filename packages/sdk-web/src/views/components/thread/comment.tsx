@@ -5,7 +5,7 @@ import Avatar from '../shared/avatar';
 import VotePill from '../shared/vote-pill';
 import RenderedBody from '../shared/rendered-body';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon } from '../shared/icons';
+import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon, CheckIcon } from '../shared/icons';
 import { useShare } from '../../hooks/use-share';
 import { useForum } from '../../hooks/use-forum-state';
 // Reuses post-card's ellipsis/menu-anchor classes (generic circular icon
@@ -28,6 +28,10 @@ type CommentProps = {
   onReply: (parentId: string, body: string) => Promise<void>;
   onEdit: (commentId: string, body: string) => Promise<void>;
   onSave: (commentId: string) => void;
+  // Present only when the current user is the thread author or a
+  // moderator/admin — only top-level comments (depth === 0) ever show the
+  // button, mirroring Share's existing depth === 0 gating.
+  onAcceptAnswer?: ((commentId: string) => void) | undefined;
 };
 
 /**
@@ -35,7 +39,7 @@ type CommentProps = {
  * "link chain" connector line with a +/− toggle sitting on the line itself.
  */
 export default function Comment({
-  comment, threadId, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave,
+  comment, threadId, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave, onAcceptAnswer,
 }: CommentProps) {
   const isCollapsed = collapsed[comment.id] ?? false;
   const size = depth === 0 ? 'md' : 'sm';
@@ -87,7 +91,7 @@ export default function Comment({
   }
 
   return (
-    <div className={`fk-comment fk-comment--${size}`}>
+    <div className={`fk-comment fk-comment--${size}${comment.isAcceptedAnswer ? ' fk-comment--accepted' : ''}`}>
       <div className="fk-comment-head">
         <Avatar
           size={depth === 0 ? 26 : 24}
@@ -97,6 +101,12 @@ export default function Comment({
         />
         <span className="fk-comment-author">{comment.author}</span>
         <span className="fk-comment-time">· {comment.time}</span>
+        {comment.isAcceptedAnswer && (
+          <span className="fk-comment-accepted-badge">
+            <CheckIcon size={12} />
+            Answer
+          </span>
+        )}
         {isCollapsed && (
           <>
             <button
@@ -165,6 +175,15 @@ export default function Comment({
             <button type="button" className="fk-comment-action" onClick={() => onSave(comment.id)}>
               {comment.isSaved ? 'Saved' : 'Save'}
             </button>
+            {depth === 0 && onAcceptAnswer && (
+              <button
+                type="button"
+                className={`fk-comment-action${comment.isAcceptedAnswer ? ' fk-comment-action--accepted' : ''}`}
+                onClick={() => onAcceptAnswer(comment.id)}
+              >
+                {comment.isAcceptedAnswer ? 'Unmark answer' : 'Mark as answer'}
+              </button>
+            )}
             {depth === 0 && (
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 <button type="button" className="fk-comment-action" onClick={share.handleShareClick}>Share</button>
@@ -233,6 +252,7 @@ export default function Comment({
               onReply={onReply}
               onEdit={onEdit}
               onSave={onSave}
+              onAcceptAnswer={onAcceptAnswer}
             />
           ))}
         </div>

@@ -29,6 +29,7 @@ export type CommentNodeData = {
   voteCounts: { up: number; down: number };
   myVote?: 1 | -1 | null;
   isSaved: boolean;
+  isAcceptedAnswer: boolean;
   replies: CommentNodeData[];
 };
 

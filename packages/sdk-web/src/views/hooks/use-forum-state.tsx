@@ -24,7 +24,7 @@ import {
   createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
   getSimilarThreads, saveThread, unsaveThread, type ListThreadsParams,
 } from '../api/threads';
-import { createReply, updateReply, saveComment, unsaveComment } from '../api/comments';
+import { createReply, updateReply, saveComment, unsaveComment, acceptAnswer as apiAcceptAnswer, unacceptAnswer as apiUnacceptAnswer } from '../api/comments';
 import { voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment } from '../api/votes';
 import {
   listDrafts as apiListDrafts, createDraft as apiCreateDraft, updateDraft as apiUpdateDraft,
@@ -247,6 +247,7 @@ type Action =
   | { type: 'SET_POST_MENU'; postId: string | null }
   | { type: 'SET_POST_SAVED'; postId: string; saved: boolean }
   | { type: 'SET_COMMENT_SAVED'; commentId: string; saved: boolean }
+  | { type: 'SET_ACCEPTED_ANSWER'; commentId: string | null }
   | { type: 'SET_POST_VOTE'; postId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_VOTE'; commentId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_SORT'; sort: CommentSort }
@@ -336,6 +337,18 @@ function mapComment(
     if (next.replies.length > 0) next.replies = mapComment(next.replies, id, fn);
     return next;
   });
+}
+
+// Only one comment per thread can be the accepted answer, so setting one
+// requires clearing the flag everywhere else in the same pass rather than
+// just flipping the target comment (see mapComment above, which only
+// touches a single id).
+function setAcceptedInTree(list: CommentNodeData[], acceptedId: string | null): CommentNodeData[] {
+  return list.map(c => ({
+    ...c,
+    isAcceptedAnswer: c.id === acceptedId,
+    replies: setAcceptedInTree(c.replies, acceptedId),
+  }));
 }
 
 // Profile activity items live in a separate array from the main feed
@@ -499,6 +512,7 @@ function commentsToCommentTree(comments: Comment[]): CommentNodeData[] {
       voteCounts,
       myVote: p.myVote ?? null,
       isSaved: p.isSaved ?? false,
+      isAcceptedAnswer: p.isAcceptedAnswer,
       replies: [],
     });
   }
@@ -737,6 +751,11 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         comments: mapComment(state.comments, action.commentId, c => ({ ...c, isSaved: action.saved })),
+      };
+    case 'SET_ACCEPTED_ANSWER':
+      return {
+        ...state,
+        comments: setAcceptedInTree(state.comments, action.commentId),
       };
     case 'SET_POST_VOTE':
       return {
@@ -1241,6 +1260,41 @@ function useForumStateInternal() {
     }
   }, [state.thread.activePostId, state.comments, sessionToken]);
 
+  const toggleAcceptedAnswer = useCallback(async (commentId: string) => {
+    const threadId = state.thread.activePostId;
+    if (!threadId) return;
+
+    function findComment(list: CommentNodeData[]): CommentNodeData | undefined {
+      for (const c of list) {
+        if (c.id === commentId) return c;
+        const found = findComment(c.replies);
+        if (found) return found;
+      }
+      return undefined;
+    }
+    const comment = findComment(state.comments);
+    if (!comment) return;
+    const wasAccepted = comment.isAcceptedAnswer;
+    const previousAcceptedId = wasAccepted
+      ? null
+      : (function find(list: CommentNodeData[]): string | null {
+          for (const c of list) {
+            if (c.isAcceptedAnswer) return c.id;
+            const found = find(c.replies);
+            if (found) return found;
+          }
+          return null;
+        })(state.comments);
+
+    dispatch({ type: 'SET_ACCEPTED_ANSWER', commentId: wasAccepted ? null : commentId });
+    try {
+      if (wasAccepted) await apiUnacceptAnswer(threadId, commentId, sessionToken);
+      else await apiAcceptAnswer(threadId, commentId, sessionToken);
+    } catch {
+      dispatch({ type: 'SET_ACCEPTED_ANSWER', commentId: previousAcceptedId });
+    }
+  }, [state.thread.activePostId, state.comments, sessionToken]);
+
   const setCommentSort = useCallback((sort: CommentSort) => dispatch({ type: 'SET_COMMENT_SORT', sort }), []);
   const toggleCommentCollapsed = useCallback((commentId: string) => dispatch({ type: 'TOGGLE_COMMENT_COLLAPSED', commentId }), []);
   const setCommentInput = useCallback((value: string) => dispatch({ type: 'SET_COMMENT_INPUT', value }), []);
@@ -1262,6 +1316,7 @@ function useForumStateInternal() {
       voteCounts,
       myVote: raw.myVote ?? null,
       isSaved: raw.isSaved ?? false,
+      isAcceptedAnswer: raw.isAcceptedAnswer,
       replies: [],
     };
     dispatch({ type: 'REPLY_SUBMITTED', parentId, comment });
@@ -2003,6 +2058,7 @@ function useForumStateInternal() {
     votePost,
     voteComment,
     toggleSaveComment,
+    toggleAcceptedAnswer,
     setCommentSort,
     toggleCommentCollapsed,
     setCommentInput,
