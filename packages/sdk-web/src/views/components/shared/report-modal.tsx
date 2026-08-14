@@ -7,6 +7,7 @@ import { CloseIcon } from './icons';
 // convention as ShareModal and Notifications.tsx.
 import '../composer/drafts-list-modal.css';
 import '../profile/edit-profile-modal.css';
+import './report-modal.css';
 
 const MAX_REASON = 500;
 
@@ -42,7 +43,7 @@ export default function ReportModal({ target, onClose, onSubmit }: ReportModalPr
   }
 
   return (
-    <Modal onClose={onClose} maxWidth={440} blurBackground>
+    <Modal onClose={onClose} maxWidth={480} blurBackground>
       <div className="fk-drafts-modal-header">
         <h3 className="fk-drafts-modal-title">
           Report {target.type === 'thread' ? 'thread' : 'comment'}
@@ -52,7 +53,7 @@ export default function ReportModal({ target, onClose, onSubmit }: ReportModalPr
         </button>
       </div>
 
-      <div className="fk-drafts-modal-body">
+      <div className="fk-drafts-modal-body fk-report-modal-body">
         {done ? (
           <div className="fk-drafts-modal-empty">
             <p>Thanks — this has been reported to the moderators.</p>

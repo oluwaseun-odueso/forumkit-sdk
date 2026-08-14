@@ -137,9 +137,12 @@ export function EllipsisIcon({ size = 18 }: IconProps) {
   );
 }
 
-export function SaveIcon({ size = 19 }: IconProps) {
+// `filled` swaps the bookmark from outline to solid — used to show
+// saved/unsaved state at a glance (e.g. post-card.tsx's Save/Unsave menu
+// item) rather than relying on the label text alone.
+export function SaveIcon({ size = 19, filled = false }: IconProps & { filled?: boolean }) {
   return (
-    <svg width={size} height={size} {...base} strokeWidth={1.7}>
+    <svg width={size} height={size} {...base} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.7}>
       <path d="M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z" />
     </svg>
   );

@@ -155,7 +155,7 @@ export default function PostCard({
             <EllipsisIcon />
           </button>
           <DropdownMenu open={menuOpen} onClose={onCloseMenu} style={{ top: 40, right: 0, width: 190, padding: 6 }}>
-            <DropdownMenuItem icon={<SaveIcon />} label={saved ? 'Unsave' : 'Save'} onClick={onSave} />
+            <DropdownMenuItem icon={<SaveIcon filled={saved} />} label={saved ? 'Unsave' : 'Save'} onClick={onSave} />
             <DropdownMenuItem
               icon={<ReportIcon />}
               label="Report"

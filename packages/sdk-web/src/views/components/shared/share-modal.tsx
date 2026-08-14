@@ -13,6 +13,7 @@ import { useForum } from '../../hooks/use-forum-state';
 import '../composer/drafts-list-modal.css';
 import '../layout/search-results-dropdown.css';
 import '../profile/edit-profile-modal.css';
+import './share-modal.css';
 
 const MAX_RECIPIENTS = 20;
 
@@ -72,7 +73,7 @@ export default function ShareModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal onClose={onClose} maxWidth={480} minHeight={420} blurBackground>
+    <Modal onClose={onClose} maxWidth={540} minHeight={440} blurBackground>
       <div className="fk-drafts-modal-header">
         <h3 className="fk-drafts-modal-title">Share with a member</h3>
         <button type="button" className="fk-drafts-modal-close" onClick={onClose}>
@@ -80,7 +81,7 @@ export default function ShareModal({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <div className="fk-drafts-modal-body">
+      <div className="fk-drafts-modal-body fk-share-modal-body">
         {done ? (
           <div className="fk-drafts-modal-empty">
             <p>Shared with {selected.length} {selected.length === 1 ? 'person' : 'people'}.</p>
