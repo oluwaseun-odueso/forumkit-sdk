@@ -5,8 +5,8 @@
 
 .fk-comment--accepted {
   padding-left: 10px;
-  border-left: 2px solid var(--up);
-  background: color-mix(in srgb, var(--up) 6%, transparent);
+  border-left: 2px solid var(--success);
+  background: color-mix(in srgb, var(--success) 6%, transparent);
   border-radius: 4px;
 }
 
@@ -16,8 +16,8 @@
   gap: 3px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--up) 16%, transparent);
-  color: var(--up);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
   font-size: 11px;
   font-weight: 700;
 }
@@ -123,11 +123,11 @@
 }
 
 .fk-comment-action--accepted {
-  color: var(--up);
+  color: var(--success);
 }
 
 .fk-comment-action--accepted:hover {
-  color: var(--up);
+  color: var(--success);
 }
 
 .fk-comment-edit {

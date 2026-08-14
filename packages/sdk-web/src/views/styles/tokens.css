@@ -27,6 +27,7 @@
   --accent-soft: rgba(63, 126, 226, 0.16);
   --up: #ff6a3d;
   --down: #8b6dff;
+  --success: #3fb950;
   --ring: rgba(63, 126, 226, 0.55);
   --thumb-shadow: rgba(0, 0, 0, 0.5);
 }
@@ -50,6 +51,7 @@
   --accent-2: #2560c4;
   --accent-soft: rgba(47, 111, 214, 0.12);
   --up: #f0521f;
+  --success: #1f9d3c;
   --ring: rgba(47, 111, 214, 0.5);
   --thumb-shadow: rgba(0, 0, 0, 0.18);
 }
