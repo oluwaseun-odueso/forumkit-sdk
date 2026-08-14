@@ -64,8 +64,8 @@
 
 .fk-search-dropdown-row-title {
   font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text), var(--text-2));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

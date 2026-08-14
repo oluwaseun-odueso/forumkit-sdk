@@ -25,9 +25,9 @@
 .fk-thread-title {
   margin: 0 0 14px;
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
-  color: var(--text);
+  color: color-mix(in srgb, var(--text), var(--text-2));
 }
 
 .fk-thread-body {
