@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
 import Modal from '../shared/modal';
 import PillButton from '../shared/pill-button';
-import { CloseIcon } from '../shared/icons';
+import { CloseIcon, CameraIcon } from '../shared/icons';
 import { cropToCanvas, applyFilterAndVignette, canvasToBlob } from '../../utils/crop-image';
 // Reuses the drafts modal's close-button class rather than a near-identical
 // duplicate.
@@ -40,8 +40,19 @@ type ImageEditorModalProps = {
  * filters can't be read back out of a canvas otherwise.
  */
 export default function ImageEditorModal({ file, aspect, targetWidth, targetHeight, onCancel, onConfirm }: ImageEditorModalProps) {
-  const imageSrc = useMemo(() => URL.createObjectURL(file), [file]);
-  const objectUrlRef = useRef(imageSrc);
+  // The source file is local state, not derived straight from the `file`
+  // prop, so "Pick another image" can swap it without unmounting/remounting
+  // the whole modal (which would otherwise be the only way to change it —
+  // exactly what this button exists to avoid).
+  const [imageSrc, setImageSrc] = useState(() => URL.createObjectURL(file));
+  const pickAnotherInputRef = useRef<HTMLInputElement>(null);
+
+  // Revokes the previous object URL whenever imageSrc changes (picking a
+  // new image) and on unmount — single source of truth for the URL's
+  // lifecycle instead of scattering revoke calls across every exit path.
+  useEffect(() => {
+    return () => URL.revokeObjectURL(imageSrc);
+  }, [imageSrc]);
 
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -71,8 +82,27 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
   }
 
   function handleClose() {
-    URL.revokeObjectURL(objectUrlRef.current);
     onCancel();
+  }
+
+  // Swaps the source image in place — resets every crop/rotate/filter/
+  // adjust control back to its default, since none of it carries over
+  // meaningfully onto a different photo.
+  function handlePickAnother(e: React.ChangeEvent<HTMLInputElement>) {
+    const newFile = e.target.files?.[0];
+    e.target.value = '';
+    if (!newFile) return;
+    setImageSrc(URL.createObjectURL(newFile));
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setRotation(0);
+    setCroppedAreaPixels(null);
+    setFilterKey('none');
+    setBrightness(100);
+    setContrast(100);
+    setSaturation(100);
+    setVignette(0);
+    setError(null);
   }
 
   async function handleConfirm() {
@@ -83,7 +113,6 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
       const cropped = await cropToCanvas(imageSrc, croppedAreaPixels, rotation, targetWidth, targetHeight);
       const filtered = applyFilterAndVignette(cropped, filterString, vignette);
       const blob = await canvasToBlob(filtered);
-      URL.revokeObjectURL(objectUrlRef.current);
       onConfirm(blob);
     } catch {
       setError('Could not process this image — try again.');
@@ -188,10 +217,28 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
         </div>
 
         <div className="fk-image-editor-footer">
-          <PillButton variant="surface" onClick={handleClose} disabled={exporting}>Cancel</PillButton>
-          <PillButton variant="accent" onClick={() => void handleConfirm()} disabled={exporting || !croppedAreaPixels}>
-            {exporting ? 'Saving…' : 'Save'}
+          <PillButton
+            variant="surface"
+            icon={<CameraIcon size={14} />}
+            onClick={() => pickAnotherInputRef.current?.click()}
+            disabled={exporting}
+          >
+            Pick another image
           </PillButton>
+          <input
+            ref={pickAnotherInputRef}
+            type="file"
+            accept="image/*"
+            className="fk-image-editor-file-input"
+            onChange={handlePickAnother}
+            onClick={e => e.stopPropagation()}
+          />
+          <div className="fk-image-editor-footer-actions">
+            <PillButton variant="surface" onClick={handleClose} disabled={exporting}>Cancel</PillButton>
+            <PillButton variant="accent" onClick={() => void handleConfirm()} disabled={exporting || !croppedAreaPixels}>
+              {exporting ? 'Saving…' : 'Save'}
+            </PillButton>
+          </div>
         </div>
       </div>
     </Modal>
