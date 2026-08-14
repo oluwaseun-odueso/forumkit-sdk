@@ -97,15 +97,6 @@ export function GifIcon() {
   );
 }
 
-export function FormattingIcon() {
-  return (
-    <svg {...svgBase} strokeWidth={1.9}>
-      <path d="M4 18L9 6l5 12M5.5 14h7" />
-      <path d="M15 18V9.5c0-1.4 1.1-2.5 2.5-2.5S20 8.1 20 9.5 18.9 12 17.5 12" />
-    </svg>
-  );
-}
-
 type ToolbarButtonProps = {
   label: string;
   active?: boolean;

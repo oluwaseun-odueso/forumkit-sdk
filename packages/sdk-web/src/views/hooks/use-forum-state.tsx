@@ -1299,11 +1299,11 @@ function useForumStateInternal() {
   const toggleCommentCollapsed = useCallback((commentId: string) => dispatch({ type: 'TOGGLE_COMMENT_COLLAPSED', commentId }), []);
   const setCommentInput = useCallback((value: string) => dispatch({ type: 'SET_COMMENT_INPUT', value }), []);
 
-  const submitReply = useCallback(async (parentId: string | null, body: string): Promise<void> => {
+  const submitReply = useCallback(async (parentId: string | null, body: string, attachmentIds?: string[]): Promise<void> => {
     const threadId = state.thread.activePostId;
     const trimmed = body.trim();
     if (!threadId || !trimmed) return;
-    const raw = await createReply(threadId, { body: trimmed, parentCommentId: parentId ?? undefined }, sessionToken);
+    const raw = await createReply(threadId, { body: trimmed, parentCommentId: parentId ?? undefined, attachmentIds }, sessionToken);
     const voteCounts = raw.voteCounts ?? { up: 0, down: 0 };
     const comment: CommentNodeData = {
       id: raw.id,
@@ -1322,12 +1322,11 @@ function useForumStateInternal() {
     dispatch({ type: 'REPLY_SUBMITTED', parentId, comment });
   }, [state.thread.activePostId, sessionToken]);
 
-  const submitComment = useCallback(async () => {
-    const body = state.thread.commentInput;
+  const submitComment = useCallback(async (body: string, attachmentIds?: string[]) => {
     if (!body.trim()) return;
-    await submitReply(null, body);
+    await submitReply(null, body, attachmentIds);
     dispatch({ type: 'SET_COMMENT_INPUT', value: '' });
-  }, [state.thread.commentInput, submitReply]);
+  }, [submitReply]);
 
   const editComment = useCallback(async (commentId: string, body: string): Promise<void> => {
     const threadId = state.thread.activePostId;

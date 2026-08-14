@@ -79,26 +79,6 @@
   background: var(--surface-2);
 }
 
-.fk-thread-composer {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 6px 6px 6px 18px;
-  margin-bottom: 24px;
-}
-
-.fk-thread-composer-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text);
-  font-size: 14.5px;
-  font-family: inherit;
-}
-
 .fk-ai-row {
   display: flex;
   align-items: center;

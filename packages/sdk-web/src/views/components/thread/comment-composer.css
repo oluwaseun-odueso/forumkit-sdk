@@ -1,0 +1,91 @@
+.fk-comment-composer {
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.fk-comment-composer-toolbar {
+  border-radius: 0;
+  padding: 8px 10px;
+}
+
+.fk-comment-composer-content {
+  min-height: 40px;
+}
+
+.fk-comment-composer-content .ProseMirror {
+  padding: 10px 18px;
+  color: var(--text);
+  font-size: 14.5px;
+  line-height: 1.55;
+  outline: none;
+  min-height: 40px;
+}
+
+.fk-comment-composer-content .ProseMirror p {
+  margin: 0 0 0.5em;
+}
+
+.fk-comment-composer-content .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.fk-comment-composer-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.fk-comment-composer-content .ProseMirror img,
+.fk-comment-composer-content .ProseMirror video {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+
+.fk-comment-composer-gif-panel {
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.fk-comment-composer-gif-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.fk-comment-composer-gif-note {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fk-comment-composer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px 6px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.fk-comment-composer-icons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-2);
+}
+
+.fk-comment-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

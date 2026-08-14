@@ -8,6 +8,7 @@ import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon, CheckIcon } from '../shared/icons';
 import { useShare } from '../../hooks/use-share';
 import { useForum } from '../../hooks/use-forum-state';
+import CommentComposer from './comment-composer';
 // Reuses post-card's ellipsis/menu-anchor classes (generic circular icon
 // button + positioned dropdown) rather than a parallel set of near-identical
 // rules just for comments.
@@ -25,7 +26,7 @@ type CommentProps = {
   currentUserId: string | null;
   onToggleCollapsed: (id: string) => void;
   onVote: (id: string, dir: VoteDir) => void;
-  onReply: (parentId: string, body: string) => Promise<void>;
+  onReply: (parentId: string, body: string, attachmentIds?: string[]) => Promise<void>;
   onEdit: (commentId: string, body: string) => Promise<void>;
   onSave: (commentId: string) => void;
   // Present only when the current user is the thread author or a
@@ -46,34 +47,15 @@ export default function Comment({
   const isMine = currentUserId !== null && comment.authorId === currentUserId;
   const avatar = authorAvatar(comment.authorId, comment.author);
   const share = useShare(threadId);
-  const { openReportModal } = useForum();
+  const { openReportModal, forumId, sessionToken } = useForum();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [replyOpen, setReplyOpen] = useState(false);
-  const [replyText, setReplyText] = useState('');
-  const [replySubmitting, setReplySubmitting] = useState(false);
-  const [replyError, setReplyError] = useState<string | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(comment.body);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-
-  async function handleSubmitReply() {
-    const body = replyText.trim();
-    if (!body || replySubmitting) return;
-    setReplySubmitting(true);
-    setReplyError(null);
-    try {
-      await onReply(comment.id, body);
-      setReplyText('');
-      setReplyOpen(false);
-    } catch (err) {
-      setReplyError(err instanceof Error ? err.message : 'Failed to post reply');
-    } finally {
-      setReplySubmitting(false);
-    }
-  }
 
   async function handleSaveEdit() {
     const body = editText.trim();
@@ -214,29 +196,15 @@ export default function Comment({
           </div>
 
           {replyOpen && (
-            <div className="fk-comment-reply">
-              <input
-                className="fk-comment-reply-input"
-                placeholder={`Reply to ${comment.author}`}
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') void handleSubmitReply(); }}
-              />
-              {replyError && <p className="fk-comment-error">{replyError}</p>}
-              <div className="fk-comment-edit-actions">
-                <button type="button" className="fk-comment-action" onClick={handleSubmitReply} disabled={replySubmitting}>
-                  {replySubmitting ? 'Posting…' : 'Reply'}
-                </button>
-                <button
-                  type="button"
-                  className="fk-comment-action"
-                  onClick={() => { setReplyOpen(false); setReplyText(''); setReplyError(null); }}
-                  disabled={replySubmitting}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+            <CommentComposer
+              forumId={forumId}
+              sessionToken={sessionToken}
+              placeholder={`Reply to ${comment.author}`}
+              submitLabel="Reply"
+              autoFocus
+              onSubmit={async (body, attachmentIds) => { await onReply(comment.id, body, attachmentIds); setReplyOpen(false); }}
+              onCancel={() => setReplyOpen(false)}
+            />
           )}
 
           {comment.replies.map(reply => (

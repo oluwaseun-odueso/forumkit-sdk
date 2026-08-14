@@ -13,6 +13,7 @@ import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import { useShare } from '../../hooks/use-share';
 import CommentSort from './comment-sort';
 import Comment from './comment';
+import CommentComposer from './comment-composer';
 import './thread-view.css';
 
 type ThreadViewProps = {
@@ -33,8 +34,8 @@ function filterComments(list: CommentNodeData[], q: string): CommentNodeData[] {
 
 export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {
-    state, activePost, sortedComments, currentUserId,
-    votePost, voteComment, toggleSaveComment, toggleAcceptedAnswer, setCommentInput, submitComment, setCommentSort, toggleCommentCollapsed,
+    state, activePost, sortedComments, currentUserId, forumId, sessionToken,
+    votePost, voteComment, toggleSaveComment, toggleAcceptedAnswer, submitComment, setCommentSort, toggleCommentCollapsed,
     submitReply, editComment, editPost,
     summarize, suggest,
   } = forum;
@@ -255,16 +256,14 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         </div>
       )}
 
-      <div className="fk-thread-composer">
-        <input
-          className="fk-thread-composer-input"
-          placeholder="Join the conversation"
-          value={state.thread.commentInput}
-          onChange={e => setCommentInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') void submitComment(); }}
-        />
-        <PillButton variant="accent" onClick={() => void submitComment()}>Comment</PillButton>
-      </div>
+      <CommentComposer
+        forumId={forumId}
+        sessionToken={sessionToken}
+        placeholder="Join the conversation"
+        submitLabel="Comment"
+        syncedValue={state.thread.commentInput}
+        onSubmit={(body, attachmentIds) => submitComment(body, attachmentIds)}
+      />
 
       <CommentSort
         sort={state.thread.commentSort}
