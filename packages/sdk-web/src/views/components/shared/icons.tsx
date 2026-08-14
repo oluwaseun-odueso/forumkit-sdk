@@ -238,8 +238,9 @@ export function CardViewIcon({ size = 18 }: IconProps) {
 export function RocketIcon({ size = 22 }: IconProps) {
   return (
     <svg width={size} height={size} {...base} strokeWidth={1.7}>
-      <path d="M10 13a5 5 0 007 0l2-2a5 5 0 00-7-7l-1 1" />
-      <path d="M14 11a5 5 0 00-7 0l-2 2a5 5 0 007 7l1-1" />
+      <path d="M12 2c2.4 2.1 3.8 5.4 3.8 8.8 0 2-1 4-2 5.2l-1.8 2-1.8-2c-1-1.2-2-3.2-2-5.2C8.2 7.4 9.6 4.1 12 2z" />
+      <circle cx="12" cy="9.5" r="1.5" />
+      <path d="M8.5 15l-2 4M15.5 15l2 4" />
     </svg>
   );
 }
@@ -247,18 +248,17 @@ export function RocketIcon({ size = 22 }: IconProps) {
 export function TopIcon({ size = 22 }: IconProps) {
   return (
     <svg width={size} height={size} {...base} strokeWidth={1.7}>
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
-      <circle cx="9" cy="10" r="2" />
-      <path d="M4 17l5-4 4 3 3-2 4 3" />
+      <path d="M4 17l5-5 4 4 7-8" />
+      <path d="M20 8h-4M20 8v4" />
     </svg>
   );
 }
 
 export function ControversialIcon({ size = 22 }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M10 9l5 3-5 3z" fill="currentColor" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <path d="M7 4l4 6H3z" />
+      <path d="M17 20l4-6h-8z" />
     </svg>
   );
 }
@@ -266,8 +266,8 @@ export function ControversialIcon({ size = 22 }: IconProps) {
 export function OldIcon({ size = 22 }: IconProps) {
   return (
     <svg width={size} height={size} {...base} strokeWidth={1.7}>
-      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
-      <path d="M3.5 9h17M9 9v10.5" />
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
     </svg>
   );
 }
