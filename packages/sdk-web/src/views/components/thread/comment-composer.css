@@ -3,6 +3,11 @@
   border-radius: 22px;
   margin-bottom: 16px;
   overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.fk-comment-composer:focus-within {
+  border-color: var(--accent);
 }
 
 .fk-comment-composer-toolbar {
