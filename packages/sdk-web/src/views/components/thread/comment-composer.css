@@ -7,6 +7,7 @@
 
 .fk-comment-composer-toolbar {
   border-radius: 0;
+  border-bottom: none;
   padding: 8px 10px;
 }
 
@@ -49,7 +50,6 @@
 
 .fk-comment-composer-gif-panel {
   padding: 10px 18px;
-  border-top: 1px solid var(--border);
 }
 
 .fk-comment-composer-gif-input {
@@ -74,7 +74,6 @@
   justify-content: space-between;
   gap: 10px;
   padding: 6px 10px 6px 10px;
-  border-top: 1px solid var(--border);
 }
 
 .fk-comment-composer-icons {

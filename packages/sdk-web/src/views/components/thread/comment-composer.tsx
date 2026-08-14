@@ -114,7 +114,6 @@ export default function CommentComposer({
           <ToolbarButton label="Superscript" active={editor.isActive('superscript')} style={{ fontSize: 14 }}
             onClick={() => run(e => e.chain().focus().toggleSuperscript().run())}>x²</ToolbarButton>
 
-          <span className="fk-rte-divider" />
 
           <ToolbarButton label="Link" active={editor.isActive('link')} onClick={() => {
             const previousUrl = editor.getAttributes('link').href as string | undefined;
@@ -128,7 +127,6 @@ export default function CommentComposer({
           <ToolbarButton label="Numbered list" active={editor.isActive('orderedList')}
             onClick={() => run(e => e.chain().focus().toggleOrderedList().run())}><NumberedListIcon /></ToolbarButton>
 
-          <span className="fk-rte-divider" />
 
           <ToolbarButton label="Quote" active={editor.isActive('blockquote')} style={{ fontWeight: 800, fontSize: 14 }}
             onClick={() => run(e => e.chain().focus().toggleBlockquote().run())}>&quot;</ToolbarButton>
