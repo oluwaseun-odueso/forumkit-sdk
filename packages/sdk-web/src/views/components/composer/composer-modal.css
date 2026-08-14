@@ -129,8 +129,13 @@
   background: transparent;
   color: var(--text);
   font-size: 16px;
+  font-weight: 700;
   outline: none;
   font-family: inherit;
+}
+
+.fk-composer-title-input--light {
+  font-weight: 400;
 }
 
 .fk-composer-title-label {

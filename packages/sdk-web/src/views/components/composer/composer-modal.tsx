@@ -129,7 +129,7 @@ export default function ComposerModal({
         <div className="fk-composer-title-wrap">
           <input
             id="composer-link"
-            className="fk-composer-title-input"
+            className="fk-composer-title-input fk-composer-title-input--light"
             placeholder=" "
             value={composer.linkUrl}
             onChange={e => onSetField('linkUrl', e.target.value)}
