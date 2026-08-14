@@ -183,9 +183,9 @@
 }
 
 .fk-edit-modal-preference-label {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-2);
 }
 
 .fk-edit-modal-preference-sub {
@@ -255,9 +255,9 @@
 }
 
 .fk-edit-modal-links-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
 }
 
 .fk-edit-modal-add-link {
