@@ -5,7 +5,7 @@ import {
 import type {
   SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow,
   ProfileActivityItem, ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
-  Draft, DraftContent, SearchResult, NotificationPrefs,
+  Draft, DraftContent, SearchResult, NotificationPrefs, UserRole,
 } from '@forumkit/types';
 import { searchThreads as apiSearchThreads } from '../api/search';
 import { getUnreadCount as apiGetUnreadCount } from '../api/notifications';
@@ -133,6 +133,7 @@ type ProfileState = {
   commentKarma: number;
   themePreference: 'light' | 'dark' | null;
   notificationPrefs: NotificationPrefs;
+  role: UserRole;
   activityItems: ActivityItemView[];
   activityTotal: number;
   activityPage: number;
@@ -150,7 +151,7 @@ type ProfileState = {
 // case. Derived from ProfileState via Omit/& rather than hand-duplicated:
 // same shape plus userId, minus themePreference (that's a personal setting,
 // meaningless when looking at someone else's profile).
-type ViewedProfileState = Omit<ProfileState, 'themePreference' | 'notificationPrefs' | 'id'> & { userId: string };
+type ViewedProfileState = Omit<ProfileState, 'themePreference' | 'notificationPrefs' | 'role' | 'id'> & { userId: string };
 
 // Covers both the top-nav live dropdown (query/results/loading/open — open
 // is whether that small dropdown panel is currently visible, separate from
@@ -295,6 +296,7 @@ type Action =
     }
   | { type: 'SET_THEME_PREFERENCE'; themePreference: 'light' | 'dark' | null }
   | { type: 'SET_NOTIFICATION_PREFS'; prefs: NotificationPrefs }
+  | { type: 'SET_ROLE'; role: UserRole }
   | { type: 'SET_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
   | { type: 'APPEND_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
   | { type: 'SET_PROFILE_ACTIVITY_LOADING'; loading: boolean }
@@ -560,6 +562,7 @@ const initialState: State = {
     activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null,
     joinedAt: null, postKarma: 0, commentKarma: 0, themePreference: null,
     notificationPrefs: { commentReply: true, share: true, vote: true, moderationReport: true },
+    role: 'member',
     activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
     activitySort: 'new', activityContentType: 'all',
   },
@@ -981,6 +984,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, profile: { ...state.profile, themePreference: action.themePreference } };
     case 'SET_NOTIFICATION_PREFS':
       return { ...state, profile: { ...state.profile, notificationPrefs: action.prefs } };
+    case 'SET_ROLE':
+      return { ...state, profile: { ...state.profile, role: action.role } };
     case 'SET_PROFILE_ACTIVITY':
       return {
         ...state,
@@ -1654,6 +1659,7 @@ function useForumStateInternal() {
         themePreference: profile.themePreference,
       });
       dispatch({ type: 'SET_NOTIFICATION_PREFS', prefs: profile.notificationPrefs });
+      dispatch({ type: 'SET_ROLE', role: profile.role });
       // A saved server preference overrides whatever the host app initialised
       // ForumKit with — same localStorage key use-theme.ts already reads, so
       // top-nav's own theme toggle picks this up on its next mount too.

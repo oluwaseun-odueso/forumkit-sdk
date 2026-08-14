@@ -1,22 +1,26 @@
-import type { NotificationPrefs } from '@forumkit/types';
+import type { NotificationPrefs, UserRole } from '@forumkit/types';
 import Modal from './modal';
 import { CloseIcon } from './icons';
 // Reuses the drafts modal's header/close shell and the edit-profile
 // modal's preference-row/switch styling (same rows this used to render
 // inline in EditProfileModal's own Preferences section) rather than a
-// parallel stylesheet.
+// parallel stylesheet — only the sizing/spacing overrides below (scoped to
+// .fk-notification-settings-body, not the shared classes themselves) are
+// new.
 import '../composer/drafts-list-modal.css';
 import '../profile/edit-profile-modal.css';
+import './notification-settings-modal.css';
 
-const NOTIFICATION_PREF_ROWS: { key: keyof NotificationPrefs; label: string; sub: string }[] = [
+const NOTIFICATION_PREF_ROWS: { key: keyof NotificationPrefs; label: string; sub: string; modOnly?: boolean }[] = [
   { key: 'commentReply', label: 'Comment replies', sub: 'When someone replies to your comment' },
   { key: 'share', label: 'Shares', sub: 'When someone shares a post with you' },
   { key: 'vote', label: 'Upvotes & downvotes', sub: 'When someone votes on your post or comment' },
-  { key: 'moderationReport', label: 'Moderation reports', sub: 'When a member reports a post or comment (admins/moderators only)' },
+  { key: 'moderationReport', label: 'Moderation reports', sub: 'When a member reports a post or comment', modOnly: true },
 ];
 
 type NotificationSettingsModalProps = {
   notificationPrefs: NotificationPrefs;
+  role: UserRole;
   onToggleNotificationPref: (type: keyof NotificationPrefs, enabled: boolean) => void;
   onClose: () => void;
 };
@@ -30,12 +34,20 @@ type NotificationSettingsModalProps = {
  * Each toggle fires immediately on click (same "no Save button" pattern
  * the Display Mode toggle still uses in EditProfileModal) rather than
  * being gated behind a save action.
+ *
+ * The "Moderation reports" row only ever matters to admins/moderators (a
+ * plain member's notification feed can structurally never contain a report
+ * notification — see the backend's read-time role filter) so it's hidden
+ * for members entirely rather than shown-but-irrelevant.
  */
 export default function NotificationSettingsModal({
-  notificationPrefs, onToggleNotificationPref, onClose,
+  notificationPrefs, role, onToggleNotificationPref, onClose,
 }: NotificationSettingsModalProps) {
+  const canModerate = role === 'admin' || role === 'moderator';
+  const rows = NOTIFICATION_PREF_ROWS.filter(row => !row.modOnly || canModerate);
+
   return (
-    <Modal onClose={onClose} maxWidth={440} blurBackground>
+    <Modal onClose={onClose} maxWidth={560} blurBackground>
       <div className="fk-drafts-modal-header">
         <h3 className="fk-drafts-modal-title">Notification settings</h3>
         <button type="button" className="fk-drafts-modal-close" onClick={onClose}>
@@ -43,8 +55,8 @@ export default function NotificationSettingsModal({
         </button>
       </div>
 
-      <div className="fk-drafts-modal-body">
-        {NOTIFICATION_PREF_ROWS.map(row => {
+      <div className="fk-drafts-modal-body fk-notification-settings-body">
+        {rows.map(row => {
           const enabled = notificationPrefs[row.key];
           return (
             <div className="fk-edit-modal-preference-row" key={row.key}>

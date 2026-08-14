@@ -63,6 +63,7 @@ function Router() {
       {state.notificationSettingsModal.open && (
         <NotificationSettingsModal
           notificationPrefs={profile.notificationPrefs}
+          role={profile.role}
           onToggleNotificationPref={(type, enabled) => void setNotificationPref(type, enabled)}
           onClose={closeNotificationSettingsModal}
         />

@@ -7,12 +7,12 @@ import * as commentRepo from '../repositories/comment';
 import * as profileActivityService from '../services/profile-activity';
 import * as notificationService from '../services/notification';
 
-type UserRow = { id: string };
+type UserRow = { id: string; role: 'member' | 'moderator' | 'admin' };
 
 async function resolveUser(request: FastifyRequest): Promise<UserRow | null> {
   const payload = request.jwtPayload;
   const rows = await request.server.db<UserRow[]>`
-    SELECT id FROM users
+    SELECT id, role FROM users
     WHERE external_id = ${payload.sub}
       AND forum_id    = ${payload.forumId}
   `;
@@ -84,7 +84,7 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'user_not_found', message: 'User not found', statusCode: 404 });
     }
 
-    return reply.status(200).send({ ...profile, postKarma, commentKarma, notificationPrefs });
+    return reply.status(200).send({ ...profile, postKarma, commentKarma, notificationPrefs, role: user.role });
   });
 
   app.patch('/:forumId/me', { preHandler: authenticate }, async (request, reply) => {

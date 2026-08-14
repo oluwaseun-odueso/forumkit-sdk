@@ -1,13 +1,13 @@
 import type {
   UserProfile, UpdateProfileBody, ProfileActivityItem,
   ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
-  NotificationPrefs,
+  NotificationPrefs, UserRole,
 } from '@forumkit/types';
 
-// GET /me returns notificationPrefs alongside the shared UserProfile fields —
-// kept off UserProfile itself (that type is also used for public profile
-// views) and typed here instead, /me-only.
-export type MyProfile = UserProfile & { notificationPrefs: NotificationPrefs };
+// GET /me returns notificationPrefs and role alongside the shared UserProfile
+// fields — kept off UserProfile itself (that type is also used for public
+// profile views) and typed here instead, /me-only.
+export type MyProfile = UserProfile & { notificationPrefs: NotificationPrefs; role: UserRole };
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
