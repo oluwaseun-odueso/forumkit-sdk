@@ -41,7 +41,7 @@ type ImageEditorModalProps = {
  */
 export default function ImageEditorModal({ file, aspect, targetWidth, targetHeight, onCancel, onConfirm }: ImageEditorModalProps) {
   // The source file is local state, not derived straight from the `file`
-  // prop, so "Pick another image" can swap it without unmounting/remounting
+  // prop, so "Change photo" can swap it without unmounting/remounting
   // the whole modal (which would otherwise be the only way to change it —
   // exactly what this button exists to avoid).
   const [imageSrc, setImageSrc] = useState(() => URL.createObjectURL(file));
@@ -223,7 +223,7 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
             onClick={() => pickAnotherInputRef.current?.click()}
             disabled={exporting}
           >
-            Pick another image
+            Change photo
           </PillButton>
           <input
             ref={pickAnotherInputRef}
