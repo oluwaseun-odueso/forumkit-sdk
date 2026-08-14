@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
 import Modal from '../shared/modal';
@@ -47,12 +47,15 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
   const [imageSrc, setImageSrc] = useState(() => URL.createObjectURL(file));
   const pickAnotherInputRef = useRef<HTMLInputElement>(null);
 
-  // Revokes the previous object URL whenever imageSrc changes (picking a
-  // new image) and on unmount — single source of truth for the URL's
-  // lifecycle instead of scattering revoke calls across every exit path.
-  useEffect(() => {
-    return () => URL.revokeObjectURL(imageSrc);
-  }, [imageSrc]);
+  // Deliberately NOT a useEffect cleanup keyed on imageSrc: React 18
+  // StrictMode's dev-only mount->cleanup->mount double-invoke would run
+  // that cleanup once immediately after the very first mount, revoking the
+  // object URL while it's still the live <img> src inside react-easy-crop's
+  // Cropper — the image would never render. Kept in sync with a plain
+  // render-time assignment instead (no effect involved) and revoked only at
+  // real exit points (close/confirm/replace) below.
+  const imageSrcRef = useRef(imageSrc);
+  imageSrcRef.current = imageSrc;
 
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -82,6 +85,7 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
   }
 
   function handleClose() {
+    URL.revokeObjectURL(imageSrcRef.current);
     onCancel();
   }
 
@@ -92,6 +96,7 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
     const newFile = e.target.files?.[0];
     e.target.value = '';
     if (!newFile) return;
+    URL.revokeObjectURL(imageSrcRef.current);
     setImageSrc(URL.createObjectURL(newFile));
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -113,9 +118,10 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
       const cropped = await cropToCanvas(imageSrc, croppedAreaPixels, rotation, targetWidth, targetHeight);
       const filtered = applyFilterAndVignette(cropped, filterString, vignette);
       const blob = await canvasToBlob(filtered);
+      URL.revokeObjectURL(imageSrcRef.current);
       onConfirm(blob);
     } catch {
-      setError('Could not process this image — try again.');
+      setError('Could not process this image. Try again.');
       setExporting(false);
     }
   }

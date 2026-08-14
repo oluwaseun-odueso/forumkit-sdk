@@ -123,13 +123,16 @@ export default function EditProfileModal({
     setEditingImage({ kind: 'avatar', file });
   }
 
+  // Deliberately does NOT touch bannerPreview/avatarPreview — the modal
+  // keeps showing the existing (saved) image the whole time it's open;
+  // the edited one only actually appears once the real Save below succeeds
+  // and this modal closes, everywhere it's rendered from the fresh server
+  // URL, not as an early local preview a Cancel could leave the user unsure
+  // about.
   function handleImageEditorConfirm(blob: Blob) {
-    const url = URL.createObjectURL(blob);
     if (editingImage?.kind === 'banner') {
-      setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
       setBannerBlob(blob);
     } else {
-      setAvatarPreview(prev => { if (prev && prev !== avatarUrl) URL.revokeObjectURL(prev); return url; });
       setAvatarBlob(blob);
     }
     setEditingImage(null);
