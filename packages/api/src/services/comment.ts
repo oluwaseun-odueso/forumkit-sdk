@@ -163,6 +163,32 @@ export async function acceptAnswer(
   return ok(updated);
 }
 
+export async function unacceptAnswer(
+  db: DB,
+  opts: AcceptAnswerOptions,
+): Promise<Result<Comment, CommentError>> {
+  const [comment, thread] = await Promise.all([
+    repo.getCommentById(db, opts.commentId),
+    repo.getThreadInfo(db, opts.threadId),
+  ]);
+
+  if (!comment) return err('comment_not_found');
+  if (!thread) return err('thread_not_found');
+  if (comment.threadId !== opts.threadId) return err('comment_not_found');
+
+  const canAccept =
+    thread.authorId === opts.requesterId ||
+    opts.requesterRole === 'moderator' ||
+    opts.requesterRole === 'admin';
+
+  if (!canAccept) return err('forbidden');
+
+  await repo.clearAcceptedAnswer(db, opts.threadId);
+  const updated = await repo.getCommentById(db, opts.commentId);
+  if (!updated) return err('comment_not_found');
+  return ok(updated);
+}
+
 async function notifyParentCommentAuthor(
   db: DB,
   forumId: string,

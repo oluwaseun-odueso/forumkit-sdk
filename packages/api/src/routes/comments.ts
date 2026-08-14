@@ -334,6 +334,26 @@ export async function commentsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
+   * DELETE /threads/:tid/comments/:cid/accept
+   */
+  app.delete('/:tid/comments/:cid/accept', { preHandler: authenticate }, async (request, reply) => {
+    const { tid, cid } = request.params as { tid: string; cid: string };
+
+    const user = await resolveUser(request);
+    if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
+
+    const result = await commentService.unacceptAnswer(request.server.db, {
+      commentId: cid,
+      threadId: tid,
+      requesterId: user.id,
+      requesterRole: user.role as Parameters<typeof commentService.unacceptAnswer>[1]['requesterRole'],
+    });
+    if (!result.ok) return sendCommentError(result.code, reply);
+
+    return reply.status(200).send(result.value);
+  });
+
+  /**
    * GET /threads/:tid/ws — WebSocket subscription for live thread updates
    */
   app.get('/:tid/ws', { websocket: true }, (connection: SocketStream, request: FastifyRequest) => {

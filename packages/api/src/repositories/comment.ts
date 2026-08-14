@@ -189,6 +189,13 @@ export async function setAcceptedAnswer(
   return comment;
 }
 
+export async function clearAcceptedAnswer(db: DB, threadId: string): Promise<void> {
+  await db`
+    UPDATE comments SET is_accepted_answer = FALSE
+    WHERE thread_id = ${threadId} AND is_accepted_answer = TRUE
+  `;
+}
+
 export async function updateCommentEmbedding(
   db: DB,
   commentId: string,
