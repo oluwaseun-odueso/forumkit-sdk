@@ -3,6 +3,7 @@ import type { SocialLink } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
 import Modal from '../shared/modal';
 import ImageEditorModal from './image-editor-modal';
+import Lightbox from '../shared/lightbox';
 import {
   CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon, SunIcon, MoonIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
@@ -100,6 +101,10 @@ export default function EditProfileModal({
   // Picking a file opens the editor instead of immediately auto-cropping —
   // resizeImage/handleXFile below only run once the user confirms inside it.
   const [editingImage, setEditingImage] = useState<{ kind: 'avatar' | 'banner'; file: File } | null>(null);
+  // Clicking the banner/avatar *image* (as opposed to the camera icon) shows
+  // it full-size in place, rather than navigating away — see the Lightbox
+  // render below.
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +180,7 @@ export default function EditProfileModal({
       <div
         className="fk-edit-modal-banner"
         style={bannerPreview ? { backgroundImage: `url(${bannerPreview})`, cursor: 'zoom-in' } : undefined}
-        onClick={bannerPreview ? () => window.open(bannerPreview!, '_blank') : undefined}
+        onClick={bannerPreview ? () => setLightboxImage(bannerPreview) : undefined}
       >
         <button
           type="button"
@@ -185,16 +190,42 @@ export default function EditProfileModal({
           <CameraIcon size={13} />
           Change Banner
         </button>
-        <input ref={bannerInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleBannerFile} />
+        {/* Calling input.click() programmatically (above) dispatches its own
+            fresh click event that bubbles from the input itself — a sibling
+            of this button, both children of .fk-edit-modal-banner — straight
+            to the banner's onClick, completely bypassing the button's own
+            stopPropagation (which only ever applied to the *original* click
+            on the button). Stopping propagation here, on the input's own
+            click, is what actually prevents that. */}
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/*"
+          className="fk-edit-modal-file-input"
+          onChange={handleBannerFile}
+          onClick={e => e.stopPropagation()}
+        />
 
         <div
           className="fk-edit-modal-avatar"
-          onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
+          onClick={avatarPreview ? e => { e.stopPropagation(); setLightboxImage(avatarPreview); } : undefined}
         >
           {avatarPreview ? <img src={avatarPreview} alt="Avatar preview" className="fk-edit-modal-avatar-img" /> : null}
-          <span className="fk-edit-modal-avatar-badge"><CameraIcon size={13} /></span>
+          <span
+            className="fk-edit-modal-avatar-badge"
+            onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
+          >
+            <CameraIcon size={13} />
+          </span>
         </div>
-        <input ref={avatarInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleAvatarFile} />
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className="fk-edit-modal-file-input"
+          onChange={handleAvatarFile}
+          onClick={e => e.stopPropagation()}
+        />
       </div>
 
       <div className="fk-edit-modal-body">
@@ -331,6 +362,10 @@ export default function EditProfileModal({
         onCancel={() => setEditingImage(null)}
         onConfirm={handleImageEditorConfirm}
       />
+    )}
+
+    {lightboxImage && (
+      <Lightbox images={[lightboxImage]} startIndex={0} onClose={() => setLightboxImage(null)} />
     )}
     </>
   );
