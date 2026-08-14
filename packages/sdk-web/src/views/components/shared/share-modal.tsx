@@ -89,7 +89,7 @@ export default function ShareModal({ onClose }: { onClose: () => void }) {
         ) : (
           <>
             {selected.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
                 {selected.map(u => (
                   <button
                     key={u.id}
@@ -112,7 +112,7 @@ export default function ShareModal({ onClose }: { onClose: () => void }) {
               autoFocus
             />
 
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 16, marginBottom: 24 }}>
               {loading && <div className="fk-search-dropdown-status">Searching…</div>}
               {!loading && query.trim() && results.length === 0 && (
                 <div className="fk-search-dropdown-status">No matching members</div>
@@ -137,7 +137,7 @@ export default function ShareModal({ onClose }: { onClose: () => void }) {
               })}
             </div>
 
-            <label className="fk-edit-modal-label" style={{ marginTop: 14, display: 'block' }}>
+            <label className="fk-edit-modal-label" style={{ marginBottom: 8, display: 'block' }}>
               Message (optional)
             </label>
             <textarea
@@ -151,7 +151,7 @@ export default function ShareModal({ onClose }: { onClose: () => void }) {
 
             {error && <div className="fk-edit-modal-save-error">{error}</div>}
 
-            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
               <PillButton variant="accent" disabled={selected.length === 0 || submitting} onClick={handleSubmit}>
                 {submitting ? 'Sharing…' : `Share${selected.length > 0 ? ` (${selected.length})` : ''}`}
               </PillButton>

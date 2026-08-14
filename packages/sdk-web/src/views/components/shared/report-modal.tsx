@@ -56,7 +56,7 @@ export default function ReportModal({ target, onClose, onSubmit }: ReportModalPr
       <div className="fk-drafts-modal-body fk-report-modal-body">
         {done ? (
           <div className="fk-drafts-modal-empty">
-            <p>Thanks — this has been reported to the moderators.</p>
+            <p>Thanks, this has been reported to the moderators.</p>
           </div>
         ) : (
           <>
