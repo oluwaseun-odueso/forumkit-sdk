@@ -5,6 +5,7 @@ import {
   ToolbarButton, LinkIcon, ImageIcon, VideoIcon, BulletListIcon, NumberedListIcon, SpoilerIcon, CodeBlockIcon, TableIcon,
 } from './editor/toolbar-buttons';
 import { uploadInline } from './editor/upload-inline';
+import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 import './rich-text-toolbar.css';
 import './rich-text-editor.css';
 
@@ -106,7 +107,7 @@ export default function RichTextEditor({ content, onChange, forumId, sessionToke
       <input
         ref={imageInputRef}
         type="file"
-        accept="image/*"
+        accept={IMAGE_ACCEPT}
         style={{ display: 'none' }}
         onChange={e => { void handleFileSelected('image', e.target.files?.[0]); e.target.value = ''; }}
       />

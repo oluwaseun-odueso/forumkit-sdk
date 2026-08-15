@@ -5,6 +5,7 @@ import Modal from '../shared/modal';
 import PillButton from '../shared/pill-button';
 import { CloseIcon, CameraIcon } from '../shared/icons';
 import { cropToCanvas, applyFilterAndVignette, canvasToBlob } from '../../utils/crop-image';
+import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 // Reuses the drafts modal's close-button class rather than a near-identical
 // duplicate.
 import '../composer/drafts-list-modal.css';
@@ -234,7 +235,7 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
           <input
             ref={pickAnotherInputRef}
             type="file"
-            accept="image/*"
+            accept={IMAGE_ACCEPT}
             className="fk-image-editor-file-input"
             onChange={handlePickAnother}
             onClick={e => e.stopPropagation()}

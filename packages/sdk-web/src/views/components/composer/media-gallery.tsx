@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { AttachmentFile } from '../../hooks/use-forum-state';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, PencilIcon, TrashIcon, UploadIcon } from '../shared/icons';
+import { IMAGE_VIDEO_ACCEPT } from '../../lib/accepted-media-types';
 import './media-gallery.css';
 
 type MediaGalleryProps = {
@@ -52,7 +53,7 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
           <UploadIcon size={18} />
           Drag and drop or upload media
         </div>
-        <input ref={fileInputRef} type="file" multiple accept="image/*,video/*"
+        <input ref={fileInputRef} type="file" multiple accept={IMAGE_VIDEO_ACCEPT}
           className="fk-media-file-input" onChange={handleAddFiles} />
       </div>
     );
@@ -166,7 +167,7 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
           <PlusIcon size={15} />
           Add more photos
         </button>
-        <input ref={addMoreRef} type="file" multiple accept="image/*,video/*"
+        <input ref={addMoreRef} type="file" multiple accept={IMAGE_VIDEO_ACCEPT}
           className="fk-media-file-input" onChange={handleAddFiles} />
       </div>
     );
@@ -216,7 +217,7 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
         </button>
       </div>
 
-      <input ref={fileInputRef} type="file" multiple accept="image/*,video/*"
+      <input ref={fileInputRef} type="file" multiple accept={IMAGE_VIDEO_ACCEPT}
         className="fk-media-file-input" onChange={handleAddFiles} />
     </div>
   );

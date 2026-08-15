@@ -6,6 +6,7 @@ import {
   ImageIcon, VideoIcon, GifIcon,
 } from '../composer/editor/toolbar-buttons';
 import { uploadInline } from '../composer/editor/upload-inline';
+import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 import PillButton from '../shared/pill-button';
 import '../composer/rich-text-toolbar.css';
 import './comment-composer.css';
@@ -173,7 +174,7 @@ export default function CommentComposer({
       <input
         ref={imageInputRef}
         type="file"
-        accept="image/*"
+        accept={IMAGE_ACCEPT}
         style={{ display: 'none' }}
         onChange={e => { void handleFileSelected('image', e.target.files?.[0]); e.target.value = ''; }}
       />

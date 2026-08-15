@@ -8,6 +8,7 @@ import {
   CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon, SunIcon, MoonIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
 } from '../shared/icons';
+import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 import './edit-profile-modal.css';
 
 // ─── Platform config ──────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ export default function EditProfileModal({
         <input
           ref={bannerInputRef}
           type="file"
-          accept="image/*"
+          accept={IMAGE_ACCEPT}
           className="fk-edit-modal-file-input"
           onChange={handleBannerFile}
           onClick={e => e.stopPropagation()}
@@ -221,7 +222,7 @@ export default function EditProfileModal({
         <input
           ref={avatarInputRef}
           type="file"
-          accept="image/*"
+          accept={IMAGE_ACCEPT}
           className="fk-edit-modal-file-input"
           onChange={handleAvatarFile}
           onClick={e => e.stopPropagation()}
