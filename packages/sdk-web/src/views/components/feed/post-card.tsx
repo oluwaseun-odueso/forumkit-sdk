@@ -8,7 +8,8 @@ import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon, LinkIcon } from '../shared/icons';
+import ConfirmDialog from '../shared/confirm-dialog';
+import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon, LinkIcon, TrashIcon } from '../shared/icons';
 import { useShare } from '../../hooks/use-share';
 import { useForum } from '../../hooks/use-forum-state';
 import './post-card.css';
@@ -33,11 +34,15 @@ export default function PostCard({
   const avatar = authorAvatar(post.authorId, post.author);
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   const share = useShare(post.id);
-  const { openReportModal } = useForum();
+  const { openReportModal, currentUserId, state, deletePost } = useForum();
+  const canDelete = currentUserId !== null && (
+    post.authorId === currentUserId || state.profile.role === 'moderator' || state.profile.role === 'admin'
+  );
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [snippetExpanded, setSnippetExpanded] = useState(false);
   const [snippetOverflowing, setSnippetOverflowing] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const snippetRef = useRef<HTMLDivElement>(null);
   const images = post.imageUrls ?? (post.imageUrl ? [post.imageUrl] : []);
   // A single ordered list covering every attached image AND the video (if
@@ -176,10 +181,26 @@ export default function PostCard({
               label="Report"
               onClick={() => { onCloseMenu(); openReportModal({ type: 'thread', threadId: post.id }); }}
             />
+            {canDelete && (
+              <DropdownMenuItem
+                icon={<TrashIcon />}
+                label="Delete"
+                onClick={() => { onCloseMenu(); setDeleteConfirmOpen(true); }}
+              />
+            )}
           </DropdownMenu>
         </div>
       </div>
       <div className="fk-post-card-divider" />
+
+      {deleteConfirmOpen && (
+        <ConfirmDialog
+          title="Delete post?"
+          message="This can't be undone. The post and its comments will be permanently removed."
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={() => deletePost(post.id)}
+        />
+      )}
 
       {lightboxOpen && media.length > 0 && (
         <Lightbox items={media} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
