@@ -3,7 +3,7 @@ import type { FeedPost, VoteDir } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
-import Carousel from '../shared/carousel';
+import Carousel, { type MediaItem } from '../shared/carousel';
 import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
@@ -40,13 +40,16 @@ export default function PostCard({
   const [snippetOverflowing, setSnippetOverflowing] = useState(false);
   const snippetRef = useRef<HTMLDivElement>(null);
   const images = post.imageUrls ?? (post.imageUrl ? [post.imageUrl] : []);
-  const hasVideo = !!post.videoUrl;
-  // How many pieces of media exist beyond whatever single thumbnail/carousel
-  // is actually rendered — a video alongside images used to be silently
-  // dropped entirely (and never counted), so a post with e.g. one image and
-  // one video looked like a single-image post with no indication anything
-  // else was attached.
-  const rowExtraMediaCount = Math.max(0, images.length - 1) + (hasVideo ? 1 : 0);
+  // A single ordered list covering every attached image AND the video (if
+  // any) — previously video was a completely separate, uncounted fallback
+  // only shown when there were zero images, so a post with e.g. one image
+  // and one video silently lost the video and undercounted the "+N" badge.
+  // Carousel/Lightbox now navigate this list as one set of slides.
+  const media: MediaItem[] = [
+    ...images.map((url): MediaItem => ({ type: 'image', url })),
+    ...(post.videoUrl ? [{ type: 'video', url: post.videoUrl } as MediaItem] : []),
+  ];
+  const rowExtraMediaCount = Math.max(0, media.length - 1);
 
   useLayoutEffect(() => {
     if (snippetExpanded) return;
@@ -95,25 +98,21 @@ export default function PostCard({
         <>
           <h3 className="fk-post-card-title fk-post-card-title--card">{post.title}</h3>
           {renderSnippet()}
-          {images.length > 0 ? (
-            <div className="fk-post-card-cardimg" onClick={stop} style={{ position: 'relative' }}>
-              {images.length > 1 ? (
-                <Carousel
-                  images={images}
-                  index={carouselIndex}
-                  onIndexChange={setCarouselIndex}
-                  onImageClick={() => setLightboxOpen(true)}
-                />
-              ) : (
-                <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
-              )}
-              {/* Carousel dots already communicate "more than one image" —
-                  this badge only needs to flag the video that isn't
-                  otherwise visible here (the carousel doesn't play video). */}
-              {hasVideo && <span className="fk-post-card-more-badge">+1</span>}
+          {media.length > 1 ? (
+            <div className="fk-post-card-cardimg" onClick={stop}>
+              <Carousel
+                items={media}
+                index={carouselIndex}
+                onIndexChange={setCarouselIndex}
+                onItemClick={() => setLightboxOpen(true)}
+              />
             </div>
-          ) : post.videoUrl ? (
-            <video src={post.videoUrl} controls className="fk-post-card-video" onClick={stop} />
+          ) : media.length === 1 && media[0]?.type === 'image' ? (
+            <div className="fk-post-card-cardimg" onClick={stop}>
+              <Thumbnail gradient={post.thumbGradient} imageUrl={media[0].url} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
+            </div>
+          ) : media.length === 1 && media[0]?.type === 'video' ? (
+            <video src={media[0].url} controls className="fk-post-card-video" onClick={stop} />
           ) : null}
         </>
       ) : (
@@ -122,11 +121,11 @@ export default function PostCard({
             <h3 className="fk-post-card-title fk-clamp-2">{post.title}</h3>
             {renderSnippet()}
           </div>
-          {images.length > 0 ? (
+          {media.length > 0 && media[0]?.type === 'image' ? (
             <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
               <Thumbnail
                 gradient={post.thumbGradient}
-                imageUrl={images[0] ?? null}
+                imageUrl={media[0].url}
                 width={150}
                 height={110}
                 radius={14}
@@ -138,8 +137,13 @@ export default function PostCard({
                 <span className="fk-post-card-more-badge">+{rowExtraMediaCount}</span>
               )}
             </div>
-          ) : post.videoUrl ? (
-            <video src={post.videoUrl} controls width={150} height={110} className="fk-post-card-row-video" onClick={stop} />
+          ) : media.length > 0 && media[0]?.type === 'video' ? (
+            <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
+              <video src={media[0].url} controls width={150} height={110} className="fk-post-card-row-video" />
+              {rowExtraMediaCount > 0 && (
+                <span className="fk-post-card-more-badge">+{rowExtraMediaCount}</span>
+              )}
+            </div>
           ) : null}
         </div>
       )}
@@ -177,8 +181,8 @@ export default function PostCard({
       </div>
       <div className="fk-post-card-divider" />
 
-      {lightboxOpen && images.length > 0 && (
-        <Lightbox images={images} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
+      {lightboxOpen && media.length > 0 && (
+        <Lightbox items={media} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
       )}
     </article>
   );

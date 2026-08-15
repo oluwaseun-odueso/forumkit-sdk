@@ -3,7 +3,7 @@ import type { useForum, CommentNodeData } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
-import Carousel from '../shared/carousel';
+import Carousel, { type MediaItem } from '../shared/carousel';
 import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
@@ -58,6 +58,14 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   if (!activePost) return null;
   const avatar = authorAvatar(activePost.authorId, activePost.author);
   const displayComments = commentSearch ? filterComments(sortedComments, commentSearch) : sortedComments;
+  // One ordered list covering every attached image AND the video (if any) —
+  // previously video was only ever rendered as a fallback when there were
+  // zero images, so it silently disappeared whenever the post also had
+  // images, with no way to arrow to it from the image carousel.
+  const media: MediaItem[] = [
+    ...(activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : [])).map((url): MediaItem => ({ type: 'image', url })),
+    ...(activePost.videoUrl ? [{ type: 'video', url: activePost.videoUrl } as MediaItem] : []),
+  ];
   const isMyPost = currentUserId !== null && activePost.authorId === currentUserId;
   const canAcceptAnswer = isMyPost || state.profile.role === 'moderator' || state.profile.role === 'admin';
 
@@ -149,52 +157,36 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
         </>
       )}
 
-      {(() => {
-        const images = activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : []);
-        if (images.length === 0) return null;
-        if (images.length > 1) {
-          return (
-            <div style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 16, marginBottom: 16 }}>
-              <Carousel
-                images={images}
-                index={carouselIndex}
-                onIndexChange={setCarouselIndex}
-                onImageClick={() => setLightboxOpen(true)}
-              />
-            </div>
-          );
-        }
-        return (
-          <Thumbnail
-            gradient={activePost.thumbGradient}
-            imageUrl={images[0] ?? null}
-            height="auto"
-            radius={16}
-            style={{ aspectRatio: '4 / 3', marginBottom: 16, cursor: 'pointer' }}
-            onClick={() => setLightboxOpen(true)}
+      {media.length > 1 ? (
+        <div style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 16, marginBottom: 16 }}>
+          <Carousel
+            items={media}
+            index={carouselIndex}
+            onIndexChange={setCarouselIndex}
+            onItemClick={() => setLightboxOpen(true)}
           />
-        );
-      })()}
-
-      {/* Rendered independently of the image block above (rather than only
-          as a fallback when there are no images) — a video attached
-          alongside images used to be silently dropped from the thread page
-          entirely. */}
-      {activePost.videoUrl && (
+        </div>
+      ) : media.length === 1 && media[0]?.type === 'image' ? (
+        <Thumbnail
+          gradient={activePost.thumbGradient}
+          imageUrl={media[0].url}
+          height="auto"
+          radius={16}
+          style={{ aspectRatio: '4 / 3', marginBottom: 16, cursor: 'pointer' }}
+          onClick={() => setLightboxOpen(true)}
+        />
+      ) : media.length === 1 && media[0]?.type === 'video' ? (
         <video
-          src={activePost.videoUrl}
+          src={media[0].url}
           controls
           className="fk-thread-video"
           style={{ marginBottom: 16 }}
         />
-      )}
+      ) : null}
 
-      {lightboxOpen && (() => {
-        const images = activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : []);
-        return images.length > 0
-          ? <Lightbox images={images} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
-          : null;
-      })()}
+      {lightboxOpen && media.length > 0 && (
+        <Lightbox items={media} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
+      )}
 
       <div className="fk-thread-actions">
         <VotePill voteCounts={activePost.voteCounts} dir={activePost.myVote ?? 0} onVote={dir => votePost(activePost.id, dir)} />

@@ -365,7 +365,7 @@ export default function EditProfileModal({
     )}
 
     {lightboxImage && (
-      <Lightbox images={[lightboxImage]} startIndex={0} onClose={() => setLightboxImage(null)} />
+      <Lightbox items={[{ type: 'image', url: lightboxImage }]} startIndex={0} onClose={() => setLightboxImage(null)} />
     )}
     </>
   );
