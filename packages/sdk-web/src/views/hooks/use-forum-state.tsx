@@ -22,9 +22,12 @@ import {
 import { getForum } from '../api/forums';
 import {
   createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
-  getSimilarThreads, saveThread, unsaveThread, type ListThreadsParams,
+  getSimilarThreads, saveThread, unsaveThread, deleteThread as apiDeleteThread, type ListThreadsParams,
 } from '../api/threads';
-import { createReply, updateReply, saveComment, unsaveComment, acceptAnswer as apiAcceptAnswer, unacceptAnswer as apiUnacceptAnswer } from '../api/comments';
+import {
+  createReply, updateReply, saveComment, unsaveComment, acceptAnswer as apiAcceptAnswer, unacceptAnswer as apiUnacceptAnswer,
+  deleteComment as apiDeleteComment,
+} from '../api/comments';
 import { voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment } from '../api/votes';
 import {
   listDrafts as apiListDrafts, createDraft as apiCreateDraft, updateDraft as apiUpdateDraft,
@@ -248,6 +251,8 @@ type Action =
   | { type: 'SET_POST_SAVED'; postId: string; saved: boolean }
   | { type: 'SET_COMMENT_SAVED'; commentId: string; saved: boolean }
   | { type: 'SET_ACCEPTED_ANSWER'; commentId: string | null }
+  | { type: 'POST_DELETED'; postId: string }
+  | { type: 'COMMENT_DELETED'; commentId: string }
   | { type: 'SET_POST_VOTE'; postId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_VOTE'; commentId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_SORT'; sort: CommentSort }
@@ -339,6 +344,15 @@ function mapComment(
   });
 }
 
+// Removing a comment can remove it from anywhere in the tree, not just the
+// top level — filters out the matching id at every depth, recursing into
+// whatever replies are left (mirrors mapComment's recursion shape above).
+function removeComment(list: CommentNodeData[], id: string): CommentNodeData[] {
+  return list
+    .filter(c => c.id !== id)
+    .map(c => ({ ...c, replies: removeComment(c.replies, id) }));
+}
+
 // Only one comment per thread can be the accepted answer, so setting one
 // requires clearing the flag everywhere else in the same pass rather than
 // just flipping the target comment (see mapComment above, which only
@@ -364,6 +378,12 @@ function mapActivityThread(
   return items.map(item => item.kind === 'thread' && item.thread.id === threadId
     ? { ...item, thread: fn(item.thread) }
     : item);
+}
+
+// Same threadId-keyed matching as mapActivityThread above, but for removal
+// (deleting a post) rather than an in-place field update.
+function removeActivityThread(items: ActivityItemView[], threadId: string): ActivityItemView[] {
+  return items.filter(item => !(item.kind === 'thread' && item.thread.id === threadId));
 }
 
 // Recursively inserts a new reply into the tree at parentId, or prepends it
@@ -756,6 +776,20 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         comments: setAcceptedInTree(state.comments, action.commentId),
+      };
+    case 'POST_DELETED':
+      return {
+        ...state,
+        posts: state.posts.filter(p => p.id !== action.postId),
+        profile: {
+          ...state.profile,
+          activityItems: removeActivityThread(state.profile.activityItems, action.postId),
+        },
+      };
+    case 'COMMENT_DELETED':
+      return {
+        ...state,
+        comments: removeComment(state.comments, action.commentId),
       };
     case 'SET_POST_VOTE':
       return {
@@ -1341,6 +1375,23 @@ function useForumStateInternal() {
     const thread = await updateThread(forumId, threadId, { title, body }, sessionToken);
     dispatch({ type: 'POST_EDITED', postId: threadId, title: thread.title, body: thread.body });
   }, [state.thread.activePostId, forumId, sessionToken]);
+
+  // Used from both the feed card's ellipsis menu and the thread page's own
+  // Delete button, so it takes postId explicitly rather than only reading
+  // state.thread.activePostId — navigates back to the feed only if the
+  // deleted post was the one currently open.
+  const deletePost = useCallback(async (postId: string): Promise<void> => {
+    await apiDeleteThread(forumId, postId, sessionToken);
+    dispatch({ type: 'POST_DELETED', postId });
+    if (state.thread.activePostId === postId) setView('feed');
+  }, [forumId, sessionToken, state.thread.activePostId, setView]);
+
+  const deleteComment = useCallback(async (commentId: string): Promise<void> => {
+    const threadId = state.thread.activePostId;
+    if (!threadId) return;
+    await apiDeleteComment(threadId, commentId, sessionToken);
+    dispatch({ type: 'COMMENT_DELETED', commentId });
+  }, [state.thread.activePostId, sessionToken]);
 
   const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER', fromScrollTop: scrollTopRef.current }), []);
   // Closing the composer without ever saving a draft means every uploaded-
@@ -2085,6 +2136,8 @@ function useForumStateInternal() {
     submitReply,
     editComment,
     editPost,
+    deletePost,
+    deleteComment,
     openComposer,
     closeComposer,
     openSettings,
