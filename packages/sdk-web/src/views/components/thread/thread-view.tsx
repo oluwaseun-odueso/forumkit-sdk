@@ -10,6 +10,7 @@ import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
 import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon } from '../shared/icons';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
+import ConfirmDialog from '../shared/confirm-dialog';
 import { useShare } from '../../hooks/use-share';
 import CommentSort from './comment-sort';
 import Comment from './comment';
@@ -36,12 +37,13 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {
     state, activePost, sortedComments, currentUserId, forumId, sessionToken,
     votePost, voteComment, toggleSaveComment, toggleAcceptedAnswer, submitComment, setCommentSort, toggleCommentCollapsed,
-    submitReply, editComment, editPost,
+    submitReply, editComment, editPost, deletePost, deleteComment,
     summarize, suggest,
   } = forum;
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [commentSearch, setCommentSearch] = useState('');
   const [aiPanel, setAiPanel] = useState<'summary' | 'reply' | null>(null);
+  const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false);
 
   const [postEditOpen, setPostEditOpen] = useState(false);
   const [postEditTitle, setPostEditTitle] = useState('');
@@ -67,7 +69,9 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
     ...(activePost.videoUrl ? [{ type: 'video', url: activePost.videoUrl } as MediaItem] : []),
   ];
   const isMyPost = currentUserId !== null && activePost.authorId === currentUserId;
-  const canAcceptAnswer = isMyPost || state.profile.role === 'moderator' || state.profile.role === 'admin';
+  const isModerator = state.profile.role === 'moderator' || state.profile.role === 'admin';
+  const canAcceptAnswer = isMyPost || isModerator;
+  const canDeletePost = isMyPost || isModerator;
 
   function handleSummarise() {
     if (aiPanel === 'summary') {
@@ -209,7 +213,21 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
             Edit
           </button>
         )}
+        {canDeletePost && (
+          <button type="button" className="fk-thread-chip" onClick={() => setDeletePostConfirmOpen(true)}>
+            Delete
+          </button>
+        )}
       </div>
+
+      {deletePostConfirmOpen && (
+        <ConfirmDialog
+          title="Delete post?"
+          message="This can't be undone. The post and its comments will be permanently removed."
+          onCancel={() => setDeletePostConfirmOpen(false)}
+          onConfirm={() => deletePost(activePost.id)}
+        />
+      )}
 
       <div className="fk-ai-row">
         <button
@@ -283,6 +301,8 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           onEdit={editComment}
           onSave={toggleSaveComment}
           onAcceptAnswer={canAcceptAnswer ? (id: string) => void toggleAcceptedAnswer(id) : undefined}
+          onDelete={deleteComment}
+          isModerator={isModerator}
         />
       ))}
     </div>

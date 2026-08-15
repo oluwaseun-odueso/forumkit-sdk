@@ -5,10 +5,11 @@ import Avatar from '../shared/avatar';
 import VotePill from '../shared/vote-pill';
 import RenderedBody from '../shared/rendered-body';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon, CheckIcon } from '../shared/icons';
+import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon, CheckIcon, TrashIcon } from '../shared/icons';
 import { useShare } from '../../hooks/use-share';
 import { useForum } from '../../hooks/use-forum-state';
 import CommentComposer from './comment-composer';
+import ConfirmDialog from '../shared/confirm-dialog';
 // Reuses post-card's ellipsis/menu-anchor classes (generic circular icon
 // button + positioned dropdown) rather than a parallel set of near-identical
 // rules just for comments.
@@ -33,6 +34,8 @@ type CommentProps = {
   // moderator/admin — only top-level comments (depth === 0) ever show the
   // button, mirroring Share's existing depth === 0 gating.
   onAcceptAnswer?: ((commentId: string) => void) | undefined;
+  onDelete: (commentId: string) => Promise<void>;
+  isModerator: boolean;
 };
 
 /**
@@ -41,14 +44,17 @@ type CommentProps = {
  */
 export default function Comment({
   comment, threadId, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave, onAcceptAnswer,
+  onDelete, isModerator,
 }: CommentProps) {
   const isCollapsed = collapsed[comment.id] ?? false;
   const size = depth === 0 ? 'md' : 'sm';
   const isMine = currentUserId !== null && comment.authorId === currentUserId;
+  const canDelete = isMine || isModerator;
   const avatar = authorAvatar(comment.authorId, comment.author);
   const share = useShare(threadId);
   const { openReportModal, forumId, sessionToken } = useForum();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const [replyOpen, setReplyOpen] = useState(false);
 
@@ -191,9 +197,25 @@ export default function Comment({
                   label="Report"
                   onClick={() => { setMenuOpen(false); openReportModal({ type: 'comment', threadId, commentId: comment.id }); }}
                 />
+                {canDelete && (
+                  <DropdownMenuItem
+                    icon={<TrashIcon />}
+                    label="Delete"
+                    onClick={() => { setMenuOpen(false); setDeleteConfirmOpen(true); }}
+                  />
+                )}
               </DropdownMenu>
             </div>
           </div>
+
+          {deleteConfirmOpen && (
+            <ConfirmDialog
+              title="Delete comment?"
+              message="This can't be undone."
+              onCancel={() => setDeleteConfirmOpen(false)}
+              onConfirm={() => onDelete(comment.id)}
+            />
+          )}
 
           {replyOpen && (
             <CommentComposer
@@ -221,6 +243,8 @@ export default function Comment({
               onEdit={onEdit}
               onSave={onSave}
               onAcceptAnswer={onAcceptAnswer}
+              onDelete={onDelete}
+              isModerator={isModerator}
             />
           ))}
         </div>
