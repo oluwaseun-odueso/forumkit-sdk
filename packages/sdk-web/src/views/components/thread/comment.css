@@ -169,7 +169,7 @@
 }
 
 .fk-comment-error {
-  color: var(--danger, #e0463a);
+  color: var(--danger);
   font-size: 12.5px;
   margin: 0 0 8px;
 }

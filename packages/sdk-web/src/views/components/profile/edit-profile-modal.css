@@ -391,7 +391,7 @@
 .fk-edit-modal-save-error {
   margin: 8px 0 0;
   font-size: 13px;
-  color: var(--down, #e53e3e);
+  color: var(--danger);
 }
 
 .fk-edit-modal-link-trash {

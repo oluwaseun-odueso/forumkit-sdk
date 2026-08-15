@@ -141,5 +141,5 @@
 
 .fk-drafts-modal-row-trash:hover {
   background: var(--surface-2);
-  color: var(--danger, #e5484d);
+  color: var(--danger);
 }
