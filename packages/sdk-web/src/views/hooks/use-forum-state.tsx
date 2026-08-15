@@ -14,7 +14,7 @@ import { reportComment as apiReportComment } from '../api/comments';
 import type { ReportTarget } from '../components/shared/report-modal';
 import { ThemeHostContext } from './use-theme';
 import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
-import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
+import { requestUploadUrl, putFile, confirmUpload, deleteAttachment as apiDeleteAttachment } from '../api/attachments';
 import {
   getMyProfile, updateMyProfile, updateThemePreference, updateNotificationPrefs as apiUpdateNotificationPrefs, getProfileActivity,
   getUserProfile, getUserActivity,
@@ -1343,7 +1343,19 @@ function useForumStateInternal() {
   }, [state.thread.activePostId, forumId, sessionToken]);
 
   const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER', fromScrollTop: scrollTopRef.current }), []);
-  const closeComposer = useCallback(() => dispatch({ type: 'CLOSE_COMPOSER' }), []);
+  // Closing the composer without ever saving a draft means every uploaded-
+  // but-never-submitted attachment is now orphaned in storage — clean those
+  // up. If a draft WAS saved, its content already references these same
+  // attachmentIds, so deleting them here would break the draft; leave them
+  // for the draft to own instead.
+  const closeComposer = useCallback(() => {
+    if (!state.composer.draftId) {
+      for (const a of state.composer.attachments) {
+        if (a.attachmentId) apiDeleteAttachment(forumId, a.attachmentId, sessionToken).catch(() => {});
+      }
+    }
+    dispatch({ type: 'CLOSE_COMPOSER' });
+  }, [state.composer.draftId, state.composer.attachments, forumId, sessionToken]);
   const openSettings = useCallback(() => dispatch({ type: 'OPEN_SETTINGS' }), []);
   const closeSettings = useCallback(() => dispatch({ type: 'CLOSE_SETTINGS' }), []);
   const setComposerTab = useCallback((tab: ComposerTab) => dispatch({ type: 'SET_COMPOSER_TAB', tab }), []);
@@ -1351,7 +1363,15 @@ function useForumStateInternal() {
     (field: 'title' | 'tags' | 'body' | 'linkUrl', value: string) => dispatch({ type: 'SET_COMPOSER_FIELD', field, value }),
     [],
   );
-  const removeFile = useCallback((id: number) => dispatch({ type: 'REMOVE_FILE', id }), []);
+  // Best-effort, fire-and-forget: the UI removal is what matters immediately
+  // (REMOVE_FILE below), storage cleanup shouldn't block or fail visibly on it.
+  const removeFile = useCallback((id: number) => {
+    const attachment = state.composer.attachments.find(a => a.id === id);
+    dispatch({ type: 'REMOVE_FILE', id });
+    if (attachment?.attachmentId) {
+      apiDeleteAttachment(forumId, attachment.attachmentId, sessionToken).catch(() => {});
+    }
+  }, [state.composer.attachments, forumId, sessionToken]);
   const updateAttachmentMeta = useCallback((id: number, caption: string, attachmentUrl: string) =>
     dispatch({ type: 'UPDATE_ATTACHMENT_META', id, caption, attachmentUrl }), []);
   const submitComposer = useCallback(async () => {

@@ -46,3 +46,11 @@ export async function confirmUpload(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as Attachment & { downloadUrl: string };
 }
+
+export async function deleteAttachment(forumId: string, attachmentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/forums/${forumId}/attachments/${attachmentId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
