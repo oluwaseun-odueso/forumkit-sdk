@@ -14,9 +14,14 @@ type RichTextEditorProps = {
   onChange: (markdown: string) => void;
   forumId: string;
   sessionToken?: string | undefined;
+  // Reports the attachmentId of every image/video uploaded via the toolbar
+  // buttons below, so the caller can clean up orphaned uploads if the post
+  // never gets submitted — these are embedded straight into the body
+  // markdown, not tracked anywhere else.
+  onInlineUpload: (attachmentId: string) => void;
 };
 
-export default function RichTextEditor({ content, onChange, forumId, sessionToken }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, forumId, sessionToken, onInlineUpload }: RichTextEditorProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +56,8 @@ export default function RichTextEditor({ content, onChange, forumId, sessionToke
   async function handleFileSelected(kind: 'image' | 'video', file: File | undefined) {
     if (!file) return;
     try {
-      const { url } = await uploadInline(forumId, sessionToken, file);
+      const { url, attachmentId } = await uploadInline(forumId, sessionToken, file);
+      onInlineUpload(attachmentId);
       if (kind === 'image') {
         run(e => e.chain().focus().setImage({ src: url }).run());
       } else {

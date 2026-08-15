@@ -71,6 +71,11 @@ type ComposeState = {
   body: string;
   linkUrl: string;
   attachments: AttachmentFile[];
+  // attachmentIds of images/video uploaded via the Text tab's own inline
+  // toolbar buttons (embedded straight into the body markdown) — tracked
+  // separately from `attachments` above (the "Images & Video" tab's gallery)
+  // purely so closeComposer can clean up orphaned uploads for both paths.
+  inlineAttachmentIds: string[];
   genTitle: boolean;
   genTags: boolean;
   submitting: boolean;
@@ -270,6 +275,7 @@ type Action =
   | { type: 'SET_COMPOSER_FIELD'; field: 'title' | 'tags' | 'body' | 'linkUrl'; value: string }
   | { type: 'SET_COMPOSER_GEN'; field: 'genTitle' | 'genTags'; value: boolean }
   | { type: 'ADD_FILE'; file: AttachmentFile }
+  | { type: 'ADD_INLINE_ATTACHMENT'; attachmentId: string }
   | { type: 'UPDATE_FILE_URL'; id: number; url: string }
   | { type: 'UPDATE_ATTACHMENT_META'; id: number; caption: string; attachmentUrl: string }
   | { type: 'SET_ATTACHMENT_UPLOAD'; id: number; status: AttachmentFile['uploadStatus']; attachmentId?: string | null; attachmentUrl?: string }
@@ -588,7 +594,7 @@ const initialState: State = {
   },
   composer: {
     open: false, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
-    attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
+    attachments: [], inlineAttachmentIds: [], genTitle: false, genTags: false, submitting: false, error: null,
     draftId: null, savingDraft: false,
   },
   asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
@@ -851,7 +857,7 @@ function reducer(state: State, action: Action): State {
         sidebar: { pinned: true },
         composer: {
           open: true, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
-          attachments: [], genTitle: false, genTags: false,
+          attachments: [], inlineAttachmentIds: [], genTitle: false, genTags: false,
           submitting: false, error: null, draftId: null, savingDraft: false,
         },
         history: state.view === 'compose' ? state.history : [...state.history, buildNavEntry(state, action.fromScrollTop)],
@@ -870,6 +876,11 @@ function reducer(state: State, action: Action): State {
       return { ...state, composer: { ...state.composer, [action.field]: action.value } };
     case 'ADD_FILE':
       return { ...state, composer: { ...state.composer, attachments: [...state.composer.attachments, action.file] } };
+    case 'ADD_INLINE_ATTACHMENT':
+      return {
+        ...state,
+        composer: { ...state.composer, inlineAttachmentIds: [...state.composer.inlineAttachmentIds, action.attachmentId] },
+      };
     case 'UPDATE_FILE_URL':
       return {
         ...state,
@@ -962,6 +973,7 @@ function reducer(state: State, action: Action): State {
             attachmentId: a.attachmentId,
             uploadStatus: 'uploaded' as const,
           })),
+          inlineAttachmentIds: [],
           genTitle: false, genTags: false, submitting: false, error: null,
           draftId: action.draft.id, savingDraft: false,
         },
@@ -1404,9 +1416,17 @@ function useForumStateInternal() {
       for (const a of state.composer.attachments) {
         if (a.attachmentId) apiDeleteAttachment(forumId, a.attachmentId, sessionToken).catch(() => {});
       }
+      // Images/video inserted via the Text tab's own toolbar buttons, not
+      // the "Images & Video" tab — same orphaned-upload risk, tracked
+      // separately since they're embedded straight into the body markdown
+      // rather than living in the attachments array above.
+      for (const attachmentId of state.composer.inlineAttachmentIds) {
+        apiDeleteAttachment(forumId, attachmentId, sessionToken).catch(() => {});
+      }
     }
     dispatch({ type: 'CLOSE_COMPOSER' });
-  }, [state.composer.draftId, state.composer.attachments, forumId, sessionToken]);
+  }, [state.composer.draftId, state.composer.attachments, state.composer.inlineAttachmentIds, forumId, sessionToken]);
+  const addInlineAttachment = useCallback((attachmentId: string) => dispatch({ type: 'ADD_INLINE_ATTACHMENT', attachmentId }), []);
   const openSettings = useCallback(() => dispatch({ type: 'OPEN_SETTINGS' }), []);
   const closeSettings = useCallback(() => dispatch({ type: 'CLOSE_SETTINGS' }), []);
   const setComposerTab = useCallback((tab: ComposerTab) => dispatch({ type: 'SET_COMPOSER_TAB', tab }), []);
@@ -2153,6 +2173,7 @@ function useForumStateInternal() {
     setComposerField,
     addFiles,
     removeFile,
+    addInlineAttachment,
     updateAttachmentMeta,
     submitComposer,
     saveDraft,

@@ -24,6 +24,7 @@ type ComposerModalProps = {
   onAddFiles: (files: FileList) => void;
   onRemoveFile: (id: number) => void;
   onUpdateMeta: (id: number, caption: string, attachmentUrl: string) => void;
+  onInlineUpload: (attachmentId: string) => void;
   onSuggestMeta: () => void;
   onSubmit: () => void;
   onSaveDraft: () => void;
@@ -32,7 +33,7 @@ type ComposerModalProps = {
 
 export default function ComposerModal({
   composer, forumId, sessionToken, onClose, onSetTab, onSetField,
-  onAddFiles, onRemoveFile, onUpdateMeta, onSuggestMeta, onSubmit, onSaveDraft, onOpenDraftsList,
+  onAddFiles, onRemoveFile, onUpdateMeta, onInlineUpload, onSuggestMeta, onSubmit, onSaveDraft, onOpenDraftsList,
 }: ComposerModalProps) {
   const hasTitle = composer.title.trim().length > 0;
   const hasUploadsInFlight = composer.attachments.some(a => a.uploadStatus === 'uploading');
@@ -111,6 +112,7 @@ export default function ComposerModal({
               onChange={body => onSetField('body', body)}
               forumId={forumId}
               sessionToken={sessionToken}
+              onInlineUpload={onInlineUpload}
             />
           </Suspense>
         </div>

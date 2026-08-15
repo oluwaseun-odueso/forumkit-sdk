@@ -8,7 +8,7 @@ import './compose.css';
 export function Compose() {
   const {
     state, forumId, sessionToken, closeComposer, setComposerTab, setComposerField,
-    addFiles, removeFile, updateAttachmentMeta, suggestComposeMeta, submitComposer,
+    addFiles, removeFile, updateAttachmentMeta, addInlineAttachment, suggestComposeMeta, submitComposer,
     saveDraft, openDraftsList, goBack,
   } = useForum();
 
@@ -28,6 +28,7 @@ export function Compose() {
           onAddFiles={addFiles}
           onRemoveFile={removeFile}
           onUpdateMeta={updateAttachmentMeta}
+          onInlineUpload={addInlineAttachment}
           onSuggestMeta={suggestComposeMeta}
           onSubmit={submitComposer}
           onSaveDraft={() => saveDraft()}
