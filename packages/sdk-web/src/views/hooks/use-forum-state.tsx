@@ -2098,6 +2098,13 @@ function useForumStateInternal() {
     if (mode === 'Best' || mode === 'Top') sorted.sort((a, b) => netVotes(b.voteCounts) - netVotes(a.voteCounts));
     else if (mode === 'Controversial') sorted.sort((a, b) => controversyScore(b.voteCounts) - controversyScore(a.voteCounts));
     else sorted.reverse();
+    // The accepted answer (if any) always floats to the top, on top of
+    // whichever sort mode is active — Array.sort is spec-stable, so this
+    // second pass only moves the accepted comment and otherwise preserves
+    // the ordering the mode-based sort above just established. Only
+    // top-level comments can ever be accepted, so this is a no-op once
+    // recursed into replies below.
+    sorted.sort((a, b) => (b.isAcceptedAnswer ? 1 : 0) - (a.isAcceptedAnswer ? 1 : 0));
     return sorted.map(c => ({ ...c, replies: sortComments(c.replies, mode) }));
   }
   const sortedComments = sortComments(state.comments, state.thread.commentSort);
