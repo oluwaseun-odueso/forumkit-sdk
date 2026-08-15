@@ -28,7 +28,12 @@ type ImageEditorModalProps = {
   targetWidth: number;
   targetHeight: number;
   onCancel: () => void;
-  onConfirm: (blob: Blob) => void;
+  // May return a Promise — awaited before the editor closes, so a caller
+  // that actually saves the image over the network (rather than just
+  // stashing the blob locally, as EditProfileModal's own usage does) can
+  // keep the editor open with its own error message on failure instead of
+  // closing optimistically and losing the failure.
+  onConfirm: (blob: Blob) => void | Promise<void>;
 };
 
 /**
@@ -119,10 +124,10 @@ export default function ImageEditorModal({ file, aspect, targetWidth, targetHeig
       const cropped = await cropToCanvas(imageSrc, croppedAreaPixels, rotation, targetWidth, targetHeight);
       const filtered = applyFilterAndVignette(cropped, filterString, vignette);
       const blob = await canvasToBlob(filtered);
+      await onConfirm(blob);
       URL.revokeObjectURL(imageSrcRef.current);
-      onConfirm(blob);
-    } catch {
-      setError('Could not process this image. Try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not process this image. Try again.');
       setExporting(false);
     }
   }

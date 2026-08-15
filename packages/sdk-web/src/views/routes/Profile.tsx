@@ -93,8 +93,7 @@ export function Profile() {
           handle={username}
           avatarUrl={profile.avatarUrl}
           bannerUrl={profile.bannerUrl}
-          onEditAvatar={isOwnProfile ? openSettings : undefined}
-          onEditBanner={isOwnProfile ? openSettings : undefined}
+          isOwnProfile={isOwnProfile}
         />
         <ProfileTabs active={profile.activeTab} onSelect={setActiveTab} showSaved={isOwnProfile} />
 
