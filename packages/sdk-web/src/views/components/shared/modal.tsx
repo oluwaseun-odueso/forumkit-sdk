@@ -18,7 +18,15 @@ export default function Modal({ onClose, maxWidth = 480, minHeight, blurBackgrou
   return (
     <div
       className={`fk-modal-backdrop${blurBackground ? ' fk-modal-backdrop--blur' : ''}`}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        // Never let a click anywhere inside the modal (backdrop or content)
+        // bubble past it — a modal opened from inside a clickable row
+        // (e.g. PostCard's whole <article> navigates on click) would
+        // otherwise trigger that ancestor's handler too once the modal
+        // closes the click chain back out.
+        e.stopPropagation();
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="fk-modal" style={{ maxWidth, minHeight }}>
         {children}
