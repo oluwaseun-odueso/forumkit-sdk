@@ -282,7 +282,7 @@
 .fk-composer-error {
   margin: 12px 0 0;
   font-size: 13px;
-  color: var(--down);
+  color: var(--danger);
   text-align: right;
 }
 
