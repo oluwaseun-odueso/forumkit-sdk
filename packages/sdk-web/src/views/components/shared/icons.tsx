@@ -388,6 +388,15 @@ export function ChartIcon({ size = 21 }: IconProps) {
   );
 }
 
+export function StackedImagesIcon({ size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base} strokeWidth={1.7}>
+      <rect x="7" y="3.5" width="14" height="11" rx="2.2" />
+      <path d="M3 8.5v9a2.2 2.2 0 002.2 2.2h9" />
+    </svg>
+  );
+}
+
 export function UploadIcon({ size = 22 }: IconProps) {
   return (
     <svg width={size} height={size} {...base} strokeWidth={1.7}>

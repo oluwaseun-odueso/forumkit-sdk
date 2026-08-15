@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import type { AttachmentFile } from '../../hooks/use-forum-state';
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, PencilIcon, TrashIcon, UploadIcon } from '../shared/icons';
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, StackedImagesIcon, PencilIcon, TrashIcon, UploadIcon } from '../shared/icons';
 import { IMAGE_VIDEO_ACCEPT } from '../../lib/accepted-media-types';
 import './media-gallery.css';
 
@@ -177,12 +177,34 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
   return (
     <div className="fk-media-carousel">
       <div className="fk-media-carousel-stage">
+        {current?.url && current.kind === 'image' && (
+          // Blurred, scaled-up copy of the same image behind the real one —
+          // fills the letterboxed space around media whose aspect ratio
+          // doesn't match the stage, instead of the flat surface color.
+          <div className="fk-media-carousel-backdrop" style={{ backgroundImage: `url("${current.url}")` }} />
+        )}
         {current?.url
           ? current.kind === 'video'
             ? <video src={current.url} className="fk-media-carousel-img" controls muted />
             : <img src={current.url} alt={current.name} className="fk-media-carousel-img" />
           : <div className="fk-media-carousel-placeholder">{current?.kind}</div>
         }
+
+        <div className="fk-media-carousel-topbar">
+          <div className="fk-media-carousel-topbar-left">
+            <button type="button" className="fk-media-overlay-btn" onClick={() => fileInputRef.current?.click()}>
+              <StackedImagesIcon size={16} /> Add
+            </button>
+            <button type="button" className="fk-media-overlay-btn" onClick={() => setView('gallery')}>
+              <PencilIcon size={13} /> Edit all
+            </button>
+          </div>
+          <button type="button" className="fk-media-overlay-btn fk-media-overlay-btn--icon" aria-label="Delete current"
+            onClick={handleRemoveCurrent}>
+            <TrashIcon size={16} />
+          </button>
+        </div>
+
         {safeCarouselIdx > 0 && (
           <button type="button" className="fk-media-arrow fk-media-arrow--left"
             onClick={() => setCarouselIdx(i => i - 1)}><ChevronLeftIcon /></button>
@@ -200,21 +222,6 @@ export default function MediaGallery({ attachments, onAddFiles, onRemoveFile, on
             ))}
           </div>
         )}
-      </div>
-
-      <div className="fk-media-carousel-bar">
-        <div className="fk-media-carousel-bar-left">
-          <button type="button" className="fk-media-bar-btn" onClick={() => fileInputRef.current?.click()}>
-            <PlusIcon size={15} /> Add more
-          </button>
-          <button type="button" className="fk-media-bar-btn" onClick={() => setView('gallery')}>
-            <PencilIcon size={13} /> Edit all
-          </button>
-        </div>
-        <button type="button" className="fk-media-bar-delete" aria-label="Delete current"
-          onClick={handleRemoveCurrent}>
-          <TrashIcon size={16} />
-        </button>
       </div>
 
       <input ref={fileInputRef} type="file" multiple accept={IMAGE_VIDEO_ACCEPT}
