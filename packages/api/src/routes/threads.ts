@@ -24,7 +24,7 @@ const similarQuerySchema = z.object({
 
 const createBodySchema = z.object({
   title: z.string().min(1).max(300),
-  body: z.string().min(1),
+  body: z.string().min(1, 'Write something in the body before posting.'),
   tagIds: z.array(z.string().uuid()).max(5).default([]),
   tagNames: z.array(z.string().min(2).max(40)).max(5).optional(),
   attachmentIds: z.array(z.string().uuid()).max(10).optional(),
@@ -32,7 +32,7 @@ const createBodySchema = z.object({
 
 const updateBodySchema = z.object({
   title: z.string().min(1).max(300).optional(),
-  body: z.string().min(1).optional(),
+  body: z.string().min(1, 'Write something in the body before saving.').optional(),
   tagIds: z.array(z.string().uuid()).max(5).optional(),
 });
 
