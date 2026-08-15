@@ -36,6 +36,14 @@
   background: var(--accent-2);
 }
 
+.fk-pill--danger {
+  background: var(--danger);
+  color: #fff;
+}
+.fk-pill--danger:hover {
+  opacity: 0.9;
+}
+
 .fk-pill--outline {
   background: transparent;
   color: var(--text);
