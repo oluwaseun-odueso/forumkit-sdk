@@ -66,6 +66,14 @@ export async function reportComment(threadId: string, commentId: string, reason:
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
+export async function deleteComment(threadId: string, commentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 export async function acceptAnswer(threadId: string, commentId: string, token?: string): Promise<Comment> {
   const res = await fetch(`${API_BASE}/threads/${threadId}/comments/${commentId}/accept`, {
     method: 'POST',

@@ -102,6 +102,14 @@ export async function updateThread(
   return unwrapThread(res);
 }
 
+export async function deleteThread(forumId: string, threadId: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
 export async function saveThread(forumId: string, threadId: string, token?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/save`, {
     method: 'POST',
