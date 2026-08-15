@@ -1,9 +1,8 @@
 import { useForum } from '../../hooks/use-forum-state';
 import type { SocialLink } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
-import IconButton from '../shared/icon-button';
 import {
-  EllipsisIcon, ExternalLinkIcon,
+  ExternalLinkIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
 } from '../shared/icons';
 import './profile-right-rail.css';
@@ -72,8 +71,7 @@ export default function ProfileRightRail({
           </div>
           {isOwnProfile && (
             <div className="fk-profile-card-actions">
-              <PillButton variant="accent" style={{ flex: 1, justifyContent: 'center' }} onClick={openSettings}>Edit Profile</PillButton>
-              <IconButton label="More options" size={42}><EllipsisIcon /></IconButton>
+              <PillButton variant="accent" style={{ justifyContent: 'center' }} onClick={openSettings}>Edit Profile</PillButton>
             </div>
           )}
         </div>
