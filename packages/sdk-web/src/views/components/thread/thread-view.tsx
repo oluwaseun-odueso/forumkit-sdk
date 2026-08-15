@@ -151,17 +151,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
 
       {(() => {
         const images = activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : []);
-        if (images.length === 0) {
-          if (!activePost.videoUrl) return null;
-          return (
-            <video
-              src={activePost.videoUrl}
-              controls
-              className="fk-thread-video"
-              style={{ marginBottom: 16 }}
-            />
-          );
-        }
+        if (images.length === 0) return null;
         if (images.length > 1) {
           return (
             <div style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 16, marginBottom: 16 }}>
@@ -185,6 +175,19 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           />
         );
       })()}
+
+      {/* Rendered independently of the image block above (rather than only
+          as a fallback when there are no images) — a video attached
+          alongside images used to be silently dropped from the thread page
+          entirely. */}
+      {activePost.videoUrl && (
+        <video
+          src={activePost.videoUrl}
+          controls
+          className="fk-thread-video"
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {lightboxOpen && (() => {
         const images = activePost.imageUrls ?? (activePost.imageUrl ? [activePost.imageUrl] : []);

@@ -40,6 +40,13 @@ export default function PostCard({
   const [snippetOverflowing, setSnippetOverflowing] = useState(false);
   const snippetRef = useRef<HTMLDivElement>(null);
   const images = post.imageUrls ?? (post.imageUrl ? [post.imageUrl] : []);
+  const hasVideo = !!post.videoUrl;
+  // How many pieces of media exist beyond whatever single thumbnail/carousel
+  // is actually rendered — a video alongside images used to be silently
+  // dropped entirely (and never counted), so a post with e.g. one image and
+  // one video looked like a single-image post with no indication anything
+  // else was attached.
+  const rowExtraMediaCount = Math.max(0, images.length - 1) + (hasVideo ? 1 : 0);
 
   useLayoutEffect(() => {
     if (snippetExpanded) return;
@@ -89,7 +96,7 @@ export default function PostCard({
           <h3 className="fk-post-card-title fk-post-card-title--card">{post.title}</h3>
           {renderSnippet()}
           {images.length > 0 ? (
-            <div className="fk-post-card-cardimg" onClick={stop}>
+            <div className="fk-post-card-cardimg" onClick={stop} style={{ position: 'relative' }}>
               {images.length > 1 ? (
                 <Carousel
                   images={images}
@@ -100,6 +107,10 @@ export default function PostCard({
               ) : (
                 <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
               )}
+              {/* Carousel dots already communicate "more than one image" —
+                  this badge only needs to flag the video that isn't
+                  otherwise visible here (the carousel doesn't play video). */}
+              {hasVideo && <span className="fk-post-card-more-badge">+1</span>}
             </div>
           ) : post.videoUrl ? (
             <video src={post.videoUrl} controls className="fk-post-card-video" onClick={stop} />
@@ -123,8 +134,8 @@ export default function PostCard({
                 style={{ cursor: 'pointer' }}
                 onClick={e => openLightbox(e, 0)}
               />
-              {images.length > 1 && (
-                <span className="fk-post-card-more-badge">+{images.length - 1}</span>
+              {rowExtraMediaCount > 0 && (
+                <span className="fk-post-card-more-badge">+{rowExtraMediaCount}</span>
               )}
             </div>
           ) : post.videoUrl ? (
