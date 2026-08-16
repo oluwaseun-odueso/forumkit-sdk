@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
+import type { GifResult } from '@forumkit/types';
 import { createEditorExtensions } from '../composer/editor/extensions';
 import {
   ToolbarButton, LinkIcon, BulletListIcon, NumberedListIcon, SpoilerIcon, CodeBlockIcon, TableIcon,
@@ -7,6 +8,7 @@ import {
 } from '../composer/editor/toolbar-buttons';
 import { uploadInline } from '../composer/editor/upload-inline';
 import { deleteAttachment as apiDeleteAttachment } from '../../api/attachments';
+import { searchGifs, GifSearchNotConfiguredError } from '../../api/gifs';
 import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 import PillButton from '../shared/pill-button';
 import '../composer/rich-text-toolbar.css';
@@ -43,8 +45,32 @@ export default function CommentComposer({
 
   const [formattingOpen, setFormattingOpen] = useState(false);
   const [gifPanelOpen, setGifPanelOpen] = useState(false);
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifResults, setGifResults] = useState<GifResult[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  // Set once a search comes back 503 (no GIPHY_API_KEY configured) — stops
+  // firing further requests and just shows the same friendly "coming soon"
+  // message the stub panel always had, instead of retrying every keystroke.
+  const [gifNotConfigured, setGifNotConfigured] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!gifPanelOpen || gifNotConfigured) return;
+    const q = gifQuery.trim();
+    if (!q) { setGifResults([]); return; }
+    setGifLoading(true);
+    const timer = window.setTimeout(() => {
+      searchGifs(forumId, q, sessionToken)
+        .then(setGifResults)
+        .catch(err => {
+          if (err instanceof GifSearchNotConfiguredError) setGifNotConfigured(true);
+          setGifResults([]);
+        })
+        .finally(() => setGifLoading(false));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [gifQuery, gifPanelOpen, gifNotConfigured, forumId, sessionToken]);
 
   const editor = useEditor({
     extensions: createEditorExtensions(placeholder),
@@ -62,6 +88,13 @@ export default function CommentComposer({
 
   function run(fn: (editor: Editor) => void) {
     if (editor) fn(editor);
+  }
+
+  function handleSelectGif(gif: GifResult) {
+    run(e => e.chain().focus().setImage({ src: gif.url }).run());
+    setGifPanelOpen(false);
+    setGifQuery('');
+    setGifResults([]);
   }
 
   async function handleFileSelected(kind: 'image' | 'video', file: File | undefined) {
@@ -152,8 +185,35 @@ export default function CommentComposer({
 
       {gifPanelOpen && (
         <div className="fk-comment-composer-gif-panel">
-          <input className="fk-comment-composer-gif-input" placeholder="Search GIFs…" disabled />
-          <p className="fk-comment-composer-gif-note">GIF search coming soon</p>
+          <input
+            className="fk-comment-composer-gif-input"
+            placeholder="Search GIFs…"
+            value={gifQuery}
+            onChange={e => setGifQuery(e.target.value)}
+            disabled={gifNotConfigured}
+            autoFocus
+          />
+          {gifNotConfigured ? (
+            <p className="fk-comment-composer-gif-note">GIF search coming soon</p>
+          ) : gifLoading ? (
+            <p className="fk-comment-composer-gif-note">Searching…</p>
+          ) : gifResults.length > 0 ? (
+            <div className="fk-comment-composer-gif-grid">
+              {gifResults.map(gif => (
+                <button
+                  key={gif.id}
+                  type="button"
+                  className="fk-comment-composer-gif-item"
+                  onClick={() => handleSelectGif(gif)}
+                  aria-label={gif.title || 'Insert GIF'}
+                >
+                  <img src={gif.previewUrl} alt={gif.title} loading="lazy" />
+                </button>
+              ))}
+            </div>
+          ) : gifQuery.trim() ? (
+            <p className="fk-comment-composer-gif-note">No GIFs found</p>
+          ) : null}
         </div>
       )}
 
