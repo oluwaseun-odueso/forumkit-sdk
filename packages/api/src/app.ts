@@ -20,6 +20,7 @@ import { attachmentsRoutes } from './routes/attachments';
 import { usersRoutes } from './routes/users';
 import { draftsRoutes } from './routes/drafts';
 import { notificationsRoutes } from './routes/notifications';
+import { gifsRoutes } from './routes/gifs';
 
 export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeof Fastify>> {
   const app = Fastify({
@@ -66,6 +67,7 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
   await app.register(usersRoutes, { prefix: '/forums' });
   await app.register(draftsRoutes, { prefix: '/forums' });
   await app.register(notificationsRoutes, { prefix: '/forums' });
+  await app.register(gifsRoutes, { prefix: '/forums' });
 
   // ── Health check ─────────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));

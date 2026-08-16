@@ -463,6 +463,21 @@ export type ErrorResponse = {
   statusCode: number;
 };
 
+// ── GIF search (comment composer) ──────────────────────────────────
+
+export type GifResult = {
+  id: string;
+  title: string;
+  previewUrl: string;   // small, for the search results grid
+  url: string;           // full-size, for embedding into a post/comment
+  width: number;
+  height: number;
+};
+
+export type GifSearchResponse = {
+  results: GifResult[];
+};
+
 // ── WebSocket messages ─────────────────────────────────────────────
 
 export type WSMessage =

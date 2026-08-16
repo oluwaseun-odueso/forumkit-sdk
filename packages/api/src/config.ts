@@ -44,6 +44,7 @@ export type Config = {
   storageS3SecretAccessKey: string;
   storageMaxFileSizeBytes: number;
   storageAllowedMimeTypes: string[];
+  giphyApiKey: string | null;
 };
 
 export function loadConfig(): Config {
@@ -74,5 +75,6 @@ export function loadConfig(): Config {
       'STORAGE_ALLOWED_MIME_TYPES',
       'image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm',
     ).split(','),
+    giphyApiKey: process.env['GIPHY_API_KEY'] ?? null,
   };
 }
