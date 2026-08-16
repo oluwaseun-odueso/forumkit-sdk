@@ -3,6 +3,12 @@
  * Scoped to :host (the <forum-kit> custom element's shadow root) for the production
  * embed path, and to .fk-root (a light-DOM wrapper div) for the Vite dev harness,
  * which doesn't render inside a shadow root — see main.tsx.
+ *
+ * These values are mirrored in @forumkit/shared's darkTokens/lightTokens
+ * (packages/shared/src/tokens.ts), which packages/sdk-react-native consumes
+ * directly (no CSS there). That package is the source of truth going
+ * forward — if you change a value here, change it there too (or migrate
+ * this file to generate from it) so the two platforms don't drift apart.
  */
 
 :host,
