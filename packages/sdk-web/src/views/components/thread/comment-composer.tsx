@@ -6,6 +6,7 @@ import {
   ImageIcon, VideoIcon, GifIcon,
 } from '../composer/editor/toolbar-buttons';
 import { uploadInline } from '../composer/editor/upload-inline';
+import { deleteAttachment as apiDeleteAttachment } from '../../api/attachments';
 import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 import PillButton from '../shared/pill-button';
 import '../composer/rich-text-toolbar.css';
@@ -95,6 +96,11 @@ export default function CommentComposer({
 
   function handleCancel() {
     editor?.commands.clearContent();
+    // Best-effort: images/video already uploaded into this box are now
+    // orphaned since the comment/reply was never submitted.
+    for (const attachmentId of attachmentIdsRef.current) {
+      apiDeleteAttachment(forumId, attachmentId, sessionToken).catch(() => {});
+    }
     attachmentIdsRef.current = [];
     setFormattingOpen(false);
     setGifPanelOpen(false);
