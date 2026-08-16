@@ -1,4 +1,5 @@
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { Michroma_400Regular } from '@expo-google-fonts/michroma';
 import type { ForumKitConfig } from '@forumkit/types';
@@ -30,8 +31,10 @@ export function ForumKit(config: ForumKitConfig) {
   }
 
   return (
-    <ThemeProvider theme={config.theme}>
-      <RootNavigator />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider theme={config.theme}>
+        <RootNavigator />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

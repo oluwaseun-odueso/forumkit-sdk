@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import TopBar from './TopBar';
@@ -16,6 +17,7 @@ import type { RootStackParamList } from './RootNavigator';
 // see the comment in RootNavigator.tsx for why.
 export default function Shell({ children }: { children: ReactNode }) {
   const { tokens } = useTheme();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -30,7 +32,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bg }]}>
+    <View style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top }]}>
       <TopBar onOpenDrawer={() => setDrawerOpen(true)} onHome={() => navigation.navigate('Feed')} />
       <View style={{ flex: 1 }}>{children}</View>
       <BottomBar

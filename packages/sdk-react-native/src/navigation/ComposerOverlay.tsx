@@ -1,21 +1,27 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { CloseIcon } from '../components/icons';
 
 // Create Post sheet per README §10 — an overlay stopping 94px above the
 // bottom so the floating bar stays visible underneath it, no rounded
 // bottom corners, no shadow, no divider lines anywhere on this screen.
+// Absolutely positioned, so (like NotificationsOverlay) it needs its own
+// safe-area top inset rather than inheriting Shell's.
 // Placeholder body for this step; the real tabs/fields come later.
 export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
   const { tokens } = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
-      <View style={styles.header}>
-        <Pressable onPress={onClose}>
-          <CloseIcon size={18} color={tokens.text} />
-        </Pressable>
-        <Text style={[styles.title, { color: tokens.text }]}>Create post</Text>
-        <Text style={{ color: tokens.accent, fontSize: 14, fontWeight: '600' }}>Drafts</Text>
+      <View style={{ paddingTop: insets.top }}>
+        <View style={styles.header}>
+          <Pressable onPress={onClose}>
+            <CloseIcon size={18} color={tokens.text} />
+          </Pressable>
+          <Text style={[styles.title, { color: tokens.text }]}>Create post</Text>
+          <Text style={{ color: tokens.accent, fontSize: 14, fontWeight: '600' }}>Drafts</Text>
+        </View>
       </View>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: tokens['text-2'], fontSize: 14 }}>Composer — coming soon</Text>

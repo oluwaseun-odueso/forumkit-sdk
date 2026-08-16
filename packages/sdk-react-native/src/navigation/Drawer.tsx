@@ -1,4 +1,5 @@
 import { Modal, View, Pressable, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
 import { HomeIcon, PopularIcon, NewsIcon } from '../components/icons';
@@ -14,6 +15,7 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
   onSelectRoute: (route: DrawerRoute) => void;
 }) {
   const { tokens } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
@@ -21,7 +23,10 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
         {/* Panel click doesn't close — stopPropagation equivalent is just
             not forwarding the press to the scrim's Pressable, achieved by
             this inner Pressable swallowing the event. */}
-        <Pressable style={[styles.panel, { backgroundColor: tokens.nav, borderRightColor: tokens.border }]} onPress={() => {}}>
+        <Pressable
+          style={[styles.panel, { backgroundColor: tokens.nav, borderRightColor: tokens.border, paddingTop: 16 + insets.top }]}
+          onPress={() => {}}
+        >
           <View style={styles.brandRow}>
             <Mascot size={24} />
             <Text style={[styles.wordmark, { color: tokens.text }]}>FORUM KIT</Text>

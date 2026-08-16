@@ -1,21 +1,29 @@
 import { Platform, View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { ChevronLeftIcon, MaterialBackIcon } from '../components/icons';
 
 // Notifications per README §11 — a full-screen page (not a bottom sheet),
 // back affordance + title, no top border on the first row (list content
-// comes in a later step).
+// comes in a later step). Absolutely positioned (see `overlay` below), so
+// it doesn't inherit Shell's safe-area padding — needs its own top inset.
+// paddingTop lives on a separate wrapper from the fixed-height row (RN's
+// border-box sizing means padding on a height-52 box would shrink its
+// content instead of growing the box).
 export default function NotificationsOverlay({ onClose }: { onClose: () => void }) {
   const { tokens } = useTheme();
+  const insets = useSafeAreaInsets();
   const BackIcon = Platform.OS === 'ios' ? ChevronLeftIcon : MaterialBackIcon;
 
   return (
     <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
-      <View style={[styles.header, { borderBottomColor: tokens.border }]}>
-        <Pressable onPress={onClose} hitSlop={8}>
-          <BackIcon size={20} color={tokens.text} />
-        </Pressable>
-        <Text style={[styles.title, { color: tokens.text }]}>Notifications</Text>
+      <View style={{ paddingTop: insets.top, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
+        <View style={styles.header}>
+          <Pressable onPress={onClose} hitSlop={8}>
+            <BackIcon size={20} color={tokens.text} />
+          </Pressable>
+          <Text style={[styles.title, { color: tokens.text }]}>Notifications</Text>
+        </View>
       </View>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: tokens['text-2'], fontSize: 14 }}>Notifications — coming soon</Text>
@@ -36,7 +44,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
   },
   title: {
     fontSize: 16,
