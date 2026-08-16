@@ -29,4 +29,5 @@ CLAUDE.md
 gen-tokens.mjs
 docs/backend-test-plan.md
 design_handoff_forum_kit
-
+design_handoff_forum_kit_mobile
+seed-demo-content.mjs
