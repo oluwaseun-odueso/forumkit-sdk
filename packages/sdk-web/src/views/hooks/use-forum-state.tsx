@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { fmtRelativeTime } from '@forumkit/shared';
 import {
   type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
@@ -425,18 +426,6 @@ function fmtSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1048576) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1048576).toFixed(1)} MB`;
-}
-
-function fmtRelativeTime(iso: string | Date): string {
-  const then = new Date(iso).getTime();
-  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (seconds < 60) return 'now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
 }
 
 // Backend Thread -> frontend FeedPost.

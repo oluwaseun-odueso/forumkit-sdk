@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@forumkit/shared": "*",
     "@forumkit/types": "*",
     "@tiptap/core": "^3.29.2",
     "@tiptap/extension-image": "^3.29.2",
