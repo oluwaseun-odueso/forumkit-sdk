@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import { fmtRelativeTime } from '@forumkit/shared';
+import { fmtRelativeTime, threadToFeedRow } from '@forumkit/shared';
 import {
   type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
@@ -428,31 +428,22 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-// Backend Thread -> frontend FeedPost.
+// Backend Thread -> frontend FeedPost. Composes the shared threadToFeedRow for
+// the common fields and layers on the web-only extras (full image list + video
+// for the carousel/lightbox, gradient placeholder, domain, net-votes count).
 function threadToFeedPost(thread: Thread): FeedPost {
   const imageUrls = (thread.attachments ?? [])
     .filter(a => a.mimeType.startsWith('image/'))
     .map(a => a.downloadUrl);
   const videoUrl = (thread.attachments ?? []).find(a => a.mimeType.startsWith('video/'))?.downloadUrl ?? null;
-  const voteCounts = thread.voteCounts ?? { up: 0, down: 0 };
+  const core = threadToFeedRow(thread);
   return {
-    id: thread.id,
-    authorId: thread.authorId,
-    author: thread.authorDisplayName ?? 'Member',
-    authorAvatarUrl: thread.authorAvatarUrl ?? null,
-    time: fmtRelativeTime(thread.createdAt),
-    title: thread.title,
-    body: thread.body,
+    ...core,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
-    imageUrl: imageUrls[0] ?? null,
     imageUrls,
     videoUrl,
     domain: null,
-    votes: netVotes(voteCounts),
-    voteCounts,
-    myVote: thread.myVote ?? null,
-    commentCount: thread.commentCount ?? 0,
-    saved: thread.isSaved ?? false,
+    votes: netVotes(core.voteCounts),
   };
 }
 
