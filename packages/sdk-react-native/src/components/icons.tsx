@@ -121,3 +121,99 @@ export function MaterialBackIcon({ size = 21, color = '#000' }: IconProps) {
     </Svg>
   );
 }
+
+// ── Feed icons — path data copied verbatim from sdk-web's shared/icons.tsx
+// (and README §6) so the two platforms stay pixel-identical. Every icon is
+// color-driven via the `color` prop (React Native has no `currentColor`); the
+// consuming component passes the right token per state. The vote triangles are
+// OUTLINED (never filled) and recolored by state, matching web's vote-pill.css:
+// both default to `muted`, the up arrow turns `up` (#ff6a3d) when active and the
+// down arrow turns `down` (#8b6dff).
+
+export function ChevronDownIcon({ size = 15, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M6 9l6 6 6-6" />
+    </Svg>
+  );
+}
+
+export function UpvoteIcon({ size = 19, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.9}>
+      <Path d="M12 5l7 8H5z" />
+    </Svg>
+  );
+}
+
+export function DownvoteIcon({ size = 19, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.9}>
+      <Path d="M12 19l-7-8h14z" />
+    </Svg>
+  );
+}
+
+export function CommentIcon({ size = 17, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color}>
+      <Path d="M21 11.5a8 8 0 01-11.6 7.1L3 21l2.4-6.4A8 8 0 1121 11.5z" />
+    </Svg>
+  );
+}
+
+export function ShareIcon({ size = 17, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color}>
+      <Path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7" />
+      <Path d="M12 15V4M8 8l4-4 4 4" />
+    </Svg>
+  );
+}
+
+export function EllipsisIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Circle cx={5} cy={12} r={1.7} />
+      <Circle cx={12} cy={12} r={1.7} />
+      <Circle cx={19} cy={12} r={1.7} />
+    </Svg>
+  );
+}
+
+// `filled` swaps the bookmark from outline to solid — shows saved/unsaved
+// state at a glance, mirroring sdk-web's SaveIcon (the one icon here web does
+// fill).
+export function SaveIcon({ size = 19, color = '#000', filled = false }: IconProps & { filled?: boolean }) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7} fill={filled ? color : 'none'}>
+      <Path d="M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z" />
+    </Svg>
+  );
+}
+
+export function ReportIcon({ size = 19, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M5 21V4h11l-1.5 3.5L16 11H5" />
+    </Svg>
+  );
+}
+
+export function CompactViewIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color}>
+      <Rect x={4} y={4} width={16} height={16} rx={2.5} />
+      <Path d="M4 9.5h16M4 14.5h16" />
+    </Svg>
+  );
+}
+
+export function CardViewIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color}>
+      <Rect x={4} y={4} width={16} height={16} rx={2.5} />
+      <Path d="M4 11h16" />
+    </Svg>
+  );
+}
