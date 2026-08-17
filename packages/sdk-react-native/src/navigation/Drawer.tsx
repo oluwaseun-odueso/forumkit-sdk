@@ -1,8 +1,12 @@
-import { Modal, View, Pressable, Text, StyleSheet } from 'react-native';
+import { Modal, View, Pressable, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
 import { HomeIcon, PopularIcon, NewsIcon } from '../components/icons';
+
+// See navigation/Shell.tsx — Android's statusBarTranslucent inset still
+// lands tighter than iOS, so nudge it down a bit further.
+const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
 export type DrawerRoute = 'home' | 'popular' | 'news';
 
@@ -24,11 +28,13 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
             not forwarding the press to the scrim's Pressable, achieved by
             this inner Pressable swallowing the event. */}
         <Pressable
-          style={[styles.panel, { backgroundColor: tokens.nav, borderRightColor: tokens.border, paddingTop: 16 + insets.top }]}
+          style={[styles.panel, { backgroundColor: tokens.nav, borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
           onPress={() => {}}
         >
           <View style={styles.brandRow}>
-            <Mascot size={24} />
+            {Platform.OS === 'ios'
+              ? <View style={{ flexShrink: 0, flexGrow: 0, overflow: 'visible' }}><Mascot size={24} /></View>
+              : <Mascot size={24} />}
             <Text style={[styles.wordmark, { color: tokens.text }]}>FORUM KIT</Text>
           </View>
 
@@ -93,7 +99,12 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   wordmark: {
-    fontFamily: 'Michroma',
+    // Must match the key useFonts() was called with in ForumKit.tsx exactly
+    // — iOS resolves fonts leniently by the name baked into the file's own
+    // metadata (so 'Michroma' happened to work there), Android requires the
+    // exact registered key and silently falls back to the system font
+    // otherwise, which was the platform mismatch here.
+    fontFamily: 'Michroma_400Regular',
     fontSize: 11,
     letterSpacing: 1,
   },

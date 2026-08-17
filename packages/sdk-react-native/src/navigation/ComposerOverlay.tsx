@@ -1,7 +1,11 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { CloseIcon } from '../components/icons';
+
+// See navigation/Shell.tsx — Android's statusBarTranslucent inset still
+// lands tighter than iOS, so nudge it down a bit further.
+const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
 // Create Post sheet per README §10 — an overlay stopping 94px above the
 // bottom so the floating bar stays visible underneath it, no rounded
@@ -14,7 +18,7 @@ export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
-      <View style={{ paddingTop: insets.top }}>
+      <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA }}>
         <View style={styles.header}>
           <Pressable onPress={onClose}>
             <CloseIcon size={18} color={tokens.text} />

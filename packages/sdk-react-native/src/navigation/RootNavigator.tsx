@@ -36,7 +36,12 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* statusBarTranslucent: Android-only, defaults to false in react-native-
+          screens — that mismatches our edge-to-edge theme (transparent status
+          bar in styles.xml, enforced by Android 15/SDK 35 regardless), so
+          each Screen's own window-insets handling wasn't forwarding a
+          correct top inset to useSafeAreaInsets() on Android. */}
+      <Stack.Navigator screenOptions={{ headerShown: false, statusBarTranslucent: true }}>
         <Stack.Screen name="Feed" component={FeedScreen} />
         <Stack.Screen name="Thread" component={ThreadScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />

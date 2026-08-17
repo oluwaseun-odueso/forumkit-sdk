@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { View, Pressable, TextInput, StyleSheet } from 'react-native';
+import { View, Pressable, TextInput, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
 import { HamburgerIcon, SearchIcon, CloseIcon, SunIcon, MoonIcon } from '../components/icons';
 import { GradientBorderPill } from '../components/Pill';
-
-const SEARCH_PILL_WIDTH = 300;
 
 // Top bar per design_handoff_forum_kit_mobile/README.md §4 — 52px,
 // hamburger / mascot (no wordmark here) / collapsible search / theme
@@ -21,7 +19,7 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome }: {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <View style={[styles.bar, { borderBottomColor: tokens.border, backgroundColor: tokens.nav }]}>
+    <View style={[styles.bar, { borderBottomColor: tokens.border, backgroundColor: tokens.bg }]}>
       <Pressable
         onPress={onOpenDrawer}
         style={[styles.hamburgerBtn, { backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}
@@ -31,7 +29,7 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome }: {
 
       {!searchOpen && (
         <>
-          <Pressable onPress={onHome}>
+          <Pressable onPress={onHome} style={IOS ? { flexShrink: 0, flexGrow: 0, overflow: 'visible' } : undefined}>
             <Mascot size={24} />
           </Pressable>
           <View style={{ flex: 1 }} />
@@ -42,23 +40,28 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome }: {
       )}
 
       {searchOpen && (
-        <>
-          <View style={{ flex: 1 }} />
-          <GradientBorderPill width={SEARCH_PILL_WIDTH} height={36}>
-            <View style={{ paddingLeft: 8, paddingRight: 10, flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+        <GradientBorderPill height={36}>
+          <View style={{ paddingLeft: 8, paddingRight: 10, flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8, overflow: 'visible' }}>
+            {/* Explicit 20×20 square box, both platforms — the mascot is the
+                only icon in a row also containing a flex:1 TextInput, so
+                without a pinned square its wrapper's size was left to flex
+                resolution and the icon picked up a slightly off aspect ratio
+                ("oblong") that the top-bar/drawer mascots (no flex sibling
+                pressure) never showed. width===height + center guarantees
+                square; overflow:'visible' keeps the badge overhang. */}
+            <View style={{ width: 20, height: 20, flexShrink: 0, flexGrow: 0, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
               <Mascot size={20} />
-              <TextInput
-                placeholder="Find anything"
-                placeholderTextColor={tokens.faint}
-                style={{ flex: 1, fontSize: 13, color: tokens.text, padding: 0 }}
-              />
-              <Pressable onPress={() => setSearchOpen(false)}>
-                <CloseIcon size={16} color={tokens.muted} />
-              </Pressable>
             </View>
-          </GradientBorderPill>
-          <View style={{ flex: 1 }} />
-        </>
+            <TextInput
+              placeholder="Find anything"
+              placeholderTextColor={tokens.faint}
+              style={{ flex: 1, minWidth: 0, fontSize: 13, color: tokens.text, padding: 0 }}
+            />
+            <Pressable onPress={() => setSearchOpen(false)}>
+              <CloseIcon size={16} color={tokens.muted} />
+            </Pressable>
+          </View>
+        </GradientBorderPill>
       )}
 
       <Pressable onPress={toggleTheme} style={styles.themeToggle}>
@@ -69,6 +72,8 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome }: {
     </View>
   );
 }
+
+const IOS = Platform.OS === 'ios';
 
 const styles = StyleSheet.create({
   bar: {

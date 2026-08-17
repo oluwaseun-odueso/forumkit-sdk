@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
@@ -9,6 +9,11 @@ import Drawer, { type DrawerRoute } from './Drawer';
 import ComposerOverlay from './ComposerOverlay';
 import NotificationsOverlay from './NotificationsOverlay';
 import type { RootStackParamList } from './RootNavigator';
+
+// react-native-screens' statusBarTranslucent inset on Android still lands
+// visually tighter against the status bar than iOS's equivalent — nudge it
+// down a bit further rather than relying on the raw inset alone.
+const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
 // Persistent chrome around Feed/Thread/Profile — mirrors sdk-web's Shell
 // component (top bar + content + the app's other persistent nav), adapted
@@ -32,7 +37,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top }]}>
+    <View style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
       <TopBar onOpenDrawer={() => setDrawerOpen(true)} onHome={() => navigation.navigate('Feed')} />
       <View style={{ flex: 1 }}>{children}</View>
       <BottomBar

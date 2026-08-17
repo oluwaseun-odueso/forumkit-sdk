@@ -3,6 +3,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { ChevronLeftIcon, MaterialBackIcon } from '../components/icons';
 
+// See navigation/Shell.tsx — Android's statusBarTranslucent inset still
+// lands tighter than iOS, so nudge it down a bit further.
+const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
+
 // Notifications per README §11 — a full-screen page (not a bottom sheet),
 // back affordance + title, no top border on the first row (list content
 // comes in a later step). Absolutely positioned (see `overlay` below), so
@@ -17,7 +21,7 @@ export default function NotificationsOverlay({ onClose }: { onClose: () => void 
 
   return (
     <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
-      <View style={{ paddingTop: insets.top, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
+      <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={8}>
             <BackIcon size={20} color={tokens.text} />
