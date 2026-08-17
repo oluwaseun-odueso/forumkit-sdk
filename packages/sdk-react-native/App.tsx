@@ -1,14 +1,24 @@
+import { Platform } from 'react-native';
 import { ForumKit } from './src/ForumKit';
 
-// Dev-harness entry — mounts the SDK the same way a host app eventually
-// will, against a local API instance. Swap these for real values (or read
-// from env) once there's an actual dev forum/session to point at.
+// Dev-harness entry — mounts the SDK the same way a host app eventually will,
+// against the local dev API. The forumId + token come from Expo env vars so no
+// real JWT lives in this committed file: run `node gen-tokens-native.mjs` (from
+// the repo root) to write a gitignored .env with a long-lived dev token for the
+// seeded users. Restart Metro after generating so Expo picks up the new .env.
+//
+// apiUrl: the iOS simulator reaches the host at localhost; the Android emulator
+// reaches it at 10.0.2.2 (its alias for the host machine's loopback).
+const API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+const FORUM_ID = process.env.EXPO_PUBLIC_FK_FORUM_ID ?? '';
+const TOKEN = process.env.EXPO_PUBLIC_FK_TOKEN ?? '';
+
 export default function App() {
   return (
     <ForumKit
-      forumId="dev-forum"
-      token="dev-token"
-      apiUrl="http://localhost:3000"
+      forumId={FORUM_ID}
+      token={TOKEN}
+      apiUrl={API_URL}
       platform="native"
     />
   );
