@@ -1,4 +1,16 @@
-import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Comment, TopWindow, RelatedThreadForRail } from '@forumkit/types';
+import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Comment, RelatedThreadForRail } from '@forumkit/types';
+import {
+  listThreads as sharedListThreads,
+  saveThread as sharedSaveThread,
+  unsaveThread as sharedUnsaveThread,
+  reportThread as sharedReportThread,
+  type ListThreadsParams,
+  type ListThreadsResult,
+} from '@forumkit/shared';
+
+// ListThreadsParams / ListThreadsResult now live in @forumkit/shared; re-exported
+// here so existing `../api/threads` import sites keep working unchanged.
+export type { ListThreadsParams, ListThreadsResult };
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -19,40 +31,24 @@ async function unwrapThread(res: Response): Promise<Thread> {
   return (await res.json()) as Thread;
 }
 
-export type ListThreadsResult = { threads: Thread[]; total: number; page: number; limit: number };
-
-export type ListThreadsParams = {
-  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising' | undefined;
-  tagId?: string | undefined;
-  tagName?: string | undefined;
-  pinned?: boolean | undefined;
-  topWindow?: TopWindow | undefined;
-  limit?: number | undefined;
-  page?: number | undefined;
-};
-
-export async function listThreads(
-  forumId: string,
-  token?: string,
-  params?: ListThreadsParams,
-): Promise<ListThreadsResult> {
-  const qs = new URLSearchParams();
-  if (params?.sort) qs.set('sort', params.sort);
-  if (params?.tagId) qs.set('tagId', params.tagId);
-  if (params?.tagName) qs.set('tagName', params.tagName);
-  if (params?.pinned !== undefined) qs.set('pinned', String(params.pinned));
-  if (params?.topWindow) qs.set('topWindow', params.topWindow);
-  if (params?.limit) qs.set('limit', String(params.limit));
-  if (params?.page) qs.set('page', String(params.page));
-  const suffix = qs.toString() ? `?${qs.toString()}` : '';
-
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads${suffix}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as ListThreadsResult;
+// Feed-subset endpoints delegate to the shared client; web signatures unchanged.
+export function listThreads(forumId: string, token?: string, params?: ListThreadsParams): Promise<ListThreadsResult> {
+  return sharedListThreads(API_BASE, forumId, token, params);
 }
+
+export function saveThread(forumId: string, threadId: string, token?: string): Promise<void> {
+  return sharedSaveThread(API_BASE, forumId, threadId, token);
+}
+
+export function unsaveThread(forumId: string, threadId: string, token?: string): Promise<void> {
+  return sharedUnsaveThread(API_BASE, forumId, threadId, token);
+}
+
+export function reportThread(forumId: string, threadId: string, reason: string, token?: string): Promise<void> {
+  return sharedReportThread(API_BASE, forumId, threadId, reason, token);
+}
+
+// The rest stay local (not part of the migrated feed subset).
 
 export async function getSimilarThreads(
   forumId: string,
@@ -106,31 +102,6 @@ export async function deleteThread(forumId: string, threadId: string, token?: st
   const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
     method: 'DELETE',
     headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
-export async function saveThread(forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/save`, {
-    method: 'POST',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
-export async function unsaveThread(forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/save`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
-export async function reportThread(forumId: string, threadId: string, reason: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/report`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify({ reason }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

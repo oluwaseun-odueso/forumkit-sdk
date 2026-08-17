@@ -1,24 +1,15 @@
+import { createSession as sharedCreateSession } from '@forumkit/shared';
+import type { CreateSessionResult } from '@forumkit/shared';
+
+export type { CreateSessionResult };
+
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
   : '';
 
-export type CreateSessionResult = {
-  sessionToken: string;
-  userId: string;
-  role: string;
-  expiresIn: number;
-};
-
+// Thin wrapper over the shared client — keeps the web signature (apiUrl passed
+// explicitly here too, since createSession has always taken it), while the
+// fetch logic lives once in @forumkit/shared.
 export async function createSession(apiUrl: string, hostToken: string): Promise<CreateSessionResult> {
-  const base = apiUrl || API_BASE;
-  const res = await fetch(`${base}/auth/session`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${hostToken}`,
-    },
-    body: JSON.stringify({ token: hostToken }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as CreateSessionResult;
+  return sharedCreateSession(apiUrl || API_BASE, hostToken);
 }
