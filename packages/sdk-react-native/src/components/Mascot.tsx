@@ -7,6 +7,7 @@ import Animated, {
 import Svg, { Path, Circle, Defs, LinearGradient, RadialGradient, Stop } from 'react-native-svg';
 import { mascotAnimationTiming } from '@forumkit/shared';
 import { roundedBlobPath } from './mascot-path';
+import { linearGradientEndpoints, nextGradientId } from '../lib/svg-gradient';
 
 // The Forum Kit mascot — a pure-CSS chat-bubble character (nested divs with
 // layered gradients + three head/shoulders figures + a badge), NOT an image,
@@ -47,28 +48,10 @@ const TAIL_RADII: [number, number, number, number] = [0.74, 0.74, 0.80, 2 / 8.5]
 const BUBBLE_H_RADII: [number, number, number, number] = [0.50, 0.50, 0.52, 0.16];
 const BUBBLE_V_RADII: [number, number, number, number] = [0.52, 0.52, 0.50, 0.50];
 
-// linear-gradient(<angle>deg) -> SVG x1/y1/x2/y2 (CSS 0deg = "to top").
-function gradientEndpoints(angleDeg: number) {
-  const rad = (angleDeg * Math.PI) / 180;
-  const sin = Math.sin(rad);
-  const cos = Math.cos(rad);
-  return {
-    x1: `${50 - 50 * sin}%`,
-    y1: `${50 + 50 * cos}%`,
-    x2: `${50 + 50 * sin}%`,
-    y2: `${50 - 50 * cos}%`,
-  };
-}
-const TAIL_GRADIENT_DIR = gradientEndpoints(150);
-const BUBBLE_GRADIENT_DIR = gradientEndpoints(155);
+const TAIL_GRADIENT_DIR = linearGradientEndpoints(150);
+const BUBBLE_GRADIENT_DIR = linearGradientEndpoints(155);
 
 const IOS = Platform.OS === 'ios';
-
-let uidCounter = 0;
-function nextId(prefix: string): string {
-  uidCounter += 1;
-  return `${prefix}${uidCounter}`;
-}
 
 // A fixed reference instant, set once when the JS module first loads (i.e.
 // effectively "app launch"). Every Mascot instance's loops are phased off
@@ -107,10 +90,10 @@ function startSynced(progress: SharedValue<number>, durationMs: number, delayMs:
 
 export default function Mascot({ size = 24, animated = true, badge = true }: MascotProps) {
   const idsRef = useRef({
-    tail: nextId(TAIL_GRADIENT_ID),
-    bubble: nextId(BUBBLE_GRADIENT_ID),
-    highlight: nextId(BUBBLE_HIGHLIGHT_ID),
-    badge: nextId(BADGE_GRADIENT_ID),
+    tail: nextGradientId(TAIL_GRADIENT_ID),
+    bubble: nextGradientId(BUBBLE_GRADIENT_ID),
+    highlight: nextGradientId(BUBBLE_HIGHLIGHT_ID),
+    badge: nextGradientId(BADGE_GRADIENT_ID),
   });
   const ids = idsRef.current;
   const s = size / 24;
