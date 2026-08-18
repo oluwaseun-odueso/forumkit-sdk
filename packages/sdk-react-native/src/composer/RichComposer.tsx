@@ -14,7 +14,7 @@ import { LinkIcon, ListIcon, ImageIcon, CloseIcon } from '../components/icons';
 // the GIF button inserts a markdown image from the GIPHY proxy.
 export default function RichComposer({
   apiUrl, forumId, token, value, onChangeText, attachments, onAttachmentsChange,
-  placeholder = 'Body text (optional)', minHeight = 120,
+  placeholder = 'Body text (optional)', minHeight = 120, allowMedia = true, onUploadingChange,
 }: {
   apiUrl: string;
   forumId: string;
@@ -25,6 +25,12 @@ export default function RichComposer({
   onAttachmentsChange: (a: UploadedMedia[]) => void;
   placeholder?: string;
   minHeight?: number;
+  // The post composer sets this false — image/video for posts lives in the
+  // dedicated "Images & Video" tab, not inline in the body. Comments keep it.
+  allowMedia?: boolean;
+  // Lets the parent (e.g. the comment composer) block submit until an in-flight
+  // upload finishes, so a comment/post never ships referencing an unfinished one.
+  onUploadingChange?: ((uploading: boolean) => void) | undefined;
 }) {
   const { tokens } = useTheme();
   const selection = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
@@ -34,6 +40,8 @@ export default function RichComposer({
   const [gifResults, setGifResults] = useState<GifResult[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifNotConfigured, setGifNotConfigured] = useState(false);
+
+  useEffect(() => { onUploadingChange?.(uploading); }, [uploading, onUploadingChange]);
 
   function onSelectionChange(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) {
     selection.current = e.nativeEvent.selection;
@@ -91,7 +99,9 @@ export default function RichComposer({
         <TBtn onPress={() => insert('\n- ')}><ListIcon size={16} color={tokens['text-2']} /></TBtn>
         <TBtn onPress={() => insert('\n> ')}><Glyph color={tokens['text-2']}>❝</Glyph></TBtn>
         <TBtn onPress={() => wrap('`', '`')}><Glyph color={tokens['text-2']} mono>{'</>'}</Glyph></TBtn>
-        <TBtn onPress={addMedia}>{uploading ? <ActivityIndicator size="small" color={tokens['text-2']} /> : <ImageIcon size={16} color={tokens['text-2']} />}</TBtn>
+        {allowMedia && (
+          <TBtn onPress={addMedia}>{uploading ? <ActivityIndicator size="small" color={tokens['text-2']} /> : <ImageIcon size={16} color={tokens['text-2']} />}</TBtn>
+        )}
         <TBtn onPress={() => setGifOpen(o => !o)}><Glyph weight="800" color={gifOpen ? tokens.accent : tokens['text-2']} small>GIF</Glyph></TBtn>
       </View>
 
@@ -105,7 +115,7 @@ export default function RichComposer({
         style={[styles.input, { color: tokens.text, minHeight }]}
       />
 
-      {attachments.length > 0 && (
+      {allowMedia && attachments.length > 0 && (
         <View style={styles.thumbs}>
           {attachments.map(a => (
             <View key={a.attachmentId} style={styles.thumbWrap}>

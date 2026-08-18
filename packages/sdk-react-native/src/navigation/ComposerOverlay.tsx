@@ -165,6 +165,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
               onChangeText={setBody}
               attachments={attachments}
               onAttachmentsChange={setAttachments}
+              allowMedia={false}
             />
           )}
 

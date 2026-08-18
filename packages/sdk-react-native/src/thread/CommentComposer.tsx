@@ -22,7 +22,10 @@ export default function CommentComposer({
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState<UploadedMedia[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const canSubmit = (body.trim().length > 0 || attachments.length > 0) && !submitting;
+  const [uploading, setUploading] = useState(false);
+  // Block submit while a media upload is still in flight, so a comment never
+  // ships before its attachment finishes confirming.
+  const canSubmit = (body.trim().length > 0 || attachments.length > 0) && !submitting && !uploading;
 
   async function submit() {
     if (!canSubmit) return;
@@ -46,6 +49,7 @@ export default function CommentComposer({
         onChangeText={setBody}
         attachments={attachments}
         onAttachmentsChange={setAttachments}
+        onUploadingChange={setUploading}
         placeholder={placeholder}
         minHeight={64}
       />
@@ -56,7 +60,7 @@ export default function CommentComposer({
           </Pressable>
         )}
         <Pressable onPress={submit} disabled={!canSubmit} style={[styles.btn, { backgroundColor: tokens.accent, opacity: canSubmit ? 1 : 0.5 }]}>
-          <Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 13 }}>{submitting ? '…' : submitLabel}</Text>
+          <Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 13 }}>{submitting ? '…' : uploading ? 'Uploading…' : submitLabel}</Text>
         </Pressable>
       </View>
     </View>
