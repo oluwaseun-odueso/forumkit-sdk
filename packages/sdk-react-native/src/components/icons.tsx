@@ -1,4 +1,6 @@
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { useRef } from 'react';
+import Svg, { Path, Circle, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { nextGradientId } from '../lib/svg-gradient';
 
 // Path data copied verbatim from packages/sdk-web/src/views/components/shared/icons.tsx
 // wherever the icon is shared between platforms (per design_handoff_forum_kit_mobile/
@@ -214,6 +216,28 @@ export function CardViewIcon({ size = 18, color = '#000' }: IconProps) {
     <Svg width={size} height={size} {...strokeBase} stroke={color}>
       <Rect x={4} y={4} width={16} height={16} rx={2.5} />
       <Path d="M4 11h16" />
+    </Svg>
+  );
+}
+
+// The brand AI sparkle — two gradient-filled 4-point stars, path data + gradient
+// stops copied verbatim from sdk-web's AiSparkleIcon (README §8's sparkle). Each
+// instance gets a unique gradient id (duplicate ids across the doc break fills).
+export function SparkleIcon({ size = 17 }: { size?: number }) {
+  const idRef = useRef<string | null>(null);
+  if (!idRef.current) idRef.current = nextGradientId('fkSparkle');
+  const id = idRef.current;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Defs>
+        <LinearGradient id={id} x1="3" y1="3" x2="22" y2="20" gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#3f7ee2" />
+          <Stop offset="0.55" stopColor="#7b5cff" />
+          <Stop offset="1" stopColor="#37e0e6" />
+        </LinearGradient>
+      </Defs>
+      <Path d="M12 3l1.8 4.6L18.4 9l-4.6 1.8L12 15.4 10.2 10.8 5.6 9l4.6-1.8z" fill={`url(#${id})`} />
+      <Path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill={`url(#${id})`} />
     </Svg>
   );
 }
