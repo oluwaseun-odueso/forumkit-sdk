@@ -220,6 +220,33 @@ export function CardViewIcon({ size = 18, color = '#000' }: IconProps) {
   );
 }
 
+export function LinkIcon({ size = 16, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M10 13.5a3.5 3.5 0 004.9.3l2.6-2.6a3.5 3.5 0 00-4.9-4.9l-1.3 1.3" />
+      <Path d="M14 10.5a3.5 3.5 0 00-4.9-.3L6.5 12.8a3.5 3.5 0 004.9 4.9l1.3-1.3" />
+    </Svg>
+  );
+}
+
+export function ListIcon({ size = 16, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
+    </Svg>
+  );
+}
+
+export function ImageIcon({ size = 16, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Rect x={3} y={5} width={18} height={14} rx={2} />
+      <Circle cx={8.5} cy={10} r={1.5} />
+      <Path d="M21 16l-5-5L5 20" />
+    </Svg>
+  );
+}
+
 export function EyeIcon({ size = 16, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
