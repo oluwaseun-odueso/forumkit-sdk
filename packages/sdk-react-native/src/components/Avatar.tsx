@@ -9,9 +9,9 @@ import { linearGradientEndpoints, nextGradientId } from '../lib/svg-gradient';
 // the web Avatar). Takes the raw author fields and derives the fallback
 // internally, so call sites just pass what they have on a FeedRow.
 export default function Avatar({ authorId, author, avatarUrl, size = 22 }: {
-  authorId?: string;
+  authorId?: string | undefined;
   author: string;
-  avatarUrl?: string | null;
+  avatarUrl?: string | null | undefined;
   size?: number;
 }) {
   const idRef = useRef<string | null>(null);
