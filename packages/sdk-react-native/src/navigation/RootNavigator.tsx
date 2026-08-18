@@ -4,6 +4,9 @@ import { useTheme } from '../theme/ThemeContext';
 import FeedScreen from '../screens/FeedScreen';
 import ThreadScreen from '../screens/ThreadScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SearchScreen from '../screens/SearchScreen';
+
+export type FeedScope = 'home' | 'popular' | 'news';
 
 // Composer and Notifications are deliberately NOT routes here — per
 // design_handoff_forum_kit_mobile/README.md §12, composerOpen/notifOpen are
@@ -12,9 +15,10 @@ import ProfileScreen from '../screens/ProfileScreen';
 // and tappable underneath it (§10) — a full-screen modal route would cover
 // it entirely. Both are rendered as overlays from within Shell instead.
 export type RootStackParamList = {
-  Feed: undefined;
+  Feed: { scope?: FeedScope } | undefined;
   Thread: { threadId: string };
   Profile: { userId?: string } | undefined;
+  Search: { query: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -45,6 +49,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Feed" component={FeedScreen} />
         <Stack.Screen name="Thread" component={ThreadScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Search" component={SearchScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
