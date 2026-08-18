@@ -178,7 +178,7 @@ function ProfileBody() {
             <PostRow
               key={`t-${a.row.id}-${i}`}
               row={a.row}
-              view="compact"
+              view="card"
               onOpen={() => navigation.navigate('Thread', { threadId: a.row.id })}
               onVote={dir => onVote(a.row, dir)}
               onSave={() => onSave(a.row)}
