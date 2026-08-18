@@ -5,9 +5,10 @@ import {
   listThreads, saveThread, unsaveThread, voteOnThread, removeVoteFromThread, reportThread,
   threadToFeedRow, type FeedRow, type ListThreadsParams,
 } from '@forumkit/shared';
-import type { VoteCounts, VoteDirection } from '@forumkit/types';
+import type { VoteDirection } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
+import { applyVote, nextVoteDir } from '../lib/vote';
 import Shell from '../navigation/Shell';
 import PostRow from '../feed/PostRow';
 import { SelectPill } from '../components/SelectPill';
@@ -27,14 +28,6 @@ const VIEW_OPTIONS = ['card', 'compact'] as const;
 const SORT_QUERY: Record<SortOption, NonNullable<ListThreadsParams['sort']>> = {
   Best: 'best', Hot: 'hot', New: 'new', Top: 'top', Rising: 'rising',
 };
-
-// Adjust the up/down counts for a vote transition (old direction -> new).
-function applyVote(vc: VoteCounts, oldDir: VoteDirection | null, newDir: VoteDirection | null): VoteCounts {
-  return {
-    up: vc.up - (oldDir === 1 ? 1 : 0) + (newDir === 1 ? 1 : 0),
-    down: vc.down - (oldDir === -1 ? 1 : 0) + (newDir === -1 ? 1 : 0),
-  };
-}
 
 export default function FeedScreen() {
   const { tokens } = useTheme();
@@ -73,7 +66,7 @@ export default function FeedScreen() {
   const onVote = useCallback((row: FeedRow, dir: VoteDirection) => {
     if (!token) return;
     const oldDir = row.myVote;
-    const newDir: VoteDirection | null = oldDir === dir ? null : dir;
+    const newDir = nextVoteDir(oldDir, dir);
     const prevCounts = row.voteCounts;
     updateRow(row.id, r => ({ ...r, myVote: newDir, voteCounts: applyVote(r.voteCounts, oldDir, newDir) }));
     const req = newDir === null
