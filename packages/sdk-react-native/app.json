@@ -24,7 +24,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ForumKit needs access to your photos to attach images and videos to posts and comments."
+        }
+      ]
     ]
   }
 }
