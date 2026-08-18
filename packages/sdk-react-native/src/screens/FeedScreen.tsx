@@ -3,7 +3,7 @@ import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-nativ
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import {
   listThreads, saveThread, unsaveThread, voteOnThread, removeVoteFromThread, reportThread,
-  threadToFeedRow, type FeedRow, type ListThreadsParams,
+  shareThreadWithUsers, threadToFeedRow, type FeedRow, type ListThreadsParams,
 } from '@forumkit/shared';
 import type { VoteDirection } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
@@ -12,6 +12,8 @@ import { applyVote, nextVoteDir } from '../lib/vote';
 import Shell from '../navigation/Shell';
 import PostRow from '../feed/PostRow';
 import { SelectPill } from '../components/SelectPill';
+import ReportSheet from '../components/ReportSheet';
+import ShareSheet from '../components/ShareSheet';
 import { CardViewIcon, CompactViewIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -39,6 +41,8 @@ export default function FeedScreen() {
   const [rows, setRows] = useState<FeedRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [shareId, setShareId] = useState<string | null>(null);
 
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
@@ -87,11 +91,15 @@ export default function FeedScreen() {
     req.catch(() => updateRow(row.id, r => ({ ...r, saved: !newSaved })));
   }, [apiUrl, forumId, token, updateRow]);
 
-  const onReport = useCallback((row: FeedRow) => {
-    if (!token) return;
-    // Placeholder reason — the full report UI (reason picker) is a later shared step.
-    reportThread(apiUrl, forumId, row.id, 'Reported from mobile', token).catch(() => { /* best effort */ });
-  }, [apiUrl, forumId, token]);
+  const submitReport = useCallback((reason: string) => {
+    if (!token || !reportId) return;
+    void reportThread(apiUrl, forumId, reportId, reason, token).catch(() => { /* best effort */ });
+  }, [apiUrl, forumId, token, reportId]);
+
+  const submitShare = useCallback((recipientIds: string[]) => {
+    if (!token || !shareId || recipientIds.length === 0) return;
+    void shareThreadWithUsers(apiUrl, forumId, shareId, recipientIds, undefined, token).catch(() => { /* best effort */ });
+  }, [apiUrl, forumId, token, shareId]);
 
   const controls = (
     <View style={styles.controls}>
@@ -130,8 +138,8 @@ export default function FeedScreen() {
               onOpen={() => navigation.navigate('Thread', { threadId: item.id })}
               onVote={dir => onVote(item, dir)}
               onSave={() => onSave(item)}
-              onReport={() => onReport(item)}
-              onShare={() => { /* share sheet — later step */ }}
+              onReport={() => setReportId(item.id)}
+              onShare={() => setShareId(item.id)}
             />
           )}
           ListEmptyComponent={
@@ -141,6 +149,13 @@ export default function FeedScreen() {
           }
           contentContainerStyle={{ paddingBottom: 100 }}
         />
+      )}
+
+      {reportId && (
+        <ReportSheet target="post" onClose={() => setReportId(null)} onSubmit={submitReport} />
+      )}
+      {shareId && (
+        <ShareSheet apiUrl={apiUrl} forumId={forumId} token={token} onClose={() => setShareId(null)} onShare={submitShare} />
       )}
     </Shell>
   );
