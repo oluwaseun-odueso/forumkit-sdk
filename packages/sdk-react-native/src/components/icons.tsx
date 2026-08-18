@@ -247,6 +247,68 @@ export function ImageIcon({ size = 16, color = '#000' }: IconProps) {
   );
 }
 
+// ── Social + profile icons (paths from sdk-web's shared/icons.tsx) ──
+
+export function GlobeIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M3.6 9h16.8M3.6 15h16.8" />
+      <Path d="M12 3c-2.5 3-4 5.5-4 9s1.5 6 4 9M12 3c2.5 3 4 5.5 4 9s-1.5 6-4 9" />
+    </Svg>
+  );
+}
+
+export function DribbbleIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M5 6c3.5 3 9 4 14 3M4 15c5-2 10-1 13 3M9 3.5c3 5 4 11 3.5 17" />
+    </Svg>
+  );
+}
+
+export function GitHubIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+    </Svg>
+  );
+}
+
+export function LinkedInIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zM9 17H6.5v-7H9v7zm-1.25-8a1.25 1.25 0 110-2.5 1.25 1.25 0 010 2.5zm9.25 8H14.5v-3.5c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5V17H9v-7h2.5v1.17C12 10.45 12.83 10 14 10c1.93 0 3 1.57 3 3.5V17z" />
+    </Svg>
+  );
+}
+
+export function TwitterXIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M18.24 2.25h3.31L14.32 10.5l8.5 11.25H16.17l-4.71-6.23-5.4 6.23H2.75l7.73-8.84L1.25 2.25H8.08l4.26 5.63 5.9-5.63zm-1.16 17.52h1.83L7.08 4.13H5.12z" />
+    </Svg>
+  );
+}
+
+export function BehanceIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M4 4h6c2.2 0 4 1.8 4 4a4 4 0 01-1.8 3.38A4 4 0 0114 15c0 2.2-1.8 4-4 4H4V4zm2 7v5h3.5a2 2 0 000-4H6zm0-5v3h3a1.5 1.5 0 000-3H6zm8.5-2h5v2h-5V4z" />
+    </Svg>
+  );
+}
+
+export function CameraIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" />
+      <Circle cx={12} cy={13} r={3.2} />
+    </Svg>
+  );
+}
+
 export function GearIcon({ size = 18, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
