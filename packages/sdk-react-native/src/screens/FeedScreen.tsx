@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
-import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import {
   listThreads, saveThread, unsaveThread, voteOnThread, removeVoteFromThread, reportThread,
   shareThreadWithUsers, threadToFeedRow, type FeedRow, type ListThreadsParams,
@@ -44,6 +44,9 @@ export default function FeedScreen() {
   const [reportId, setReportId] = useState<string | null>(null);
   const [shareId, setShareId] = useState<string | null>(null);
 
+  const route = useRoute<RouteProp<RootStackParamList, 'Feed'>>();
+  const scope = route.params?.scope ?? 'home';
+
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
@@ -52,14 +55,20 @@ export default function FeedScreen() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listThreads(apiUrl, forumId, token, { sort: SORT_QUERY[s], limit: 25 });
+      // Drawer scope: Home = the user's sort; Popular = hot; News = the "news"
+      // tag (still honoring the user's sort within it).
+      const res = await listThreads(apiUrl, forumId, token, {
+        sort: scope === 'popular' ? 'hot' : SORT_QUERY[s],
+        tagName: scope === 'news' ? 'news' : undefined,
+        limit: 25,
+      });
       setRows(res.threads.map(threadToFeedRow));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load feed');
     } finally {
       setLoading(false);
     }
-  }, [apiUrl, forumId, token]);
+  }, [apiUrl, forumId, token, scope]);
 
   useEffect(() => { void load(sort); }, [load, sort]);
 

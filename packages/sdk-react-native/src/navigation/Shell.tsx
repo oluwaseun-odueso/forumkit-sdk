@@ -41,10 +41,9 @@ export default function Shell({ children }: { children: ReactNode }) {
 
   function goTo(route: DrawerRoute) {
     setDrawerOpen(false);
-    if (route === 'home') navigation.navigate('Feed');
-    // Popular/News don't have real screens yet in this step — the drawer
-    // row itself still needs to exist and be tappable per the spec, it
-    // just has nowhere real to go until the feed's scope filtering ships.
+    // Home / Popular / News all land on the feed with a scope (Popular = hot,
+    // News = the "news" tag) — see FeedScreen.
+    navigation.navigate('Feed', { scope: route });
   }
 
   const actions = useMemo<ShellActions>(() => ({
@@ -55,7 +54,11 @@ export default function Shell({ children }: { children: ReactNode }) {
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
-      <TopBar onOpenDrawer={() => setDrawerOpen(true)} onHome={() => navigation.navigate('Feed')} />
+      <TopBar
+        onOpenDrawer={() => setDrawerOpen(true)}
+        onHome={() => navigation.navigate('Feed')}
+        onSearch={q => navigation.navigate('Search', { query: q })}
+      />
       <ShellContext.Provider value={actions}>
         <View style={{ flex: 1 }}>{children}</View>
       </ShellContext.Provider>
