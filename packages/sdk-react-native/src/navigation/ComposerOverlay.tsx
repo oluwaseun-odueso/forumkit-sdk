@@ -25,18 +25,22 @@ const TABS: ReadonlyArray<{ id: ComposerTab; label: string }> = [
 // via the same presigned flow; Post sends attachmentIds. Cancelling or saving a
 // draft cleans up unposted attachments (matching web's orphan cleanup) — media
 // isn't persisted into drafts (banner note).
-export default function ComposerOverlay({ onClose, onOpenDrafts }: { onClose: () => void; onOpenDrafts?: () => void }) {
+export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }: {
+  onClose: () => void;
+  onOpenDrafts?: (() => void) | undefined;
+  initialDraft?: { title: string; content: DraftContent } | undefined;
+}) {
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const session = useSession();
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
-  const [tab, setTab] = useState<ComposerTab>('text');
-  const [title, setTitle] = useState('');
-  const [tags, setTags] = useState('');
-  const [body, setBody] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
+  const [tab, setTab] = useState<ComposerTab>(initialDraft?.content.activeTab ?? 'text');
+  const [title, setTitle] = useState(initialDraft?.title ?? '');
+  const [tags, setTags] = useState(initialDraft?.content.tags ?? '');
+  const [body, setBody] = useState(initialDraft?.content.body ?? '');
+  const [linkUrl, setLinkUrl] = useState(initialDraft?.content.linkUrl ?? '');
   const [attachments, setAttachments] = useState<UploadedMedia[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);

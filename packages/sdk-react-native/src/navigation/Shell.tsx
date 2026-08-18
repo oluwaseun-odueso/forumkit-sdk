@@ -2,11 +2,14 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import type { Draft } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
+import { useSession } from '../session/SessionContext';
 import TopBar from './TopBar';
 import BottomBar from './BottomBar';
 import Drawer, { type DrawerRoute } from './Drawer';
 import ComposerOverlay from './ComposerOverlay';
+import DraftsSheet from '../composer/DraftsSheet';
 import NotificationsOverlay from './NotificationsOverlay';
 import type { RootStackParamList } from './RootNavigator';
 
@@ -35,9 +38,19 @@ export default function Shell({ children }: { children: ReactNode }) {
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const session = useSession();
+  const { apiUrl, forumId } = session;
+  const token = session.status === 'ready' ? session.sessionToken : undefined;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
+
+  function closeComposer() {
+    setComposerOpen(false);
+    setLoadedDraft(null);
+  }
 
   function goTo(route: DrawerRoute) {
     setDrawerOpen(false);
@@ -69,7 +82,23 @@ export default function Shell({ children }: { children: ReactNode }) {
         onProfile={() => navigation.navigate('Profile')}
       />
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute="home" onSelectRoute={goTo} />
-      {composerOpen && <ComposerOverlay onClose={() => setComposerOpen(false)} />}
+      {composerOpen && (
+        <ComposerOverlay
+          key={loadedDraft?.id ?? 'new'}
+          onClose={closeComposer}
+          onOpenDrafts={() => setDraftsOpen(true)}
+          initialDraft={loadedDraft ? { title: loadedDraft.title, content: loadedDraft.content } : undefined}
+        />
+      )}
+      {draftsOpen && (
+        <DraftsSheet
+          apiUrl={apiUrl}
+          forumId={forumId}
+          token={token}
+          onClose={() => setDraftsOpen(false)}
+          onOpen={draft => { setLoadedDraft(draft); setDraftsOpen(false); }}
+        />
+      )}
       {notifOpen && <NotificationsOverlay onClose={() => setNotifOpen(false)} />}
     </View>
   );
