@@ -7,7 +7,7 @@ import { nextGradientId } from '../lib/svg-gradient';
 // README.md: "no icon-library substitutions, copy the SVG path data from the
 // reference"). RN SVG has no `currentColor` cascade the way web CSS does, so
 // `color` is an explicit prop here instead of inheriting from a parent.
-type IconProps = { size?: number; color?: string };
+export type IconProps = { size?: number; color?: string };
 
 const strokeBase = {
   viewBox: '0 0 24 24',
@@ -243,6 +243,15 @@ export function ImageIcon({ size = 16, color = '#000' }: IconProps) {
       <Rect x={3} y={5} width={18} height={14} rx={2} />
       <Circle cx={8.5} cy={10} r={1.5} />
       <Path d="M21 16l-5-5L5 20" />
+    </Svg>
+  );
+}
+
+export function GearIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Circle cx={12} cy={12} r={3.2} />
+      <Path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7" />
     </Svg>
   );
 }
