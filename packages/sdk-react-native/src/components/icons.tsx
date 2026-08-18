@@ -220,6 +220,15 @@ export function CardViewIcon({ size = 18, color = '#000' }: IconProps) {
   );
 }
 
+export function EyeIcon({ size = 16, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <Circle cx={12} cy={12} r={3} />
+    </Svg>
+  );
+}
+
 // The brand AI sparkle — two gradient-filled 4-point stars, path data + gradient
 // stops copied verbatim from sdk-web's AiSparkleIcon (README §8's sparkle). Each
 // instance gets a unique gradient id (duplicate ids across the doc break fills).
