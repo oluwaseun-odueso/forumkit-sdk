@@ -1,4 +1,8 @@
-import type { Thread, VoteCounts, VoteDirection, TopWindow } from '@forumkit/types';
+import type {
+  Thread, VoteCounts, VoteDirection, TopWindow, Comment, CreateThreadBody,
+  NotificationListResponse, Draft, DraftContent, UserProfile, NotificationPrefs,
+  UserRole, ErrorResponse,
+} from '@forumkit/types';
 
 // Platform-agnostic ForumKit API client — the single source of truth for the
 // endpoints both SDKs share. Every function takes `apiUrl` explicitly (there's
@@ -18,6 +22,20 @@ async function okJson<T>(res: Response): Promise<T> {
 
 async function okVoid(res: Response): Promise<void> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// Like okJson but surfaces the API's human-readable error message (mirrors
+// web's unwrapThread/unwrap in api/threads.ts + comments.ts) — used by the
+// create/reply endpoints where the message matters to the user.
+async function unwrapJson<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const message = await res
+      .json()
+      .then((data: ErrorResponse) => data.message)
+      .catch(() => undefined);
+    throw new Error(message ?? `HTTP ${res.status}`);
+  }
+  return (await res.json()) as T;
 }
 
 // Manual query builder rather than URLSearchParams — the latter's React Native
@@ -147,4 +165,178 @@ export async function removeVoteFromThread(
     headers: authHeaders(token),
   });
   return okJson<VoteResult>(res);
+}
+
+// ── Thread detail + create ─────────────────────────────────────────
+
+export type GetThreadResult = { thread: Thread; comments: Comment[] };
+
+export async function getThread(
+  apiUrl: string,
+  forumId: string,
+  threadId: string,
+  token?: string,
+): Promise<GetThreadResult> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+  });
+  return okJson<GetThreadResult>(res);
+}
+
+export async function createThread(
+  apiUrl: string,
+  forumId: string,
+  body: CreateThreadBody,
+  token?: string,
+): Promise<Thread> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/threads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(body),
+  });
+  return unwrapJson<Thread>(res);
+}
+
+// ── Comments ───────────────────────────────────────────────────────
+
+export type CreateReplyBody = { body: string; parentCommentId?: string | undefined; attachmentIds?: string[] | undefined };
+
+export async function createReply(
+  apiUrl: string,
+  threadId: string,
+  body: CreateReplyBody,
+  token?: string,
+): Promise<Comment> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(body),
+  });
+  return unwrapJson<Comment>(res);
+}
+
+export async function saveComment(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/save`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
+export async function unsaveComment(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/save`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
+export async function reportComment(
+  apiUrl: string,
+  threadId: string,
+  commentId: string,
+  reason: string,
+  token?: string,
+): Promise<void> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ reason }),
+  });
+  return okVoid(res);
+}
+
+export async function voteOnComment(
+  apiUrl: string,
+  threadId: string,
+  commentId: string,
+  direction: VoteDirection,
+  token?: string,
+): Promise<VoteResult> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/vote`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ direction }),
+  });
+  return okJson<VoteResult>(res);
+}
+
+export async function removeVoteFromComment(
+  apiUrl: string,
+  threadId: string,
+  commentId: string,
+  token?: string,
+): Promise<VoteResult> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/vote`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return okJson<VoteResult>(res);
+}
+
+// ── Notifications ──────────────────────────────────────────────────
+
+export type NotificationsOpts = { page?: number | undefined; limit?: number | undefined };
+
+export async function listNotifications(
+  apiUrl: string,
+  forumId: string,
+  opts: NotificationsOpts | undefined,
+  token?: string,
+): Promise<NotificationListResponse> {
+  const suffix = buildQuery({ page: opts?.page, limit: opts?.limit });
+  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications${suffix}`, {
+    headers: authHeaders(token),
+  });
+  return okJson<NotificationListResponse>(res);
+}
+
+export async function markNotificationRead(apiUrl: string, forumId: string, id: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications/${id}/read`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
+export async function markAllNotificationsRead(apiUrl: string, forumId: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications/read-all`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
+// ── Drafts ─────────────────────────────────────────────────────────
+
+export async function createDraft(
+  apiUrl: string,
+  forumId: string,
+  title: string,
+  content: DraftContent,
+  token?: string,
+): Promise<Draft> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ title, content }),
+  });
+  return unwrapJson<Draft>(res);
+}
+
+// ── Profile ────────────────────────────────────────────────────────
+
+// GET /me returns notificationPrefs + role alongside the shared UserProfile
+// fields (mirrors web's MyProfile in api/profile.ts).
+export type MyProfile = UserProfile & { notificationPrefs: NotificationPrefs; role: UserRole };
+
+export async function getMyProfile(apiUrl: string, forumId: string, token?: string): Promise<MyProfile | null> {
+  try {
+    const res = await fetch(`${apiUrl}/forums/${forumId}/me`, { headers: authHeaders(token) });
+    if (!res.ok) return null;
+    return (await res.json()) as MyProfile;
+  } catch {
+    return null;
+  }
 }

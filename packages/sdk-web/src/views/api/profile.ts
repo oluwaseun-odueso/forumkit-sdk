@@ -1,13 +1,14 @@
 import type {
   UserProfile, UpdateProfileBody, ProfileActivityItem,
   ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
-  NotificationPrefs, UserRole,
+  NotificationPrefs,
 } from '@forumkit/types';
+import { getMyProfile as sharedGetMyProfile, type MyProfile } from '@forumkit/shared';
 
-// GET /me returns notificationPrefs and role alongside the shared UserProfile
-// fields — kept off UserProfile itself (that type is also used for public
-// profile views) and typed here instead, /me-only.
-export type MyProfile = UserProfile & { notificationPrefs: NotificationPrefs; role: UserRole };
+// MyProfile (UserProfile + notificationPrefs + role, /me-only) now lives in
+// @forumkit/shared; re-exported here so existing `../api/profile` import sites
+// keep working unchanged.
+export type { MyProfile };
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -17,16 +18,9 @@ function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export async function getMyProfile(forumId: string, token?: string): Promise<MyProfile | null> {
-  try {
-    const res = await fetch(`${API_BASE}/forums/${forumId}/me`, {
-      headers: authHeaders(token),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as MyProfile;
-  } catch {
-    return null;
-  }
+// Delegated to the shared client (signature unchanged).
+export function getMyProfile(forumId: string, token?: string): Promise<MyProfile | null> {
+  return sharedGetMyProfile(API_BASE, forumId, token);
 }
 
 export async function updateMyProfile(

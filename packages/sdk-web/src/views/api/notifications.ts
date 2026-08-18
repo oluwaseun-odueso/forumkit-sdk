@@ -1,35 +1,36 @@
 import type { NotificationListResponse } from '@forumkit/types';
+import {
+  listNotifications as sharedListNotifications,
+  markNotificationRead as sharedMarkNotificationRead,
+  markAllNotificationsRead as sharedMarkAllNotificationsRead,
+  authHeaders,
+  type NotificationsOpts,
+} from '@forumkit/shared';
+
+export type { NotificationsOpts };
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
   : '';
 
-function authHeaders(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-export type NotificationsOpts = { page?: number | undefined; limit?: number | undefined };
-
-function buildQuery(opts?: NotificationsOpts): string {
-  const qs = new URLSearchParams();
-  if (opts?.page) qs.set('page', String(opts.page));
-  if (opts?.limit) qs.set('limit', String(opts.limit));
-  return qs.toString();
-}
-
-// GET /forums/:forumId/notifications
-export async function listNotifications(
+// Delegated to the shared client (signatures unchanged).
+export function listNotifications(
   forumId: string,
   opts?: NotificationsOpts,
   token?: string,
 ): Promise<NotificationListResponse> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/notifications?${buildQuery(opts)}`, {
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as NotificationListResponse;
+  return sharedListNotifications(API_BASE, forumId, opts, token);
 }
 
+export function markNotificationRead(forumId: string, id: string, token?: string): Promise<void> {
+  return sharedMarkNotificationRead(API_BASE, forumId, id, token);
+}
+
+export function markAllNotificationsRead(forumId: string, token?: string): Promise<void> {
+  return sharedMarkAllNotificationsRead(API_BASE, forumId, token);
+}
+
+// The rest stay local (not part of the migrated subset).
 // GET /forums/:forumId/notifications/unread-count
 export async function getUnreadCount(forumId: string, token?: string): Promise<number> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/notifications/unread-count`, {
@@ -40,28 +41,10 @@ export async function getUnreadCount(forumId: string, token?: string): Promise<n
   return body.count;
 }
 
-// PATCH /forums/:forumId/notifications/:id/read
-export async function markNotificationRead(forumId: string, id: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/notifications/${id}/read`, {
-    method: 'PATCH',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
 // DELETE /forums/:forumId/notifications/:id
 export async function deleteNotification(forumId: string, id: string, token?: string): Promise<void> {
   const res = await fetch(`${API_BASE}/forums/${forumId}/notifications/${id}`, {
     method: 'DELETE',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
-// PATCH /forums/:forumId/notifications/read-all
-export async function markAllNotificationsRead(forumId: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/notifications/read-all`, {
-    method: 'PATCH',
     headers: authHeaders(token),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

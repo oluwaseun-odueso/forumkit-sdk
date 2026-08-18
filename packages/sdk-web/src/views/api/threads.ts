@@ -1,16 +1,20 @@
-import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Comment, RelatedThreadForRail } from '@forumkit/types';
+import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, RelatedThreadForRail } from '@forumkit/types';
 import {
   listThreads as sharedListThreads,
   saveThread as sharedSaveThread,
   unsaveThread as sharedUnsaveThread,
   reportThread as sharedReportThread,
+  getThread as sharedGetThread,
+  createThread as sharedCreateThread,
   type ListThreadsParams,
   type ListThreadsResult,
+  type GetThreadResult,
 } from '@forumkit/shared';
 
-// ListThreadsParams / ListThreadsResult now live in @forumkit/shared; re-exported
-// here so existing `../api/threads` import sites keep working unchanged.
-export type { ListThreadsParams, ListThreadsResult };
+// ListThreadsParams / ListThreadsResult / GetThreadResult now live in
+// @forumkit/shared; re-exported here so existing `../api/threads` import sites
+// keep working unchanged.
+export type { ListThreadsParams, ListThreadsResult, GetThreadResult };
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -64,24 +68,12 @@ export async function getSimilarThreads(
   return (await res.json()) as { threads: RelatedThreadForRail[] };
 }
 
-export type GetThreadResult = { thread: Thread; comments: Comment[] };
-
-export async function getThread(forumId: string, threadId: string, token?: string): Promise<GetThreadResult> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as GetThreadResult;
+export function getThread(forumId: string, threadId: string, token?: string): Promise<GetThreadResult> {
+  return sharedGetThread(API_BASE, forumId, threadId, token);
 }
 
-export async function createThread(forumId: string, body: CreateThreadBody, token?: string): Promise<Thread> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify(body),
-  });
-  return unwrapThread(res);
+export function createThread(forumId: string, body: CreateThreadBody, token?: string): Promise<Thread> {
+  return sharedCreateThread(API_BASE, forumId, body, token);
 }
 
 export async function updateThread(
