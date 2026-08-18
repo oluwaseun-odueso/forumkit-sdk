@@ -10,13 +10,22 @@ import { GradientBorderPill } from '../components/Pill';
 // toggle. Collapsing/expanding search removes the icon button from the
 // tree entirely rather than hiding it, matching the spec's "removed from
 // the DOM entirely" behavior.
-export default function TopBar({ onOpenDrawer, onOpenSearch, onHome }: {
+export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }: {
   onOpenDrawer: () => void;
   onOpenSearch?: (() => void) | undefined;
   onHome: () => void;
+  onSearch?: ((query: string) => void) | undefined;
 }) {
   const { tokens, mode, toggleTheme } = useTheme();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+
+  function submitSearch() {
+    const q = searchText.trim();
+    if (q) onSearch?.(q);
+    setSearchOpen(false);
+    setSearchText('');
+  }
 
   return (
     <View style={[styles.bar, { borderBottomColor: tokens.border, backgroundColor: tokens.bg }]}>
@@ -53,11 +62,16 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome }: {
               <Mascot size={20} />
             </View>
             <TextInput
+              value={searchText}
+              onChangeText={setSearchText}
+              onSubmitEditing={submitSearch}
+              returnKeyType="search"
+              autoFocus
               placeholder="Find anything"
               placeholderTextColor={tokens.faint}
               style={{ flex: 1, minWidth: 0, fontSize: 13, color: tokens.text, padding: 0 }}
             />
-            <Pressable onPress={() => setSearchOpen(false)}>
+            <Pressable onPress={() => { setSearchOpen(false); setSearchText(''); }}>
               <CloseIcon size={16} color={tokens.muted} />
             </Pressable>
           </View>
