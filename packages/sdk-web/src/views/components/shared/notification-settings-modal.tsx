@@ -1,4 +1,5 @@
 import type { NotificationPrefs, UserRole } from '@forumkit/types';
+import { NOTIFICATION_PREF_ROWS } from '@forumkit/shared';
 import Modal from './modal';
 import { CloseIcon } from './icons';
 // Reuses the drafts modal's header/close shell and the edit-profile
@@ -11,12 +12,7 @@ import '../composer/drafts-list-modal.css';
 import '../profile/edit-profile-modal.css';
 import './notification-settings-modal.css';
 
-const NOTIFICATION_PREF_ROWS: { key: keyof NotificationPrefs; label: string; sub: string; modOnly?: boolean }[] = [
-  { key: 'commentReply', label: 'Comment replies', sub: 'When someone replies to your comment' },
-  { key: 'share', label: 'Shares', sub: 'When someone shares a post with you' },
-  { key: 'vote', label: 'Upvotes & downvotes', sub: 'When someone votes on your post or comment' },
-  { key: 'moderationReport', label: 'Moderation reports', sub: 'When a member reports a post or comment', modOnly: true },
-];
+// NOTIFICATION_PREF_ROWS now lives in @forumkit/shared (imported above).
 
 type NotificationSettingsModalProps = {
   notificationPrefs: NotificationPrefs;

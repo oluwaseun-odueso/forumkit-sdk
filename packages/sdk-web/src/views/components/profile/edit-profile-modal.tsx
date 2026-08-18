@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { SOCIAL_PLATFORMS, socialToSuffix, socialToUrl, socialPlaceholder, socialPrefix, type SocialPlatform } from '@forumkit/shared';
 import type { SocialLink } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
 import Modal from '../shared/modal';
@@ -12,39 +13,24 @@ import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 import './edit-profile-modal.css';
 
 // ─── Platform config ──────────────────────────────────────────────────────────
+// The platform list + prefix/placeholder data + url<->suffix helpers live in
+// @forumkit/shared (socialToSuffix/socialToUrl/etc.); only the per-platform icon
+// mapping is web-specific and stays here.
 
-type PlatformConfig = {
-  prefix: string;
-  placeholder: string;
-  Icon: React.ComponentType<{ size?: number }>;
+const PLATFORMS = SOCIAL_PLATFORMS;
+const toSuffix = socialToSuffix;
+const toUrl = socialToUrl;
+
+const PLATFORM_ICON: Record<SocialPlatform, React.ComponentType<{ size?: number }>> = {
+  'Website': GlobeIcon,
+  'Portfolio': GlobeIcon,
+  'GitHub': GitHubIcon,
+  'LinkedIn': LinkedInIcon,
+  'Twitter/X': TwitterXIcon,
+  'Behance': BehanceIcon,
+  'Dribbble': DribbbleIcon,
+  'Other': LinkIcon,
 };
-
-const PLATFORM_CONFIG: Record<SocialLink['platform'], PlatformConfig> = {
-  'Website':   { prefix: '',                         placeholder: 'https://yoursite.com', Icon: GlobeIcon },
-  'Portfolio': { prefix: '',                         placeholder: 'https://portfolio.io', Icon: GlobeIcon },
-  'GitHub':    { prefix: 'https://github.com/',      placeholder: 'username',             Icon: GitHubIcon },
-  'LinkedIn':  { prefix: 'https://linkedin.com/in/', placeholder: 'your-name',            Icon: LinkedInIcon },
-  'Twitter/X': { prefix: 'https://x.com/',           placeholder: 'username',             Icon: TwitterXIcon },
-  'Behance':   { prefix: 'https://behance.net/',     placeholder: 'username',             Icon: BehanceIcon },
-  'Dribbble':  { prefix: 'https://dribbble.com/',    placeholder: 'username',             Icon: DribbbleIcon },
-  'Other':     { prefix: '',                         placeholder: 'https://',             Icon: LinkIcon },
-};
-
-const PLATFORMS = Object.keys(PLATFORM_CONFIG) as SocialLink['platform'][];
-
-function toSuffix(platform: SocialLink['platform'], url: string): string {
-  const { prefix } = PLATFORM_CONFIG[platform];
-  return prefix && url.startsWith(prefix) ? url.slice(prefix.length) : url;
-}
-
-function toUrl(platform: SocialLink['platform'], suffix: string): string {
-  const { prefix } = PLATFORM_CONFIG[platform];
-  const trimmed = suffix.trim().replace(/^\/+|\/+$/g, '');
-  if (!prefix) {
-    return trimmed && !/^https?:\/\//i.test(trimmed) ? `https://${trimmed}` : trimmed;
-  }
-  return `${prefix}${trimmed}`;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -272,8 +258,8 @@ export default function EditProfileModal({
           ) : (
             <div className="fk-edit-modal-links-list">
               {draftLinks.map(link => {
-                const cfg = PLATFORM_CONFIG[link.platform];
-                const Icon = cfg.Icon;
+                const Icon = PLATFORM_ICON[link.platform];
+                const prefix = socialPrefix(link.platform);
                 return (
                   <div key={link.id} className="fk-edit-modal-link-row">
                     <div className="fk-edit-modal-platform-picker">
@@ -289,7 +275,7 @@ export default function EditProfileModal({
                       {openPickerId === link.id && (
                         <div className="fk-edit-modal-platform-dropdown">
                           {PLATFORMS.map(p => {
-                            const PIcon = PLATFORM_CONFIG[p].Icon;
+                            const PIcon = PLATFORM_ICON[p];
                             return (
                               <button
                                 key={p}
@@ -307,16 +293,16 @@ export default function EditProfileModal({
                     </div>
 
                     <div className="fk-edit-modal-link-url-wrap">
-                      {cfg.prefix && (
+                      {prefix && (
                         <span className="fk-edit-modal-link-prefix">
-                          {cfg.prefix.replace('https://', '')}
+                          {prefix.replace('https://', '')}
                         </span>
                       )}
                       <input
                         className="fk-edit-modal-link-suffix"
                         value={link.suffix}
                         onChange={e => updateLinkSuffix(link.id, e.target.value)}
-                        placeholder={cfg.placeholder}
+                        placeholder={socialPlaceholder(link.platform)}
                       />
                     </div>
 
