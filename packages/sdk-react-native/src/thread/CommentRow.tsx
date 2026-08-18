@@ -3,6 +3,7 @@ import type { CommentNode } from '@forumkit/shared';
 import type { VoteDirection } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
+import RenderedBody from '../components/RenderedBody';
 import VotePill from '../components/VotePill';
 
 // A single comment (recursive for replies) — mirrors sdk-web's comment.tsx
@@ -28,7 +29,9 @@ export default function CommentRow({ node, depth = 0, onVote, onSave, onReply }:
         )}
       </View>
 
-      <Text style={[styles.body, { color: tokens['text-2'] }]}>{node.body}</Text>
+      <View style={styles.body}>
+        <RenderedBody body={node.body} size={13.5} />
+      </View>
 
       <View style={styles.actions}>
         <VotePill voteCounts={node.voteCounts} dir={node.myVote ?? null} onVote={dir => onVote(node.id, dir)} />

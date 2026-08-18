@@ -16,6 +16,7 @@ import Thumbnail from '../components/Thumbnail';
 import VotePill from '../components/VotePill';
 import CommentPill from '../components/CommentPill';
 import BackRow from '../components/BackRow';
+import RenderedBody from '../components/RenderedBody';
 import { SelectPill } from '../components/SelectPill';
 import { SearchIcon } from '../components/icons';
 import AiRow from '../thread/AiRow';
@@ -154,7 +155,9 @@ export default function ThreadScreen() {
 
           <Text style={[styles.title, { color: tokens.text }]}>{thread.title}</Text>
           {thread.body.trim().length > 0 && (
-            <Text style={[styles.body, { color: tokens['text-2'] }]}>{thread.body}</Text>
+            <View style={{ marginBottom: 16 }}>
+              <RenderedBody body={thread.body} size={14.5} />
+            </View>
           )}
           {heroImage != null && <Thumbnail imageUrl={heroImage} aspectRatio={16 / 10} radius={14} style={{ marginBottom: 16 }} />}
 
