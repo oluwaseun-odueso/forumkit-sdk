@@ -311,6 +311,14 @@ export async function markAllNotificationsRead(apiUrl: string, forumId: string, 
   return okVoid(res);
 }
 
+export async function deleteNotification(apiUrl: string, forumId: string, id: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
 // ── Drafts ─────────────────────────────────────────────────────────
 
 export async function createDraft(

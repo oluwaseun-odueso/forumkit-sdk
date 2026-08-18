@@ -3,6 +3,7 @@ import {
   listNotifications as sharedListNotifications,
   markNotificationRead as sharedMarkNotificationRead,
   markAllNotificationsRead as sharedMarkAllNotificationsRead,
+  deleteNotification as sharedDeleteNotification,
   authHeaders,
   type NotificationsOpts,
 } from '@forumkit/shared';
@@ -41,11 +42,6 @@ export async function getUnreadCount(forumId: string, token?: string): Promise<n
   return body.count;
 }
 
-// DELETE /forums/:forumId/notifications/:id
-export async function deleteNotification(forumId: string, id: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/notifications/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+export function deleteNotification(forumId: string, id: string, token?: string): Promise<void> {
+  return sharedDeleteNotification(API_BASE, forumId, id, token);
 }

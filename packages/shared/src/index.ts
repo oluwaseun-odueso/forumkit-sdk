@@ -36,6 +36,7 @@ export {
   listNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
   createDraft,
   getMyProfile,
   updateMyProfile,
