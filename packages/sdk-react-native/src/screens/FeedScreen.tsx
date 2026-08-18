@@ -14,7 +14,6 @@ import PostRow from '../feed/PostRow';
 import { SelectPill } from '../components/SelectPill';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
-import { CardViewIcon, CompactViewIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 // Feed screen (README §6) wired to the live API: fetches the thread list with
@@ -23,10 +22,8 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 // on failure. Thread/composer/etc. are still placeholders reached via nav.
 
 type SortOption = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
-type ViewOption = 'card' | 'compact';
 
 const SORT_OPTIONS = ['Best', 'Hot', 'New', 'Top', 'Rising'] as const;
-const VIEW_OPTIONS = ['card', 'compact'] as const;
 const SORT_QUERY: Record<SortOption, NonNullable<ListThreadsParams['sort']>> = {
   Best: 'best', Hot: 'hot', New: 'new', Top: 'top', Rising: 'rising',
 };
@@ -37,7 +34,6 @@ export default function FeedScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
   const [sort, setSort] = useState<SortOption>('Best');
-  const [view, setView] = useState<ViewOption>('card');
   const [rows, setRows] = useState<FeedRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,15 +46,17 @@ export default function FeedScreen() {
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
+  // Popular seeds the sort to Hot; the sort selector then controls it freely on
+  // every scope. News additionally filters to the "news" tag.
+  useEffect(() => { if (scope === 'popular') setSort('Hot'); }, [scope]);
+
   const load = useCallback(async (s: SortOption) => {
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      // Drawer scope: Home = the user's sort; Popular = hot; News = the "news"
-      // tag (still honoring the user's sort within it).
       const res = await listThreads(apiUrl, forumId, token, {
-        sort: scope === 'popular' ? 'hot' : SORT_QUERY[s],
+        sort: SORT_QUERY[s],
         tagName: scope === 'news' ? 'news' : undefined,
         limit: 25,
       });
@@ -113,16 +111,6 @@ export default function FeedScreen() {
   const controls = (
     <View style={styles.controls}>
       <SelectPill<SortOption> value={sort} options={SORT_OPTIONS} onChange={setSort} label={sort} />
-      <SelectPill<ViewOption>
-        value={view}
-        options={VIEW_OPTIONS}
-        onChange={setView}
-        optionLabel={v => (v === 'card' ? 'Card' : 'Compact')}
-        leadingIcon={view === 'card'
-          ? <CardViewIcon size={16} color={tokens['text-2']} />
-          : <CompactViewIcon size={16} color={tokens['text-2']} />}
-        menuWidth={140}
-      />
     </View>
   );
 
@@ -137,13 +125,12 @@ export default function FeedScreen() {
       ) : (
         <FlatList
           data={rows}
-          extraData={view}
           keyExtractor={r => r.id}
           ListHeaderComponent={controls}
           renderItem={({ item }) => (
             <PostRow
               row={item}
-              view={view}
+              view="card"
               onOpen={() => navigation.navigate('Thread', { threadId: item.id })}
               onVote={dir => onVote(item, dir)}
               onSave={() => onSave(item)}
