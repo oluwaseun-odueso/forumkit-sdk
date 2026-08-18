@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createThread, createDraft } from '@forumkit/shared';
+import { createThread, createDraft, deleteAttachment } from '@forumkit/shared';
 import type { DraftContent } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
-import { CloseIcon, LinkIcon, ListIcon, ImageIcon } from '../components/icons';
+import { pickAndUploadMedia, type UploadedMedia } from '../lib/upload';
+import { CloseIcon } from '../components/icons';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
+import RichComposer from '../composer/RichComposer';
 
-// See navigation/Shell.tsx — Android's statusBarTranslucent inset still lands
-// tighter than iOS, so nudge it down a bit further.
 const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
 type ComposerTab = 'text' | 'images' | 'link';
@@ -20,12 +20,12 @@ const TABS: ReadonlyArray<{ id: ComposerTab; label: string }> = [
   { id: 'link', label: 'Link' },
 ];
 
-// Create Post sheet per README §10 — overlay stopping 94px above the floating
-// bar. Mirrors sdk-web composer-modal.tsx (tabs, title + tags fields, per-tab
-// content, Save Draft/Post gating). Post/Save Draft are wired (createThread/
-// createDraft); image upload + rich-text formatting are deferred (the toolbar
-// and dropzone are UI only).
-export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
+// Create Post sheet per README §10, mirroring sdk-web composer-modal.tsx. Text
+// tab uses the RichComposer (formatting + media + GIF); the Images tab uploads
+// via the same presigned flow; Post sends attachmentIds. Cancelling or saving a
+// draft cleans up unposted attachments (matching web's orphan cleanup) — media
+// isn't persisted into drafts (banner note).
+export default function ComposerOverlay({ onClose, onOpenDrafts }: { onClose: () => void; onOpenDrafts?: () => void }) {
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const session = useSession();
@@ -37,16 +37,48 @@ export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
   const [tags, setTags] = useState('');
   const [body, setBody] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [attachments, setAttachments] = useState<UploadedMedia[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const hasTitle = title.trim().length > 0;
-  const canPost = hasTitle && !submitting && (tab === 'link' ? linkUrl.trim().length > 0 : tab === 'text');
+  const canPost = hasTitle && !submitting && !uploading
+    && (tab === 'link' ? linkUrl.trim().length > 0 : tab === 'images' ? attachments.length > 0 : true);
   const canSaveDraft = hasTitle && body.trim().length > 0 && !savingDraft;
 
   function tagNames(): string[] {
     return tags.split(',').map(t => t.trim()).filter(Boolean);
+  }
+
+  function cleanupAttachments() {
+    if (!token) return;
+    for (const a of attachments) void deleteAttachment(apiUrl, forumId, a.attachmentId, token).catch(() => { /* best effort */ });
+  }
+
+  function handleCancel() {
+    cleanupAttachments();
+    onClose();
+  }
+
+  async function addMedia() {
+    if (!token || uploading) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const up = await pickAndUploadMedia(apiUrl, forumId, 'attachment', token, { videos: true, allowsMultipleSelection: true });
+      if (up.length) setAttachments(a => [...a, ...up]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeMedia(attachmentId: string) {
+    setAttachments(a => a.filter(x => x.attachmentId !== attachmentId));
+    if (token) void deleteAttachment(apiUrl, forumId, attachmentId, token).catch(() => { /* best effort */ });
   }
 
   async function handlePost() {
@@ -55,8 +87,14 @@ export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
     setError(null);
     const postBody = tab === 'link' ? (body.trim() ? `${body.trim()}\n${linkUrl.trim()}` : linkUrl.trim()) : body;
     try {
-      await createThread(apiUrl, forumId, { title: title.trim(), body: postBody, tagIds: [], tagNames: tagNames() }, token);
-      onClose();
+      await createThread(apiUrl, forumId, {
+        title: title.trim(),
+        body: postBody,
+        tagIds: [],
+        tagNames: tagNames(),
+        attachmentIds: attachments.map(a => a.attachmentId),
+      }, token);
+      onClose(); // attachments are now part of the thread — don't clean up
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to post');
     } finally {
@@ -68,9 +106,12 @@ export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
     if (!token || !canSaveDraft) return;
     setSavingDraft(true);
     setError(null);
+    // Media isn't persisted into drafts (see banner) — save empty attachments
+    // and clean up any uploaded ones.
     const content: DraftContent = { activeTab: tab, tags, body, linkUrl, attachments: [] };
     try {
       await createDraft(apiUrl, forumId, title.trim(), content, token);
+      cleanupAttachments();
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save draft');
@@ -83,15 +124,19 @@ export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
     <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
       <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA }}>
         <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={8}>
+          <Pressable onPress={handleCancel} hitSlop={8}>
             <CloseIcon size={18} color={tokens.text} />
           </Pressable>
           <Text style={[styles.heading, { color: tokens.text }]}>Create post</Text>
-          <Text style={{ color: tokens.accent, fontSize: 14, fontWeight: '600' }}>Drafts</Text>
+          <Pressable onPress={onOpenDrafts} hitSlop={8}>
+            <Text style={{ color: tokens.accent, fontSize: 14, fontWeight: '600' }}>Drafts</Text>
+          </Pressable>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <Text style={[styles.draftNote, { color: tokens.muted }]}>Media isn’t saved in drafts.</Text>
+
         <TabBar tabs={TABS} active={tab} onSelect={setTab} />
 
         <View style={{ marginTop: 14, gap: 12 }}>
@@ -108,56 +153,49 @@ export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
           </View>
 
           {tab === 'text' && (
-            <View style={[styles.textBox, { borderColor: tokens['border-strong'] }]}>
-              <View style={styles.toolbar}>
-                <ToolbarText label="B" weight="800" color={tokens['text-2']} />
-                <ToolbarText label="i" italic color={tokens['text-2']} />
-                <ToolbarText label="S" strike color={tokens['text-2']} />
-                <LinkIcon size={16} color={tokens['text-2']} />
-                <ListIcon size={16} color={tokens['text-2']} />
-                <ImageIcon size={16} color={tokens['text-2']} />
-              </View>
-              <TextInput
-                value={body}
-                onChangeText={setBody}
-                placeholder="Body text (optional)"
-                placeholderTextColor={tokens.muted}
-                multiline
-                style={[styles.bodyInput, { color: tokens.text }]}
-              />
-            </View>
+            <RichComposer
+              apiUrl={apiUrl}
+              forumId={forumId}
+              token={token}
+              value={body}
+              onChangeText={setBody}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+            />
           )}
 
           {tab === 'images' && (
-            <View style={[styles.dropzone, { borderColor: tokens['border-strong'] }]}>
-              <Text style={{ color: tokens.muted, fontSize: 14 }}>Drag and Drop or upload media</Text>
+            <View>
+              <Pressable onPress={addMedia} style={[styles.dropzone, { borderColor: tokens['border-strong'] }]}>
+                {uploading
+                  ? <ActivityIndicator color={tokens.accent} />
+                  : <Text style={{ color: tokens.muted, fontSize: 14 }}>Tap to upload image or video</Text>}
+              </Pressable>
+              {attachments.length > 0 && (
+                <View style={styles.thumbs}>
+                  {attachments.map(a => (
+                    <View key={a.attachmentId} style={styles.thumbWrap}>
+                      <Image source={{ uri: a.downloadUrl }} style={[styles.thumb, { backgroundColor: tokens['surface-2'] }]} />
+                      <Pressable onPress={() => removeMedia(a.attachmentId)} style={[styles.thumbX, { backgroundColor: tokens.elev }]} hitSlop={6}>
+                        <CloseIcon size={12} color={tokens.text} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
 
-          {tab === 'link' && (
-            <Field value={linkUrl} onChangeText={setLinkUrl} placeholder="Link URL" required />
-          )}
+          {tab === 'link' && <Field value={linkUrl} onChangeText={setLinkUrl} placeholder="Link URL" required />}
 
           {error && <Text style={{ color: tokens.up, fontSize: 13 }}>{error}</Text>}
 
           <View style={styles.footer}>
-            <Pressable
-              onPress={handleSaveDraft}
-              disabled={!canSaveDraft}
-              style={[styles.btn, { backgroundColor: tokens['surface-2'], opacity: canSaveDraft ? 1 : 0.5 }]}
-            >
-              <Text style={{ color: tokens['text-2'], fontSize: 13.5, fontWeight: '700' }}>
-                {savingDraft ? 'Saving…' : 'Save Draft'}
-              </Text>
+            <Pressable onPress={handleSaveDraft} disabled={!canSaveDraft} style={[styles.btn, { backgroundColor: tokens['surface-2'], opacity: canSaveDraft ? 1 : 0.5 }]}>
+              <Text style={{ color: tokens['text-2'], fontSize: 13.5, fontWeight: '700' }}>{savingDraft ? 'Saving…' : 'Save Draft'}</Text>
             </Pressable>
-            <Pressable
-              onPress={handlePost}
-              disabled={!canPost}
-              style={[styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? 1 : 0.5 }]}
-            >
-              <Text style={{ color: tokens['accent-fg'], fontSize: 13.5, fontWeight: '700' }}>
-                {submitting ? 'Posting…' : 'Post'}
-              </Text>
+            <Pressable onPress={handlePost} disabled={!canPost} style={[styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? 1 : 0.5 }]}>
+              <Text style={{ color: tokens['accent-fg'], fontSize: 13.5, fontWeight: '700' }}>{submitting ? 'Posting…' : uploading ? 'Uploading…' : 'Post'}</Text>
             </Pressable>
           </View>
         </View>
@@ -166,38 +204,18 @@ export default function ComposerOverlay({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ToolbarText({ label, weight, italic, strike, color }: {
-  label: string; weight?: '800'; italic?: boolean; strike?: boolean; color: string;
-}) {
-  return (
-    <Text style={{
-      color, fontSize: 15, width: 20, textAlign: 'center',
-      fontWeight: weight ?? '600',
-      fontStyle: italic ? 'italic' : 'normal',
-      textDecorationLine: strike ? 'line-through' : 'none',
-    }}>
-      {label}
-    </Text>
-  );
-}
-
 const styles = StyleSheet.create({
   overlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 94, zIndex: 60 },
   header: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   heading: { fontSize: 16, fontWeight: '800' },
   body: { paddingHorizontal: 16, paddingBottom: 24 },
+  draftNote: { fontSize: 12, marginBottom: 10 },
   tagsWrap: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  textBox: { borderWidth: 1, borderRadius: 12, overflow: 'hidden' },
-  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 12, paddingVertical: 10 },
-  bodyInput: { minHeight: 120, fontSize: 14, paddingHorizontal: 12, paddingBottom: 12, textAlignVertical: 'top' },
-  dropzone: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderRadius: 14,
-    minHeight: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  dropzone: { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, minHeight: 160, alignItems: 'center', justifyContent: 'center' },
+  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  thumbWrap: { position: 'relative' },
+  thumb: { width: 80, height: 80, borderRadius: 10 },
+  thumbX: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 18 },
   btn: { borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20 },
 });
