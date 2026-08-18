@@ -18,20 +18,9 @@ export type FeedPost = {
   saved: boolean;
 };
 
-export type CommentNodeData = {
-  id: string;
-  authorId?: string;
-  author: string;
-  authorAvatarUrl?: string | null;
-  time: string;
-  body: string;
-  votes: number;
-  voteCounts: { up: number; down: number };
-  myVote?: 1 | -1 | null;
-  isSaved: boolean;
-  isAcceptedAnswer: boolean;
-  replies: CommentNodeData[];
-};
+// The nested comment shape now lives in @forumkit/shared (CommentNode);
+// aliased here so existing `CommentNodeData` references keep working.
+export type { CommentNode as CommentNodeData } from '@forumkit/shared';
 
 export type RailItem = {
   id: string;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { useForum, CommentNodeData } from '../../hooks/use-forum-state';
+import { filterComments } from '@forumkit/shared';
+import type { useForum } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
@@ -21,17 +22,6 @@ type ThreadViewProps = {
   forum: ReturnType<typeof useForum>;
   onBack: () => void;
 };
-
-function filterComments(list: CommentNodeData[], q: string): CommentNodeData[] {
-  const lower = q.toLowerCase();
-  return list.reduce<CommentNodeData[]>((acc, c) => {
-    const filteredReplies = filterComments(c.replies, lower);
-    if (c.body.toLowerCase().includes(lower) || filteredReplies.length > 0) {
-      acc.push({ ...c, replies: filteredReplies });
-    }
-    return acc;
-  }, []);
-}
 
 export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const {

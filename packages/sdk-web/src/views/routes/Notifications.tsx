@@ -11,6 +11,7 @@ import {
 } from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
+import { describeNotification as describe } from '@forumkit/shared';
 import {
   listNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification,
 } from '../api/notifications';
@@ -32,24 +33,7 @@ const PAGE_SIZE = 20;
 // Builds the human-readable line for a notification row from its type +
 // (for 'vote') the message field carrying direction. commentId set on a
 // 'vote'/'report' notification means it targets a comment, not the thread.
-function describe(n: Notification): string {
-  const actor = n.actorDisplayName ?? 'Someone';
-  switch (n.type) {
-    case 'share':
-      return `${actor} shared a post with you`;
-    case 'comment_reply':
-      return `${actor} replied to your comment`;
-    case 'vote': {
-      const verb = n.message === 'down' ? 'downvoted' : 'upvoted';
-      const target = n.commentId ? 'your comment' : 'your thread';
-      return `${actor} ${verb} ${target}`;
-    }
-    case 'report':
-      return `${actor} reported ${n.commentId ? 'a comment' : 'a thread'}`;
-    default:
-      return `${actor} did something`;
-  }
-}
+// describe() now lives in @forumkit/shared (imported as describe above).
 
 // Icon + accent color for the small corner badge — everything except
 // 'share' (which gets its own facepile treatment, see AvatarCluster below)

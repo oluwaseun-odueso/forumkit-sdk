@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import { fmtRelativeTime, threadToFeedRow } from '@forumkit/shared';
+import { fmtRelativeTime, threadToFeedRow, commentsToCommentTree } from '@forumkit/shared';
 import {
   type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
@@ -499,40 +499,8 @@ function relatedToRailItem(t: RelatedThreadForRail): RailItem {
   };
 }
 
-// Backend flat Comment[] (already created_at ASC) -> a nested CommentNodeData
-// tree, built from parentCommentId. The server never builds this tree itself.
-function commentsToCommentTree(comments: Comment[]): CommentNodeData[] {
-  const byId = new Map<string, CommentNodeData>();
-  const roots: CommentNodeData[] = [];
-
-  for (const p of comments) {
-    const voteCounts = p.voteCounts ?? { up: 0, down: 0 };
-    byId.set(p.id, {
-      id: p.id,
-      authorId: p.authorId,
-      author: p.authorDisplayName ?? 'Member',
-      authorAvatarUrl: p.authorAvatarUrl ?? null,
-      time: fmtRelativeTime(p.createdAt),
-      body: p.body,
-      votes: netVotes(voteCounts),
-      voteCounts,
-      myVote: p.myVote ?? null,
-      isSaved: p.isSaved ?? false,
-      isAcceptedAnswer: p.isAcceptedAnswer,
-      replies: [],
-    });
-  }
-
-  for (const p of comments) {
-    const node = byId.get(p.id);
-    if (!node) continue;
-    const parent = p.parentCommentId ? byId.get(p.parentCommentId) : undefined;
-    if (parent) parent.replies.push(node);
-    else roots.push(node);
-  }
-
-  return roots;
-}
+// commentsToCommentTree now lives in @forumkit/shared (imported above) —
+// flat Comment[] -> nested CommentNodeData tree by parentCommentId.
 
 // Threads-per-page for the main feed list (both the initial fetch and each
 // "load more" page). Reddit's own default Top window when first selected.

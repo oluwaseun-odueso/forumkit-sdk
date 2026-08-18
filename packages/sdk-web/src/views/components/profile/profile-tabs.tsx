@@ -1,6 +1,5 @@
+import { PROFILE_TABS as TABS } from '@forumkit/shared';
 import './profile-tabs.css';
-
-const TABS = ['Overview', 'Posts', 'Comments', 'Saved', 'Upvoted', 'Downvoted'];
 
 type ProfileTabsProps = {
   active: string;

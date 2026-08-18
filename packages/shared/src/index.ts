@@ -5,6 +5,11 @@ export { authorAvatar, AVATAR_GRADIENT_ANGLE, AVATAR_GRADIENT_PAIRS } from './au
 export type { AuthorAvatar } from './author-avatar';
 export { threadToFeedRow } from './feed';
 export type { FeedRow } from './feed';
+export { commentsToCommentTree, filterComments } from './comments';
+export type { CommentNode } from './comments';
+export { describeNotification } from './notifications';
+export { PROFILE_TABS, profileEmptyCopy } from './profile';
+export type { ProfileTab, EmptyStateCopy } from './profile';
 export {
   authHeaders,
   createSession,
