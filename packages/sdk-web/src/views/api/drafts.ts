@@ -1,61 +1,38 @@
 import type { Draft, DraftContent } from '@forumkit/types';
-import { createDraft as sharedCreateDraft } from '@forumkit/shared';
+import {
+  listDrafts as sharedListDrafts,
+  getDraft as sharedGetDraft,
+  createDraft as sharedCreateDraft,
+  updateDraft as sharedUpdateDraft,
+  deleteDraft as sharedDeleteDraft,
+} from '@forumkit/shared';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
   : '';
 
-function authHeaders(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
+// All draft endpoints delegate to the shared client (signatures unchanged).
+export function listDrafts(forumId: string, token?: string): Promise<Draft[]> {
+  return sharedListDrafts(API_BASE, forumId, token);
 }
 
-async function throwOnError(res: Response): Promise<void> {
-  if (res.ok) return;
-  const data = await res.json().catch(() => ({})) as { message?: string };
-  throw new Error(data.message ?? `HTTP ${res.status}`);
+export function getDraft(forumId: string, draftId: string, token?: string): Promise<Draft> {
+  return sharedGetDraft(API_BASE, forumId, draftId, token);
 }
 
-export async function listDrafts(forumId: string, token?: string): Promise<Draft[]> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/drafts`, {
-    headers: authHeaders(token),
-  });
-  await throwOnError(res);
-  const data = (await res.json()) as { drafts: Draft[] };
-  return data.drafts;
-}
-
-export async function getDraft(forumId: string, draftId: string, token?: string): Promise<Draft> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/drafts/${draftId}`, {
-    headers: authHeaders(token),
-  });
-  await throwOnError(res);
-  return (await res.json()) as Draft;
-}
-
-// Delegated to the shared client (signature unchanged).
 export function createDraft(forumId: string, title: string, content: DraftContent, token?: string): Promise<Draft> {
   return sharedCreateDraft(API_BASE, forumId, title, content, token);
 }
 
-export async function updateDraft(
+export function updateDraft(
   forumId: string,
   draftId: string,
   fields: { title?: string; content?: DraftContent },
   token?: string,
 ): Promise<Draft> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/drafts/${draftId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify(fields),
-  });
-  await throwOnError(res);
-  return (await res.json()) as Draft;
+  return sharedUpdateDraft(API_BASE, forumId, draftId, fields, token);
 }
 
-export async function deleteDraft(forumId: string, draftId: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/drafts/${draftId}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
-  await throwOnError(res);
+export function deleteDraft(forumId: string, draftId: string, token?: string): Promise<void> {
+  return sharedDeleteDraft(API_BASE, forumId, draftId, token);
 }

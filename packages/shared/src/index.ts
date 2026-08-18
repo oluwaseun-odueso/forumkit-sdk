@@ -11,6 +11,12 @@ export { describeNotification } from './notifications';
 export { PROFILE_TABS, profileEmptyCopy } from './profile';
 export type { ProfileTab, EmptyStateCopy } from './profile';
 export {
+  SOCIAL_PLATFORMS, socialPrefix, socialPlaceholder, socialToSuffix, socialToUrl,
+} from './social';
+export type { SocialPlatform } from './social';
+export { NOTIFICATION_PREF_ROWS } from './notification-prefs';
+export type { NotificationPrefRow } from './notification-prefs';
+export {
   authHeaders,
   createSession,
   listThreads,
@@ -32,6 +38,27 @@ export {
   markAllNotificationsRead,
   createDraft,
   getMyProfile,
+  updateMyProfile,
+  updateNotificationPrefs,
+  getProfileActivity,
+  updateReply,
+  deleteComment,
+  acceptAnswer,
+  unacceptAnswer,
+  updateThread,
+  deleteThread,
+  shareThreadWithUsers,
+  requestUploadUrl,
+  confirmUpload,
+  deleteAttachment,
+  GifSearchNotConfiguredError,
+  searchGifs,
+  searchThreads,
+  searchUsers,
+  listDrafts,
+  getDraft,
+  updateDraft,
+  deleteDraft,
 } from './api';
 export type {
   CreateSessionResult,
@@ -42,4 +69,7 @@ export type {
   CreateReplyBody,
   NotificationsOpts,
   MyProfile,
+  ProfileActivityResult,
+  SearchOpts,
+  UserSearchListResult,
 } from './api';

@@ -1,7 +1,10 @@
 import type {
   Thread, VoteCounts, VoteDirection, TopWindow, Comment, CreateThreadBody,
   NotificationListResponse, Draft, DraftContent, UserProfile, NotificationPrefs,
-  UserRole, ErrorResponse,
+  UserRole, ErrorResponse, UpdateThreadBody, UpdateProfileBody, SearchResponse,
+  SearchResult, UserSearchResult, GifResult, Attachment, AttachmentPurpose,
+  UploadUrlResponse, ProfileActivityScope, ProfileActivitySort,
+  ProfileActivityContentType, ProfileActivityItem,
 } from '@forumkit/types';
 
 // Platform-agnostic ForumKit API client — the single source of truth for the
@@ -339,4 +342,247 @@ export async function getMyProfile(apiUrl: string, forumId: string, token?: stri
   } catch {
     return null;
   }
+}
+
+export async function updateMyProfile(
+  apiUrl: string,
+  forumId: string,
+  body: UpdateProfileBody,
+  token?: string,
+): Promise<UserProfile> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(body),
+  });
+  return unwrapJson<UserProfile>(res);
+}
+
+export async function updateNotificationPrefs(
+  apiUrl: string,
+  forumId: string,
+  prefs: NotificationPrefs,
+  token?: string,
+): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/me/notification-prefs`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(prefs),
+  });
+  return okVoid(res);
+}
+
+export type ProfileActivityResult = { items: ProfileActivityItem[]; total: number; page: number; limit: number };
+
+export async function getProfileActivity(
+  apiUrl: string,
+  forumId: string,
+  scope: ProfileActivityScope,
+  page: number,
+  limit: number,
+  sort: ProfileActivitySort,
+  contentType: ProfileActivityContentType,
+  token?: string,
+): Promise<ProfileActivityResult> {
+  const suffix = buildQuery({ scope, page, limit, sort, contentType });
+  const res = await fetch(`${apiUrl}/forums/${forumId}/me/activity${suffix}`, { headers: authHeaders(token) });
+  return okJson<ProfileActivityResult>(res);
+}
+
+// ── Comments (edit / delete / accept) ──────────────────────────────
+
+export async function updateReply(apiUrl: string, threadId: string, commentId: string, body: string, token?: string): Promise<Comment> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ body }),
+  });
+  return unwrapJson<Comment>(res);
+}
+
+export async function deleteComment(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
+export async function acceptAnswer(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<Comment> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/accept`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  return unwrapJson<Comment>(res);
+}
+
+export async function unacceptAnswer(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<Comment> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/accept`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return unwrapJson<Comment>(res);
+}
+
+// ── Threads (edit / delete / share) ────────────────────────────────
+
+export async function updateThread(
+  apiUrl: string,
+  forumId: string,
+  threadId: string,
+  body: UpdateThreadBody,
+  token?: string,
+): Promise<Thread> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(body),
+  });
+  return unwrapJson<Thread>(res);
+}
+
+export async function deleteThread(apiUrl: string, forumId: string, threadId: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
+export async function shareThreadWithUsers(
+  apiUrl: string,
+  forumId: string,
+  threadId: string,
+  recipientUserIds: string[],
+  message: string | undefined,
+  token?: string,
+): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/share`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ recipientUserIds, message }),
+  });
+  return okVoid(res);
+}
+
+// ── Attachments (upload-url + confirm + delete; raw PUT is platform-specific) ──
+
+export async function requestUploadUrl(
+  apiUrl: string,
+  forumId: string,
+  opts: { filename: string; mimeType: string; byteSize: number; purpose: AttachmentPurpose },
+  token?: string,
+): Promise<UploadUrlResponse> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/attachments/upload-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(opts),
+  });
+  return okJson<UploadUrlResponse>(res);
+}
+
+export async function confirmUpload(
+  apiUrl: string,
+  forumId: string,
+  attachmentId: string,
+  dimensions: { width: number | null; height: number | null },
+  token?: string,
+): Promise<Attachment & { downloadUrl: string }> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/attachments/${attachmentId}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(dimensions),
+  });
+  return okJson<Attachment & { downloadUrl: string }>(res);
+}
+
+export async function deleteAttachment(apiUrl: string, forumId: string, attachmentId: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/attachments/${attachmentId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
+}
+
+// ── GIFs (GIPHY proxy) ─────────────────────────────────────────────
+
+// Distinguishes "the forum owner hasn't set a GIPHY key yet" (recoverable — the
+// picker shows a friendly message) from a real failure.
+export class GifSearchNotConfiguredError extends Error {}
+
+export async function searchGifs(apiUrl: string, forumId: string, query: string, token?: string, limit = 24): Promise<GifResult[]> {
+  const suffix = buildQuery({ q: query, limit });
+  const res = await fetch(`${apiUrl}/forums/${forumId}/gifs/search${suffix}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+  });
+  if (res.status === 503) throw new GifSearchNotConfiguredError('GIF search is not configured for this forum yet.');
+  const body = await okJson<{ results: GifResult[] }>(res);
+  return body.results;
+}
+
+// ── Search ─────────────────────────────────────────────────────────
+
+export type SearchOpts = { page?: number | undefined; limit?: number | undefined };
+
+export async function searchThreads(
+  apiUrl: string,
+  forumId: string,
+  q: string,
+  opts?: SearchOpts,
+  token?: string,
+): Promise<SearchResponse<SearchResult>> {
+  const suffix = buildQuery({ q, page: opts?.page, limit: opts?.limit });
+  const res = await fetch(`${apiUrl}/forums/${forumId}/search${suffix}`, { headers: authHeaders(token) });
+  return okJson<SearchResponse<SearchResult>>(res);
+}
+
+export type UserSearchListResult = { results: UserSearchResult[]; total: number; page: number; limit: number };
+
+export async function searchUsers(
+  apiUrl: string,
+  forumId: string,
+  q: string,
+  opts?: SearchOpts,
+  token?: string,
+): Promise<UserSearchListResult> {
+  const suffix = buildQuery({ q, page: opts?.page, limit: opts?.limit });
+  const res = await fetch(`${apiUrl}/forums/${forumId}/search/users${suffix}`, { headers: authHeaders(token) });
+  return okJson<UserSearchListResult>(res);
+}
+
+// ── Drafts (list / get / delete / update; createDraft is above) ────
+
+export async function listDrafts(apiUrl: string, forumId: string, token?: string): Promise<Draft[]> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts`, { headers: authHeaders(token) });
+  const data = await okJson<{ drafts: Draft[] }>(res);
+  return data.drafts;
+}
+
+export async function getDraft(apiUrl: string, forumId: string, draftId: string, token?: string): Promise<Draft> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, { headers: authHeaders(token) });
+  return okJson<Draft>(res);
+}
+
+export async function updateDraft(
+  apiUrl: string,
+  forumId: string,
+  draftId: string,
+  fields: { title?: string; content?: DraftContent },
+  token?: string,
+): Promise<Draft> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(fields),
+  });
+  return unwrapJson<Draft>(res);
+}
+
+export async function deleteDraft(apiUrl: string, forumId: string, draftId: string, token?: string): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  return okVoid(res);
 }

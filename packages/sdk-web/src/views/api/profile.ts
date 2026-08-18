@@ -1,14 +1,20 @@
 import type {
-  UserProfile, UpdateProfileBody, ProfileActivityItem,
+  UserProfile, UpdateProfileBody,
   ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
   NotificationPrefs,
 } from '@forumkit/types';
-import { getMyProfile as sharedGetMyProfile, type MyProfile } from '@forumkit/shared';
+import {
+  getMyProfile as sharedGetMyProfile,
+  updateMyProfile as sharedUpdateMyProfile,
+  updateNotificationPrefs as sharedUpdateNotificationPrefs,
+  getProfileActivity as sharedGetProfileActivity,
+  type MyProfile,
+  type ProfileActivityResult,
+} from '@forumkit/shared';
 
-// MyProfile (UserProfile + notificationPrefs + role, /me-only) now lives in
-// @forumkit/shared; re-exported here so existing `../api/profile` import sites
-// keep working unchanged.
-export type { MyProfile };
+// MyProfile + ProfileActivityResult now live in @forumkit/shared; re-exported
+// here so existing `../api/profile` import sites keep working unchanged.
+export type { MyProfile, ProfileActivityResult };
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -23,21 +29,8 @@ export function getMyProfile(forumId: string, token?: string): Promise<MyProfile
   return sharedGetMyProfile(API_BASE, forumId, token);
 }
 
-export async function updateMyProfile(
-  forumId: string,
-  body: UpdateProfileBody,
-  token?: string,
-): Promise<UserProfile> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/me`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({})) as { message?: string };
-    throw new Error(data.message ?? `HTTP ${res.status}`);
-  }
-  return (await res.json()) as UserProfile;
+export function updateMyProfile(forumId: string, body: UpdateProfileBody, token?: string): Promise<UserProfile> {
+  return sharedUpdateMyProfile(API_BASE, forumId, body, token);
 }
 
 export async function updateThemePreference(
@@ -52,21 +45,11 @@ export async function updateThemePreference(
   });
 }
 
-export async function updateNotificationPrefs(
-  forumId: string,
-  prefs: NotificationPrefs,
-  token?: string,
-): Promise<void> {
-  await fetch(`${API_BASE}/forums/${forumId}/me/notification-prefs`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify(prefs),
-  });
+export function updateNotificationPrefs(forumId: string, prefs: NotificationPrefs, token?: string): Promise<void> {
+  return sharedUpdateNotificationPrefs(API_BASE, forumId, prefs, token);
 }
 
-export type ProfileActivityResult = { items: ProfileActivityItem[]; total: number; page: number; limit: number };
-
-export async function getProfileActivity(
+export function getProfileActivity(
   forumId: string,
   scope: ProfileActivityScope,
   page: number,
@@ -75,12 +58,7 @@ export async function getProfileActivity(
   contentType: ProfileActivityContentType,
   token?: string,
 ): Promise<ProfileActivityResult> {
-  const qs = new URLSearchParams({ scope, page: String(page), limit: String(limit), sort, contentType });
-  const res = await fetch(`${API_BASE}/forums/${forumId}/me/activity?${qs.toString()}`, {
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as ProfileActivityResult;
+  return sharedGetProfileActivity(API_BASE, forumId, scope, page, limit, sort, contentType, token);
 }
 
 // Public-profile counterparts to getMyProfile/getProfileActivity above, for

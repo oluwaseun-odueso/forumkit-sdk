@@ -1,4 +1,4 @@
-import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, RelatedThreadForRail } from '@forumkit/types';
+import type { CreateThreadBody, UpdateThreadBody, Thread, RelatedThreadForRail } from '@forumkit/types';
 import {
   listThreads as sharedListThreads,
   saveThread as sharedSaveThread,
@@ -6,14 +6,16 @@ import {
   reportThread as sharedReportThread,
   getThread as sharedGetThread,
   createThread as sharedCreateThread,
+  updateThread as sharedUpdateThread,
+  deleteThread as sharedDeleteThread,
+  shareThreadWithUsers as sharedShareThreadWithUsers,
   type ListThreadsParams,
   type ListThreadsResult,
   type GetThreadResult,
 } from '@forumkit/shared';
 
-// ListThreadsParams / ListThreadsResult / GetThreadResult now live in
-// @forumkit/shared; re-exported here so existing `../api/threads` import sites
-// keep working unchanged.
+// ListThreadsParams / ListThreadsResult / GetThreadResult live in
+// @forumkit/shared; re-exported so existing `../api/threads` imports keep working.
 export type { ListThreadsParams, ListThreadsResult, GetThreadResult };
 
 const API_BASE = typeof window !== 'undefined'
@@ -24,18 +26,7 @@ function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function unwrapThread(res: Response): Promise<Thread> {
-  if (!res.ok) {
-    const message = await res
-      .json()
-      .then((data: ErrorResponse) => data.message)
-      .catch(() => undefined);
-    throw new Error(message ?? `HTTP ${res.status}`);
-  }
-  return (await res.json()) as Thread;
-}
-
-// Feed-subset endpoints delegate to the shared client; web signatures unchanged.
+// Delegated to the shared client; web signatures unchanged.
 export function listThreads(forumId: string, token?: string, params?: ListThreadsParams): Promise<ListThreadsResult> {
   return sharedListThreads(API_BASE, forumId, token, params);
 }
@@ -52,8 +43,33 @@ export function reportThread(forumId: string, threadId: string, reason: string, 
   return sharedReportThread(API_BASE, forumId, threadId, reason, token);
 }
 
-// The rest stay local (not part of the migrated feed subset).
+export function getThread(forumId: string, threadId: string, token?: string): Promise<GetThreadResult> {
+  return sharedGetThread(API_BASE, forumId, threadId, token);
+}
 
+export function createThread(forumId: string, body: CreateThreadBody, token?: string): Promise<Thread> {
+  return sharedCreateThread(API_BASE, forumId, body, token);
+}
+
+export function updateThread(forumId: string, threadId: string, body: UpdateThreadBody, token?: string): Promise<Thread> {
+  return sharedUpdateThread(API_BASE, forumId, threadId, body, token);
+}
+
+export function deleteThread(forumId: string, threadId: string, token?: string): Promise<void> {
+  return sharedDeleteThread(API_BASE, forumId, threadId, token);
+}
+
+export function shareThreadWithUsers(
+  forumId: string,
+  threadId: string,
+  recipientUserIds: string[],
+  message: string | undefined,
+  token?: string,
+): Promise<void> {
+  return sharedShareThreadWithUsers(API_BASE, forumId, threadId, recipientUserIds, message, token);
+}
+
+// Stays local (not part of the shared subset).
 export async function getSimilarThreads(
   forumId: string,
   threadId: string,
@@ -66,49 +82,4 @@ export async function getSimilarThreads(
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as { threads: RelatedThreadForRail[] };
-}
-
-export function getThread(forumId: string, threadId: string, token?: string): Promise<GetThreadResult> {
-  return sharedGetThread(API_BASE, forumId, threadId, token);
-}
-
-export function createThread(forumId: string, body: CreateThreadBody, token?: string): Promise<Thread> {
-  return sharedCreateThread(API_BASE, forumId, body, token);
-}
-
-export async function updateThread(
-  forumId: string,
-  threadId: string,
-  body: UpdateThreadBody,
-  token?: string,
-): Promise<Thread> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify(body),
-  });
-  return unwrapThread(res);
-}
-
-export async function deleteThread(forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
-export async function shareThreadWithUsers(
-  forumId: string,
-  threadId: string,
-  recipientUserIds: string[],
-  message: string | undefined,
-  token?: string,
-): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/share`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify({ recipientUserIds, message }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
