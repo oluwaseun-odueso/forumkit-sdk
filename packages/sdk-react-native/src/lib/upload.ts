@@ -57,6 +57,28 @@ export async function uploadAsset(
   };
 }
 
+// Picks a single image with the native crop UI (aspect-locked) and uploads it —
+// used for avatar/banner (the native cropper stands in for web's crop/zoom/
+// rotate editor; artistic color filters aren't reproduced). `aspect` is [w,h].
+export async function pickAndUploadImage(
+  apiUrl: string,
+  forumId: string,
+  purpose: AttachmentPurpose,
+  token: string,
+  aspect: [number, number],
+): Promise<UploadedMedia | null> {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect,
+    quality: 0.9,
+  });
+  if (result.canceled || result.assets.length === 0) return null;
+  const asset = result.assets[0];
+  if (!asset) return null;
+  return uploadAsset(apiUrl, forumId, asset, purpose, token);
+}
+
 // Picks image(s)/video from the library and uploads them. `purpose:'attachment'`
 // for post/comment media; 'avatar'/'banner' for profile images.
 export async function pickAndUploadMedia(
