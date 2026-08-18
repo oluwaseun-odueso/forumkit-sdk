@@ -8,16 +8,16 @@ import type { ForumKitConfig } from '@forumkit/types';
 // unchanged; apiUrl comes from ForumKitConfig (no window.FK_API_URL fallback).
 
 type SessionState =
-  | { status: 'loading'; forumId: string; apiUrl: string; sessionToken: null; error: null }
-  | { status: 'ready'; forumId: string; apiUrl: string; sessionToken: string; error: null }
-  | { status: 'error'; forumId: string; apiUrl: string; sessionToken: null; error: string };
+  | { status: 'loading'; forumId: string; apiUrl: string; sessionToken: null; userId: null; role: null; error: null }
+  | { status: 'ready'; forumId: string; apiUrl: string; sessionToken: string; userId: string; role: string; error: null }
+  | { status: 'error'; forumId: string; apiUrl: string; sessionToken: null; userId: null; role: null; error: string };
 
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ config, children }: { config: ForumKitConfig; children: ReactNode }) {
   const apiUrl = config.apiUrl ?? '';
   const [state, setState] = useState<SessionState>({
-    status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null,
+    status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, userId: null, role: null, error: null,
   });
 
   useEffect(() => {
@@ -33,17 +33,17 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
       return createSession(apiUrl, config.token)
         .then(result => {
           if (cancelled) return;
-          setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, error: null });
+          setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, userId: result.userId, role: result.role, error: null });
           scheduleRefresh(result.expiresIn);
         })
         .catch((err: unknown) => {
           if (cancelled) return;
           const message = err instanceof Error ? err.message : 'Failed to create session';
-          setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message });
+          setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, userId: null, role: null, error: message });
         });
     }
 
-    setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, error: null });
+    setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, userId: null, role: null, error: null });
     void refresh();
 
     return () => {
