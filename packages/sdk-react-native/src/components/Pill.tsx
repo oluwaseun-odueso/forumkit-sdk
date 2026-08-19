@@ -58,6 +58,53 @@ export function GradientBorderPill({
   );
 }
 
+// A dark, translucent, glossy pill — a darker-than-surrounding fill (so it
+// reads clearly against a light glassy background, e.g. the bottom bar's own
+// blur) plus a soft white highlight fading down from the top, simulating a
+// glass/glossy surface. Same auto-size-via-onLayout approach as
+// GradientBorderPill above, since callers (e.g. an active nav tab) don't know
+// their own content-driven width upfront. Content stays translucent overall —
+// the highlight/shadow gradient sits at low opacity on top of a not-fully-
+// opaque base fill, it isn't a solid color.
+export function GlossyPill({ radius = 999, style, contentStyle, children }: {
+  radius?: number;
+  style?: ViewStyle;
+  contentStyle?: ViewStyle;
+  children: ReactNode;
+}) {
+  const idRef = useRef<string | null>(null);
+  if (!idRef.current) idRef.current = `fkGloss${++gradIdCounter}`;
+  const id = idRef.current;
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  function handleLayout(e: LayoutChangeEvent) {
+    const { width, height } = e.nativeEvent.layout;
+    setSize({ width, height });
+  }
+
+  return (
+    <View style={[{ overflow: 'hidden', borderRadius: radius }, style]} onLayout={handleLayout}>
+      {size.width > 0 && size.height > 0 && (
+        <Svg width={size.width} height={size.height} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <LinearGradient id={id} x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0" stopColor="#ffffff" stopOpacity={0.34} />
+              <Stop offset="0.45" stopColor="#ffffff" stopOpacity={0.04} />
+              <Stop offset="1" stopColor="#000000" stopOpacity={0.14} />
+            </LinearGradient>
+          </Defs>
+          {/* Darker base first, so the panel reads as a distinct, more
+              visible fill against a light glass background — then the
+              gradient above washes a gloss highlight/shadow over it. */}
+          <Rect x={0} y={0} width={size.width} height={size.height} fill="#0b0e14" fillOpacity={0.4} />
+          <Rect x={0} y={0} width={size.width} height={size.height} fill={`url(#${id})`} />
+        </Svg>
+      )}
+      <View style={contentStyle}>{children}</View>
+    </View>
+  );
+}
+
 type PillVariant = 'surface' | 'ghost' | 'accent' | 'outline';
 
 export function Pill({

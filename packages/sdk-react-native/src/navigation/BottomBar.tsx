@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
 import { Platform, View, Text, Pressable, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
+import { GlossyPill } from '../components/Pill';
 import { HomeIcon, BellIcon } from '../components/icons';
 
 // Floating pill bottom bar per README §7 — Home / Create FAB / Notifications
@@ -44,22 +46,42 @@ export default function BottomBar({
         { left: insets.left, right: insets.right, bottom: insets.bottom, backgroundColor: tokens.glass },
       ]}
     >
-      <Pressable onPress={onHome} style={[styles.item, homeActive && { backgroundColor: tokens['hover-2'] }]}>
-        <HomeIcon size={20} color={homeActive ? tokens.accent : tokens['text-2']} />
-        <Text style={[styles.label, { color: homeActive ? tokens.accent : tokens['text-2'] }]} numberOfLines={1}>Home</Text>
-      </Pressable>
+      <TabItem active={homeActive} onPress={onHome} label="Home" renderIcon={color => <HomeIcon size={20} color={color} />} />
       <Pressable onPress={onCreate} style={[styles.fab, { backgroundColor: tokens.accent }]}>
         <PlusIconGlyph />
       </Pressable>
-      <Pressable onPress={onNotifications} style={[styles.item, notificationsActive && { backgroundColor: tokens['hover-2'] }]}>
-        <BellIcon size={19} color={notificationsActive ? tokens.accent : tokens['text-2']} />
-        <Text style={[styles.label, { color: notificationsActive ? tokens.accent : tokens['text-2'] }]} numberOfLines={1}>Inbox</Text>
-      </Pressable>
-      <Pressable onPress={onProfile} style={[styles.item, profileActive && { backgroundColor: tokens['hover-2'] }]}>
-        <View style={styles.avatar} />
-        <Text style={[styles.label, { color: profileActive ? tokens.accent : tokens['text-2'] }]} numberOfLines={1}>Profile</Text>
-      </Pressable>
+      <TabItem active={notificationsActive} onPress={onNotifications} label="Inbox" renderIcon={color => <BellIcon size={19} color={color} />} />
+      <TabItem active={profileActive} onPress={onProfile} label="Profile" renderIcon={() => <View style={styles.avatar} />} />
     </BlurView>
+  );
+}
+
+// One tab's icon+label — inactive is a plain (no fill) column, active wraps
+// the same content in GlossyPill (dark/translucent/glossy fill, well-rounded
+// per feedback) so the active tab reads clearly against the bar's own light
+// glass tint. `renderIcon` takes the resolved color so the same icon can be
+// muted (inactive) or accent-colored (active) without the caller branching.
+function TabItem({ active, renderIcon, label, onPress }: {
+  active: boolean;
+  renderIcon: (color: string) => ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
+  const { tokens } = useTheme();
+  const color = active ? tokens.accent : tokens['text-2'];
+  const content = (
+    <>
+      {renderIcon(color)}
+      <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
+    </>
+  );
+
+  return (
+    <Pressable onPress={onPress} style={styles.item}>
+      {active
+        ? <GlossyPill contentStyle={styles.itemInner}>{content}</GlossyPill>
+        : <View style={styles.itemInner}>{content}</View>}
+    </Pressable>
   );
 }
 
@@ -86,17 +108,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  // Icon + label stacked, wrapped in a pill that only gets a fill when
-  // active — per reference, the active tab's icon+label sit inside a
-  // highlighted capsule, not just the icon alone.
   item: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Icon + label stacked; used both as the inactive (unfilled) layout and as
+  // GlossyPill's inner content when active.
+  itemInner: {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 16,
   },
   label: {
     fontSize: 10,
