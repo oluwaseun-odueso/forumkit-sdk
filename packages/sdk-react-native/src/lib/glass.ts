@@ -28,9 +28,13 @@ export function glassTint(): BlurTint {
   return 'light';
 }
 
-// iOS system materials define their own transparency, so intensity runs full;
-// Android's experimental blur is cruder and reads less muddy a bit lower.
-export const GLASS_INTENSITY = IS_IOS ? 100 : 70;
+// Intensity is how much of the blur effect is "applied" (expo-blur drives it
+// as an animation-progress value) — lower means more transparent and less
+// blurry. iOS ran full (100) on the assumption the system material's own
+// transparency was enough; per feedback (more transparent, less blurry) it's
+// dialed back, matching the same call made for the real Liquid Glass path's
+// 'clear' style.
+export const GLASS_INTENSITY = IS_IOS ? 65 : 70;
 
 // iOS: no color fill — the material IS the glass, a tint would only make it
 // more opaque. Android: a faint tint keeps it visible against busy content.

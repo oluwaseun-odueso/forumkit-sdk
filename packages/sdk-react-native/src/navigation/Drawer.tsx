@@ -68,8 +68,8 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
           {LIQUID_GLASS_AVAILABLE ? (
             <GlassView
               style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-              // 'regular', not 'clear' — see BottomBar.tsx for why.
-              glassEffectStyle="regular"
+              // 'clear' — more transparent, less blurry; see BottomBar.tsx.
+              glassEffectStyle="clear"
               // Hardcoded 'light' + explicit white tintColor — see
               // BottomBar.tsx, colorScheme alone didn't force a light render
               // on-device.

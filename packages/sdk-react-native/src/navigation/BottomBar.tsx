@@ -56,15 +56,14 @@ export default function BottomBar({
       // part of Liquid Glass — rather than sitting as two flat unrelated
       // layers.
       <GlassContainer spacing={14} style={[styles.bar, position]}>
-        {/* 'regular', not 'clear' — 'clear' is Apple's floating-over-media
-            style (more vivid/reflective, sharper shine); 'regular' is what
-            Apple actually recommends for persistent toolbar/tab-bar chrome,
-            calmer and less blurred-looking. colorScheme="light" alone did NOT
-            force a light render on-device (confirmed dark even with LG=true)
-            — adding an explicit white tintColor as a more forceful mechanism,
-            since colorScheme only overrides interface-style, not an actual
-            color. */}
-        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" colorScheme="light" tintColor="#ffffff" />
+        {/* 'clear' — Apple's more-transparent, less-adaptive-blur style; a
+            prior version used 'regular' to calm an earlier too-dark/muddy
+            render, but that was really the missing tintColor below, not this
+            style. Now that the color is right, 'clear' per feedback: more
+            transparent, less blurry. colorScheme="light" alone did NOT force
+            a light render on-device — the explicit white tintColor is what
+            actually did. */}
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="clear" colorScheme="light" tintColor="#d5d2d2" />
         {items}
       </GlassContainer>
     );
@@ -110,7 +109,7 @@ function TabItem({ active, renderIcon, label, onPress }: {
   if (active && LIQUID_GLASS_AVAILABLE) {
     return (
       <Pressable onPress={onPress}>
-        <GlassView style={styles.item} glassEffectStyle="regular" colorScheme="light" tintColor="#ffffff" isInteractive>
+        <GlassView style={styles.item} glassEffectStyle="clear" colorScheme="light" tintColor="#ffffff" isInteractive>
           {content}
         </GlassView>
       </Pressable>
