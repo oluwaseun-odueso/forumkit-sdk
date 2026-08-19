@@ -23,7 +23,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
 import { SelectPill } from '../components/SelectPill';
-import { SearchIcon } from '../components/icons';
+import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon } from '../components/icons';
 import AiRow from '../thread/AiRow';
 import CommentComposer from '../thread/CommentComposer';
 import CommentRow, { type CommentCtx } from '../thread/CommentRow';
@@ -36,6 +36,9 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type CommentSortOption = 'Best' | 'Top' | 'Controversial' | 'Old';
 const COMMENT_SORTS = ['Best', 'Top', 'Controversial', 'Old'] as const;
+const COMMENT_SORT_ICON: Record<CommentSortOption, React.ComponentType<{ size?: number; color?: string }>> = {
+  Best: RocketIcon, Top: TopIcon, Controversial: ControversialIcon, Old: OldIcon,
+};
 type ReportTarget = { kind: 'post' | 'comment'; id: string } | null;
 type ShareTarget = { kind: 'post' | 'comment'; id: string } | null;
 
@@ -230,7 +233,14 @@ export default function ThreadScreen() {
           <CommentComposer apiUrl={apiUrl} forumId={forumId} token={token} onSubmit={submitTopLevel} />
 
           <View style={styles.sortRow}>
-            <SelectPill<CommentSortOption> value={commentSort} options={COMMENT_SORTS} onChange={setCommentSort} label={commentSort} menuWidth={160} />
+            <SelectPill<CommentSortOption>
+              value={commentSort}
+              options={COMMENT_SORTS}
+              onChange={setCommentSort}
+              label={commentSort}
+              menuWidth={160}
+              optionIcon={s => { const Icon = COMMENT_SORT_ICON[s]; return <Icon size={16} color={tokens['text-2']} />; }}
+            />
             <View style={[styles.searchPill, { borderColor: tokens['border-strong'] }]}>
               <SearchIcon size={15} color={tokens.muted} />
               <TextInput value={search} onChangeText={setSearch} placeholder="Search Comments" placeholderTextColor={tokens.muted} style={{ flex: 1, color: tokens.text, fontSize: 13, padding: 0 }} />

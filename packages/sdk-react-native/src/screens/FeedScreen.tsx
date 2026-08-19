@@ -12,6 +12,7 @@ import { applyVote, nextVoteDir } from '../lib/vote';
 import Shell from '../navigation/Shell';
 import PostRow from '../feed/PostRow';
 import { SelectPill } from '../components/SelectPill';
+import { RocketIcon, FlameIcon, FreshIcon, TopIcon, RisingIcon } from '../components/icons';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -26,6 +27,9 @@ type SortOption = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
 const SORT_OPTIONS = ['Best', 'Hot', 'New', 'Top', 'Rising'] as const;
 const SORT_QUERY: Record<SortOption, NonNullable<ListThreadsParams['sort']>> = {
   Best: 'best', Hot: 'hot', New: 'new', Top: 'top', Rising: 'rising',
+};
+const SORT_ICON: Record<SortOption, React.ComponentType<{ size?: number; color?: string }>> = {
+  Best: RocketIcon, Hot: FlameIcon, New: FreshIcon, Top: TopIcon, Rising: RisingIcon,
 };
 
 export default function FeedScreen() {
@@ -110,7 +114,13 @@ export default function FeedScreen() {
 
   const controls = (
     <View style={styles.controls}>
-      <SelectPill<SortOption> value={sort} options={SORT_OPTIONS} onChange={setSort} label={sort} />
+      <SelectPill<SortOption>
+        value={sort}
+        options={SORT_OPTIONS}
+        onChange={setSort}
+        label={sort}
+        optionIcon={s => { const Icon = SORT_ICON[s]; return <Icon size={16} color={tokens['text-2']} />; }}
+      />
     </View>
   );
 

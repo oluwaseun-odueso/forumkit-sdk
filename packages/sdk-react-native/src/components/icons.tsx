@@ -220,6 +220,71 @@ export function CardViewIcon({ size = 18, color = '#000' }: IconProps) {
   );
 }
 
+// Sort-dropdown icons — path data copied verbatim from sdk-web's
+// shared/icons.tsx (feed sort: Best/Hot/New/Top/Rising; comment sort:
+// Best/Top/Controversial/Old — Best and Top are shared between the two).
+export function RocketIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M12 2c2.4 2.1 3.8 5.4 3.8 8.8 0 2-1 4-2 5.2l-1.8 2-1.8-2c-1-1.2-2-3.2-2-5.2C8.2 7.4 9.6 4.1 12 2z" />
+      <Circle cx={12} cy={9.5} r={1.5} />
+      <Path d="M8.5 15l-2 4M15.5 15l2 4" />
+    </Svg>
+  );
+}
+
+export function TopIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M4 17l5-5 4 4 7-8" />
+      <Path d="M20 8h-4M20 8v4" />
+    </Svg>
+  );
+}
+
+export function ControversialIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M7 4l4 6H3z" />
+      <Path d="M17 20l4-6h-8z" />
+    </Svg>
+  );
+}
+
+export function OldIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Circle cx={12} cy={12} r={8.5} />
+      <Path d="M12 7.5V12l3 2" />
+    </Svg>
+  );
+}
+
+export function FlameIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
+    </Svg>
+  );
+}
+
+export function FreshIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M12 3v6M12 15v6M4.2 12h6M13.8 12h6" />
+      <Path d="M6.3 6.3l4.2 4.2M13.5 13.5l4.2 4.2M17.7 6.3l-4.2 4.2M10.5 13.5l-4.2 4.2" />
+    </Svg>
+  );
+}
+
+export function RisingIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M4 20V14M9 20V10M14 20V6M19 20V3" />
+    </Svg>
+  );
+}
+
 export function LinkIcon({ size = 16, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>

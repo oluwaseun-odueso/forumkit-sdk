@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuItem, useAnchor } from './DropdownMenu';
 // own open state; the DropdownMenu's full-screen modal scrim naturally enforces
 // "only one open at a time" (an open menu covers the other trigger).
 export function SelectPill<T extends string>({
-  value, options, onChange, label, leadingIcon, optionLabel, menuWidth = 150,
+  value, options, onChange, label, leadingIcon, optionLabel, optionIcon, menuWidth = 150,
 }: {
   value: T;
   options: readonly T[];
@@ -18,6 +18,7 @@ export function SelectPill<T extends string>({
   label?: string;
   leadingIcon?: ReactNode;
   optionLabel?: (value: T) => string;
+  optionIcon?: (value: T) => ReactNode;
   menuWidth?: number;
 }) {
   const { tokens } = useTheme();
@@ -39,6 +40,7 @@ export function SelectPill<T extends string>({
         {options.map(opt => (
           <DropdownMenuItem
             key={opt}
+            icon={optionIcon?.(opt)}
             label={optionLabel ? optionLabel(opt) : opt}
             active={opt === value}
             onPress={() => { onChange(opt); setOpen(false); }}
