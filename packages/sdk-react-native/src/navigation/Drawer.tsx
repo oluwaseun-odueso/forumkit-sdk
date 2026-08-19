@@ -18,7 +18,9 @@ export type DrawerRoute = 'home' | 'popular' | 'news';
 export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
   open: boolean;
   onClose: () => void;
-  activeRoute: DrawerRoute;
+  // null when the current screen isn't the feed (Thread/Profile/Search) —
+  // none of Home/Popular/News apply there, so no row shows active.
+  activeRoute: DrawerRoute | null;
   onSelectRoute: (route: DrawerRoute) => void;
 }) {
   const { tokens, mode } = useTheme();

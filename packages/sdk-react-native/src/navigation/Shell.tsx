@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type NavigationProp } from '@react-navigation/native';
 import type { Draft } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
@@ -38,6 +38,14 @@ export default function Shell({ children }: { children: ReactNode }) {
   const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  // Shell is mounted fresh inside whichever screen is currently on top (each
+  // screen renders its own <Shell>), so useRoute() here always reflects the
+  // real current route — not a prop threaded down from RootNavigator. Used to
+  // highlight the matching bottom-bar icon / drawer row, the same "active"
+  // treatment Reddit's own bottom bar uses.
+  const route = useRoute();
+  const isFeed = route.name === 'Feed';
+  const feedScope = isFeed ? ((route.params as RootStackParamList['Feed'])?.scope ?? 'home') : null;
   const session = useSession();
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
@@ -88,12 +96,15 @@ export default function Shell({ children }: { children: ReactNode }) {
         <View style={{ flex: 1 }}>{children}</View>
       </ShellContext.Provider>
       <BottomBar
+        homeActive={isFeed}
+        notificationsActive={notifOpen}
+        profileActive={route.name === 'Profile'}
         onHome={goHome}
         onCreate={() => setComposerOpen(true)}
         onNotifications={() => setNotifOpen(true)}
         onProfile={() => navigation.navigate('Profile')}
       />
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute="home" onSelectRoute={goTo} />
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute={feedScope} onSelectRoute={goTo} />
       {composerOpen && (
         <ComposerOverlay
           key={loadedDraft?.id ?? 'new'}

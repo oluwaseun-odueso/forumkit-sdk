@@ -13,7 +13,12 @@ import { HomeIcon, BellIcon } from '../components/icons';
 // avatarUrl intentionally not wired yet — this step ships a placeholder
 // gradient circle only (real avatar image comes with the actual Profile
 // screen content in a later step).
-export default function BottomBar({ onHome, onCreate, onNotifications, onProfile }: {
+export default function BottomBar({
+  homeActive, notificationsActive, profileActive, onHome, onCreate, onNotifications, onProfile,
+}: {
+  homeActive: boolean;
+  notificationsActive: boolean;
+  profileActive: boolean;
   onHome: () => void;
   onCreate: () => void;
   onNotifications: () => void;
@@ -39,16 +44,16 @@ export default function BottomBar({ onHome, onCreate, onNotifications, onProfile
         { left: insets.left, right: insets.right, bottom: insets.bottom, backgroundColor: tokens.glass },
       ]}
     >
-      <Pressable onPress={onHome} style={styles.item}>
-        <HomeIcon size={22} color={tokens.accent} />
+      <Pressable onPress={onHome} style={[styles.item, homeActive && { backgroundColor: tokens['hover-2'] }]}>
+        <HomeIcon size={22} color={homeActive ? tokens.accent : tokens['text-2']} />
       </Pressable>
       <Pressable onPress={onCreate} style={[styles.fab, { backgroundColor: tokens.accent }]}>
         <PlusIconGlyph />
       </Pressable>
-      <Pressable onPress={onNotifications} style={styles.item}>
-        <BellIcon size={21} color={tokens['text-2']} />
+      <Pressable onPress={onNotifications} style={[styles.item, notificationsActive && { backgroundColor: tokens['hover-2'] }]}>
+        <BellIcon size={21} color={notificationsActive ? tokens.accent : tokens['text-2']} />
       </Pressable>
-      <Pressable onPress={onProfile} style={styles.item}>
+      <Pressable onPress={onProfile} style={[styles.item, profileActive && { backgroundColor: tokens['hover-2'] }]}>
         <View style={styles.avatar} />
       </Pressable>
     </BlurView>
@@ -81,6 +86,7 @@ const styles = StyleSheet.create({
   item: {
     width: 44,
     height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
