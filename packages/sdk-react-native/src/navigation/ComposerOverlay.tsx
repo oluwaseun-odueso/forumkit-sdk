@@ -6,7 +6,7 @@ import type { DraftContent } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import { pickAndUploadMedia, type UploadedMedia } from '../lib/upload';
-import { CloseIcon, SparkleIcon } from '../components/icons';
+import { CloseIcon, SparkleIcon, PlusIcon } from '../components/icons';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
@@ -137,7 +137,9 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
   }
 
   return (
-    <View style={[styles.overlay, { bottom: 94 + insets.bottom, backgroundColor: tokens.bg }]}>
+    <>
+      <View style={[styles.bottomBackdrop, { height: 94 + insets.bottom, backgroundColor: tokens.bg }]} />
+      <View style={[styles.overlay, { bottom: 94 + insets.bottom, backgroundColor: tokens.bg }]}>
       <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA }}>
         <View style={styles.header}>
           <Pressable onPress={handleCancel} hitSlop={8}>
@@ -192,27 +194,42 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
           )}
 
           {tab === 'images' && (
-            <View>
+            attachments.length === 0 ? (
               <Pressable onPress={addMedia} style={[styles.dropzone, { borderColor: tokens['border-strong'] }]}>
                 {uploading
                   ? <ActivityIndicator color={tokens.accent} />
                   : <Text style={{ color: tokens.muted, fontSize: 14 }}>Tap to upload image or video</Text>}
               </Pressable>
-              {attachments.length > 0 && (
-                <View style={styles.thumbs}>
-                  {attachments.map(a => (
-                    <View key={a.attachmentId} style={styles.thumbWrap}>
-                      <Image source={{ uri: a.downloadUrl }} style={[styles.thumb, { backgroundColor: tokens['surface-2'] }]} />
-                      <Pressable onPress={() => removeMedia(a.attachmentId)} style={[styles.thumbX, { backgroundColor: tokens.elev }]} hitSlop={6}>
-                        <CloseIcon size={12} color={tokens.text} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+            ) : (
+              // Mirrors sdk-web's media-gallery.css grid (3-column, rounded
+              // container + thumbs) rather than the old bare dropzone-above-
+              // a-row-of-thumbs layout — the trailing tile re-opens the
+              // picker, so adding more doesn't need a separate control.
+              <View style={[styles.mediaGrid, { borderColor: tokens['border-strong'] }]}>
+                {attachments.map(a => (
+                  <View key={a.attachmentId} style={[styles.mediaCell, { backgroundColor: tokens['surface-2'] }]}>
+                    <Image source={{ uri: a.downloadUrl }} style={styles.mediaCellImg} resizeMode="cover" />
+                    <Pressable onPress={() => removeMedia(a.attachmentId)} style={styles.mediaCellDelete} hitSlop={6}>
+                      <CloseIcon size={12} color="#fff" />
+                    </Pressable>
+                  </View>
+                ))}
+                <Pressable
+                  onPress={addMedia}
+                  style={[styles.mediaCell, styles.mediaAddCell, { borderColor: tokens['border-strong'] }]}
+                >
+                  {uploading
+                    ? <ActivityIndicator color={tokens.accent} />
+                    : (
+                      <>
+                        <PlusIcon size={20} color={tokens['text-2']} />
+                        <Text style={{ color: tokens['text-2'], fontSize: 11, marginTop: 4, fontWeight: '600' }}>Add</Text>
+                      </>
+                    )}
+                </Pressable>
+              </View>
+            )
           )}
-
           {tab === 'link' && <Field value={linkUrl} onChangeText={setLinkUrl} placeholder="Link URL" required />}
 
           {error && <Text style={{ color: tokens.up, fontSize: 13 }}>{error}</Text>}
@@ -227,15 +244,22 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
           </View>
         </View>
       </ScrollView>
-    </View>
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   // bottom is set dynamically (94 + the device's safe-area bottom inset) so
-  // the sheet's own bottom edge clears Android's gesture/3-button nav —
-  // see the `bottom` override above.
+  // the sheet's own content stops short of the floating bottom bar, which
+  // stays visible/tappable in that gap — see `bottomBackdrop` below for why
+  // the gap itself doesn't show the feed through.
   overlay: { position: 'absolute', left: 0, right: 0, top: 0, zIndex: 60 },
+  // Fills exactly the gap `overlay` leaves at the bottom with an opaque
+  // backdrop, so the feed's own posts don't show through behind the
+  // composer — BottomBar (higher zIndex, see BottomBar.tsx) still renders on
+  // top of this, in the same reserved strip.
+  bottomBackdrop: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 55 },
   header: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   heading: { fontSize: 16, fontWeight: '800' },
   body: { paddingHorizontal: 16, paddingBottom: 24 },
@@ -243,10 +267,15 @@ const styles = StyleSheet.create({
   suggestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tagsWrap: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   dropzone: { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, minHeight: 160, alignItems: 'center', justifyContent: 'center' },
-  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  thumbWrap: { position: 'relative' },
-  thumb: { width: 80, height: 80, borderRadius: 10 },
-  thumbX: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  // 3-column grid, mirrors sdk-web's fk-media-gallery-grid proportions.
+  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderWidth: 1, borderRadius: 18, padding: 10 },
+  mediaCell: { width: '31%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  mediaCellImg: { width: '100%', height: '100%' },
+  mediaCellDelete: {
+    position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+  },
+  mediaAddCell: { borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 18 },
   btn: { borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20 },
 });

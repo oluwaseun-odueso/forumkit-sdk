@@ -143,6 +143,10 @@ const styles = StyleSheet.create({
   // pinched/concave corner instead of a clean capsule. radius = height/2.
   bar: {
     position: 'absolute',
+    // Higher than ComposerOverlay's bottomBackdrop (55) — that backdrop
+    // fills the same reserved bottom strip to hide the feed behind the
+    // composer, and the bar needs to stay visible/tappable on top of it.
+    zIndex: 56,
     height: 66,
     borderRadius: 33,
     borderWidth: 1,
