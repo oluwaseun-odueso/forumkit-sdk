@@ -16,14 +16,16 @@ export const LIQUID_GLASS_AVAILABLE = isLiquidGlassAvailable();
 // Shared so the floating bottom bar and hamburger drawer stay identical. The
 // blur "tint" is what makes background content bleed through slurry — iOS has
 // true system materials (Control Center / native tab-bar glass);
-// systemUltraThinMaterial is the most transparent one. Explicit Light/Dark
-// variants are used (not the auto-adapting bare name) because the app's own
-// theme toggle can differ from the device appearance. Android has no system
-// materials, so it falls back to the plain dark/light experimental blur.
-
-export function glassTint(mode: 'dark' | 'light'): BlurTint {
-  if (IS_IOS) return mode === 'dark' ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight';
-  return mode === 'dark' ? 'dark' : 'light';
+// systemUltraThinMaterial is the most transparent one. Hardcoded to the Light
+// variant always, NOT tied to the app's own dark/light theme toggle — an
+// earlier version picked Dark whenever the app theme was dark, which is what
+// rendered this as a dark bar (Apple's dark material is a genuinely darker,
+// smokier glass, not a color we set directly). The reference screenshots
+// stay light-glass even over dark content, so this doesn't follow the app
+// theme, matching the same call already made for the real Liquid Glass path.
+export function glassTint(): BlurTint {
+  if (IS_IOS) return 'systemUltraThinMaterialLight';
+  return 'light';
 }
 
 // iOS system materials define their own transparency, so intensity runs full;

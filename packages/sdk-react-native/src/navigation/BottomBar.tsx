@@ -31,7 +31,7 @@ export default function BottomBar({
   onNotifications: () => void;
   onProfile: () => void;
 }) {
-  const { tokens, mode } = useTheme();
+  const { tokens } = useTheme();
   const safeBottom = useSafeAreaInsets().bottom;
   const insets = IS_IOS
     ? { left: 24, right: 24, bottom: safeBottom + 8 }
@@ -59,11 +59,12 @@ export default function BottomBar({
         {/* 'regular', not 'clear' — 'clear' is Apple's floating-over-media
             style (more vivid/reflective, sharper shine); 'regular' is what
             Apple actually recommends for persistent toolbar/tab-bar chrome,
-            calmer and less blurred-looking. colorScheme is hardcoded 'light'
-            (not the app's own dark/light theme) — the reference screenshots
-            show a light glass pill even over dark content, so this is tied
-            to the reference look, not our app's independent theme toggle. */}
-        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" colorScheme="light" />
+            calmer and less blurred-looking. colorScheme="light" alone did NOT
+            force a light render on-device (confirmed dark even with LG=true)
+            — adding an explicit white tintColor as a more forceful mechanism,
+            since colorScheme only overrides interface-style, not an actual
+            color. */}
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" colorScheme="light" tintColor="#ffffff" />
         {items}
       </GlassContainer>
     );
@@ -72,7 +73,7 @@ export default function BottomBar({
   return (
     <BlurView
       intensity={GLASS_INTENSITY}
-      tint={glassTint(mode)}
+      tint={glassTint()}
       // Android's blur is off ('none') by default — opt in for real blur.
       blurMethod="dimezisBlurView"
       style={[styles.bar, position, glassFill(tokens.glass)]}
@@ -109,7 +110,7 @@ function TabItem({ active, renderIcon, label, onPress }: {
   if (active && LIQUID_GLASS_AVAILABLE) {
     return (
       <Pressable onPress={onPress}>
-        <GlassView style={styles.item} glassEffectStyle="regular" colorScheme="light" isInteractive>
+        <GlassView style={styles.item} glassEffectStyle="regular" colorScheme="light" tintColor="#ffffff" isInteractive>
           {content}
         </GlassView>
       </Pressable>

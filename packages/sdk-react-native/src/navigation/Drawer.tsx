@@ -25,7 +25,7 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
   activeRoute: DrawerRoute | null;
   onSelectRoute: (route: DrawerRoute) => void;
 }) {
-  const { tokens, mode } = useTheme();
+  const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
 
   const panelContent = (
@@ -70,15 +70,18 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
               style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
               // 'regular', not 'clear' — see BottomBar.tsx for why.
               glassEffectStyle="regular"
-              // Hardcoded 'light', not the app's own theme — see BottomBar.tsx.
+              // Hardcoded 'light' + explicit white tintColor — see
+              // BottomBar.tsx, colorScheme alone didn't force a light render
+              // on-device.
               colorScheme="light"
+              tintColor="#ffffff"
             >
               {panelContent}
             </GlassView>
           ) : (
             <BlurView
               intensity={GLASS_INTENSITY}
-              tint={glassTint(mode)}
+              tint={glassTint()}
               // Android needs this opted in for real blur (see lib/glass.ts).
               blurMethod="dimezisBlurView"
               style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
