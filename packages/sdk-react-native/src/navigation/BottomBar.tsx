@@ -1,4 +1,4 @@
-import { Platform, View, Pressable, StyleSheet } from 'react-native';
+import { Platform, View, Text, Pressable, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
@@ -45,16 +45,19 @@ export default function BottomBar({
       ]}
     >
       <Pressable onPress={onHome} style={[styles.item, homeActive && { backgroundColor: tokens['hover-2'] }]}>
-        <HomeIcon size={22} color={homeActive ? tokens.accent : tokens['text-2']} />
+        <HomeIcon size={20} color={homeActive ? tokens.accent : tokens['text-2']} />
+        <Text style={[styles.label, { color: homeActive ? tokens.accent : tokens['text-2'] }]} numberOfLines={1}>Home</Text>
       </Pressable>
       <Pressable onPress={onCreate} style={[styles.fab, { backgroundColor: tokens.accent }]}>
         <PlusIconGlyph />
       </Pressable>
       <Pressable onPress={onNotifications} style={[styles.item, notificationsActive && { backgroundColor: tokens['hover-2'] }]}>
-        <BellIcon size={21} color={notificationsActive ? tokens.accent : tokens['text-2']} />
+        <BellIcon size={19} color={notificationsActive ? tokens.accent : tokens['text-2']} />
+        <Text style={[styles.label, { color: notificationsActive ? tokens.accent : tokens['text-2'] }]} numberOfLines={1}>Inbox</Text>
       </Pressable>
       <Pressable onPress={onProfile} style={[styles.item, profileActive && { backgroundColor: tokens['hover-2'] }]}>
         <View style={styles.avatar} />
+        <Text style={[styles.label, { color: profileActive ? tokens.accent : tokens['text-2'] }]} numberOfLines={1}>Profile</Text>
       </Pressable>
     </BlurView>
   );
@@ -75,20 +78,29 @@ function PlusIconGlyph() {
 const styles = StyleSheet.create({
   bar: {
     position: 'absolute',
-    height: 58,
     borderRadius: 999,
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
+  // Icon + label stacked, wrapped in a pill that only gets a fill when
+  // active — per reference, the active tab's icon+label sit inside a
+  // highlighted capsule, not just the icon alone.
   item: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   fab: {
     width: 38,
@@ -98,9 +110,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#b97d52',
   },
 });
