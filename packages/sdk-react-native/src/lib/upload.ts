@@ -72,6 +72,12 @@ export async function pickAndUploadImage(
     allowsEditing: true,
     aspect,
     quality: 0.9,
+    // iOS's photo library defaults to HEIC, which isn't in the backend's
+    // storageAllowedMimeTypes allowlist (image/png,jpeg,gif,webp + mp4,webm —
+    // same list web's file input accepts) and got rejected with a 422. This
+    // asks the OS to hand back the widely-compatible representation (JPEG)
+    // instead of transcoding server-side.
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
   });
   if (result.canceled || result.assets.length === 0) return null;
   const asset = result.assets[0];
@@ -92,6 +98,8 @@ export async function pickAndUploadMedia(
     mediaTypes: opts?.videos ? ['images', 'videos'] : ['images'],
     allowsMultipleSelection: opts?.allowsMultipleSelection ?? false,
     quality: 0.9,
+    // See pickAndUploadImage above — forces JPEG instead of HEIC on iOS.
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
   });
   if (result.canceled) return [];
   const uploaded: UploadedMedia[] = [];
