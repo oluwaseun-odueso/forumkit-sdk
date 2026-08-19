@@ -130,7 +130,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
   }
 
   return (
-    <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
+    <View style={[styles.overlay, { bottom: 94 + insets.bottom, backgroundColor: tokens.bg }]}>
       <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA }}>
         <View style={styles.header}>
           <Pressable onPress={handleCancel} hitSlop={8}>
@@ -225,7 +225,10 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
 }
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 94, zIndex: 60 },
+  // bottom is set dynamically (94 + the device's safe-area bottom inset) so
+  // the sheet's own bottom edge clears Android's gesture/3-button nav —
+  // see the `bottom` override above.
+  overlay: { position: 'absolute', left: 0, right: 0, top: 0, zIndex: 60 },
   header: { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 },
   heading: { fontSize: 16, fontWeight: '800' },
   body: { paddingHorizontal: 16, paddingBottom: 24 },
