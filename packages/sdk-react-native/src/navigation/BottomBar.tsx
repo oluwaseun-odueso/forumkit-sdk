@@ -1,10 +1,15 @@
 import { Platform, View, Pressable, StyleSheet } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { HomeIcon, BellIcon } from '../components/icons';
 
 // Floating pill bottom bar per README §7 — Home / Create FAB / Notifications
-// bell / profile avatar, exactly four items, insets differ per platform to
-// clear the home indicator (iOS) vs. gesture bar (Android) — see §3/§7.
+// bell / profile avatar, exactly four items. Glassy per user feedback: a real
+// blur (not just a translucent fill) with no border/shadow. The bottom offset
+// adds the device's own safe-area inset (the 3-button/gesture nav bar on
+// Android, home indicator on iOS) on top of the visual margin, so hardware
+// nav controls never sit over the bar.
 // avatarUrl intentionally not wired yet — this step ships a placeholder
 // gradient circle only (real avatar image comes with the actual Profile
 // screen content in a later step).
@@ -14,19 +19,19 @@ export default function BottomBar({ onHome, onCreate, onNotifications, onProfile
   onNotifications: () => void;
   onProfile: () => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
+  const safeBottom = useSafeAreaInsets().bottom;
   const insets = Platform.OS === 'ios'
-    ? { left: 24, right: 24, bottom: 18 }
-    : { left: 20, right: 20, bottom: 14 };
+    ? { left: 24, right: 24, bottom: safeBottom + 8 }
+    : { left: 20, right: 20, bottom: safeBottom + 10 };
 
   return (
-    <View
+    <BlurView
+      intensity={60}
+      tint={mode === 'dark' ? 'dark' : 'light'}
       style={[
         styles.bar,
-        {
-          left: insets.left, right: insets.right, bottom: insets.bottom,
-          backgroundColor: tokens.elev, borderColor: tokens['border-strong'],
-        },
+        { left: insets.left, right: insets.right, bottom: insets.bottom, backgroundColor: tokens.glass },
       ]}
     >
       <Pressable onPress={onHome} style={styles.item}>
@@ -41,7 +46,7 @@ export default function BottomBar({ onHome, onCreate, onNotifications, onProfile
       <Pressable onPress={onProfile} style={styles.item}>
         <View style={styles.avatar} />
       </Pressable>
-    </View>
+    </BlurView>
   );
 }
 
@@ -62,16 +67,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     height: 58,
     borderRadius: 999,
-    borderWidth: 1,
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.45,
-    shadowRadius: 30,
-    elevation: 10,
   },
   item: {
     width: 44,

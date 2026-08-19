@@ -18,7 +18,7 @@ export type TokenKey =
   | 'hover' | 'hover-2'
   | 'accent' | 'accent-2' | 'accent-fg' | 'accent-soft'
   | 'up' | 'down' | 'success' | 'danger'
-  | 'ring' | 'thumb-shadow';
+  | 'ring' | 'thumb-shadow' | 'glass';
 
 export type TokenSet = Record<TokenKey, string>;
 
@@ -46,6 +46,10 @@ export const darkTokens: TokenSet = {
   'danger': '#e0463a',
   'ring': 'rgba(63, 126, 226, 0.55)',
   'thumb-shadow': 'rgba(0, 0, 0, 0.5)',
+  // A soft white tint layered over a native blur (mobile's floating bottom
+  // bar + hamburger drawer) — the classic "frosted glass" look, same in both
+  // themes (not overridden in lightTokens) rather than swapping per-theme.
+  'glass': 'rgba(255, 255, 255, 0.16)',
 };
 
 export const lightTokens: TokenSet = {

@@ -37,6 +37,7 @@
   --danger: #e0463a;
   --ring: rgba(63, 126, 226, 0.55);
   --thumb-shadow: rgba(0, 0, 0, 0.5);
+  --glass: rgba(255, 255, 255, 0.16);
 }
 
 :host([data-theme='light']),

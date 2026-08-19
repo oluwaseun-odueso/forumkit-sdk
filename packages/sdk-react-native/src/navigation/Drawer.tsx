@@ -1,4 +1,5 @@
 import { Modal, View, Pressable, Text, StyleSheet, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
@@ -12,13 +13,15 @@ export type DrawerRoute = 'home' | 'popular' | 'news';
 
 // Hamburger drawer per README §5 — scrim + 250px panel, brand row (mascot +
 // Michroma wordmark), Home/Popular/News. No divider, no Create Post row.
+// Glassy per user feedback (matches the bottom bar): a real blur instead of
+// an opaque fill, no border.
 export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
   open: boolean;
   onClose: () => void;
   activeRoute: DrawerRoute;
   onSelectRoute: (route: DrawerRoute) => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
@@ -27,9 +30,11 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
         {/* Panel click doesn't close — stopPropagation equivalent is just
             not forwarding the press to the scrim's Pressable, achieved by
             this inner Pressable swallowing the event. */}
-        <Pressable
-          style={[styles.panel, { backgroundColor: tokens.nav, borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-          onPress={() => {}}
+        <Pressable onPress={() => {}}>
+        <BlurView
+          intensity={60}
+          tint={mode === 'dark' ? 'dark' : 'light'}
+          style={[styles.panel, { backgroundColor: tokens.glass, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
         >
           <View style={styles.brandRow}>
             {Platform.OS === 'ios'
@@ -56,6 +61,7 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
             icon={<NewsIcon size={20} color={tokens['text-2']} />}
             onPress={() => onSelectRoute('news')}
           />
+        </BlurView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -86,7 +92,6 @@ const styles = StyleSheet.create({
   panel: {
     width: 250,
     height: '100%',
-    borderRightWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 16,
   },
