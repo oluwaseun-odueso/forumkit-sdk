@@ -59,6 +59,18 @@ export default function Shell({ children }: { children: ReactNode }) {
     navigation.navigate('Feed', { scope: route });
   }
 
+  // Home is reachable while the composer/notifications overlay is open (they
+  // float above the bottom bar, not a separate route — see RootNavigator), so
+  // navigating alone doesn't dismiss them: if you're already on Feed, `navigate`
+  // is a same-route no-op and the overlay silently stays on top, making Home
+  // look broken. Close every overlay first, then navigate.
+  function goHome() {
+    setDrawerOpen(false);
+    closeComposer();
+    setNotifOpen(false);
+    navigation.navigate('Feed');
+  }
+
   const actions = useMemo<ShellActions>(() => ({
     openDrawer: () => setDrawerOpen(true),
     openComposer: () => setComposerOpen(true),
@@ -69,14 +81,14 @@ export default function Shell({ children }: { children: ReactNode }) {
     <View style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
       <TopBar
         onOpenDrawer={() => setDrawerOpen(true)}
-        onHome={() => navigation.navigate('Feed')}
+        onHome={goHome}
         onSearch={q => navigation.navigate('Search', { query: q })}
       />
       <ShellContext.Provider value={actions}>
         <View style={{ flex: 1 }}>{children}</View>
       </ShellContext.Provider>
       <BottomBar
-        onHome={() => navigation.navigate('Feed')}
+        onHome={goHome}
         onCreate={() => setComposerOpen(true)}
         onNotifications={() => setNotifOpen(true)}
         onProfile={() => navigation.navigate('Profile')}
