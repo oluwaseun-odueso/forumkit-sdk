@@ -6,7 +6,8 @@ import {
 } from '@forumkit/shared';
 import type { UserProfile } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
-import { CloseIcon, SunIcon, MoonIcon } from '../components/icons';
+import { CloseIcon, SunIcon, MoonIcon, ChevronDownIcon, LinkIcon } from '../components/icons';
+import { SOCIAL_PLATFORM_ICON } from './SocialLinks';
 
 type DraftLink = { id: number; platform: SocialPlatform; suffix: string };
 let nextId = 0;
@@ -30,13 +31,17 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which link's platform picker is open — at most one at a time, mirrors
+  // sdk-web's edit-profile-modal openPickerId. Rendered inline (pushing the
+  // rest of the row down) rather than as an absolutely-positioned dropdown
+  // like web: an absolute overlay inside this sheet's ScrollView would get
+  // clipped by the scroll viewport for rows near the bottom (see the GIF
+  // panel in composer/RichComposer.tsx for the same inline-panel pattern).
+  const [openPickerId, setOpenPickerId] = useState<number | null>(null);
 
-  function cyclePlatform(id: number) {
-    setLinks(prev => prev.map(l => {
-      if (l.id !== id) return l;
-      const i = SOCIAL_PLATFORMS.indexOf(l.platform);
-      return { ...l, platform: SOCIAL_PLATFORMS[(i + 1) % SOCIAL_PLATFORMS.length]! };
-    }));
+  function selectPlatform(id: number, platform: SocialPlatform) {
+    setLinks(prev => prev.map(l => (l.id === id ? { ...l, platform, suffix: '' } : l)));
+    setOpenPickerId(null);
   }
 
   async function save() {
@@ -74,24 +79,54 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
             <TextInput value={bio} onChangeText={setBio} multiline style={[styles.input, { color: tokens.text, backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'], minHeight: 70, textAlignVertical: 'top' }]} />
 
             <Text style={[styles.label, { color: tokens['text-2'] }]}>Links</Text>
-            {links.map(link => (
-              <View key={link.id} style={styles.linkRow}>
-                <Pressable onPress={() => cyclePlatform(link.id)} style={[styles.platBtn, { backgroundColor: tokens['surface-2'] }]}>
-                  <Text style={{ color: tokens.text, fontSize: 12, fontWeight: '600' }}>{link.platform}</Text>
-                </Pressable>
-                <TextInput
-                  value={link.suffix}
-                  onChangeText={v => setLinks(prev => prev.map(l => (l.id === link.id ? { ...l, suffix: v } : l)))}
-                  placeholder={socialPlaceholder(link.platform)}
-                  placeholderTextColor={tokens.muted}
-                  autoCapitalize="none"
-                  style={[styles.linkInput, { color: tokens.text, backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}
-                />
-                <Pressable onPress={() => setLinks(prev => prev.filter(l => l.id !== link.id))} hitSlop={6}>
-                  <CloseIcon size={16} color={tokens.muted} />
-                </Pressable>
-              </View>
-            ))}
+            {links.map(link => {
+              const PlatformIcon = SOCIAL_PLATFORM_ICON[link.platform] ?? LinkIcon;
+              const prefix = socialPrefix(link.platform).replace('https://', '');
+              return (
+                <View key={link.id} style={{ marginBottom: 8 }}>
+                  <View style={styles.linkRow}>
+                    <Pressable
+                      onPress={() => setOpenPickerId(id => (id === link.id ? null : link.id))}
+                      style={[styles.platBtn, { backgroundColor: tokens['surface-2'] }]}
+                    >
+                      <PlatformIcon size={17} />
+                      <ChevronDownIcon size={11} color={tokens.muted} />
+                    </Pressable>
+                    <View style={[styles.linkUrlWrap, { backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}>
+                      {prefix.length > 0 && <Text style={{ color: tokens.muted, fontSize: 12.5 }}>{prefix}</Text>}
+                      <TextInput
+                        value={link.suffix}
+                        onChangeText={v => setLinks(prev => prev.map(l => (l.id === link.id ? { ...l, suffix: v } : l)))}
+                        placeholder={socialPlaceholder(link.platform)}
+                        placeholderTextColor={tokens.muted}
+                        autoCapitalize="none"
+                        style={{ flex: 1, color: tokens.text, fontSize: 13, padding: 0 }}
+                      />
+                    </View>
+                    <Pressable onPress={() => setLinks(prev => prev.filter(l => l.id !== link.id))} hitSlop={6}>
+                      <CloseIcon size={16} color={tokens.muted} />
+                    </Pressable>
+                  </View>
+
+                  {openPickerId === link.id && (
+                    <View style={[styles.platformGrid, { backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}>
+                      {SOCIAL_PLATFORMS.map(p => {
+                        const OptIcon = SOCIAL_PLATFORM_ICON[p] ?? LinkIcon;
+                        return (
+                          <Pressable
+                            key={p}
+                            onPress={() => selectPlatform(link.id, p)}
+                            style={[styles.platformOption, link.platform === p && { backgroundColor: tokens['hover-2'] }]}
+                          >
+                            <OptIcon size={18} />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
             <Pressable onPress={() => setLinks(prev => [...prev, { id: nextId++, platform: 'Website', suffix: '' }])} style={styles.addLink}>
               <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: '600' }}>+ Add link</Text>
             </Pressable>
@@ -123,9 +158,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '800' },
   label: { fontSize: 12.5, fontWeight: '600', marginTop: 12, marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  platBtn: { borderRadius: 8, paddingVertical: 9, paddingHorizontal: 10, minWidth: 80, alignItems: 'center' },
-  linkInput: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  platBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 9 },
+  linkUrlWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  platformGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, borderWidth: 1, borderRadius: 10, padding: 6, marginTop: 6 },
+  platformOption: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   addLink: { paddingVertical: 6 },
   themeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, marginTop: 8, borderTopWidth: 1 },
   saveBtn: { borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginTop: 14 },

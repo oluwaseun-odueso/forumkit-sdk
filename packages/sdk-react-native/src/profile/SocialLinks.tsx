@@ -5,7 +5,9 @@ import {
   GlobeIcon, GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, LinkIcon, type IconProps,
 } from '../components/icons';
 
-const ICON: Record<string, ComponentType<IconProps>> = {
+// Exported so EditProfileSheet's platform picker can reuse the same
+// platform→icon mapping instead of redefining it.
+export const SOCIAL_PLATFORM_ICON: Record<string, ComponentType<IconProps>> = {
   Website: GlobeIcon,
   Portfolio: GlobeIcon,
   GitHub: GitHubIcon,
@@ -24,7 +26,7 @@ export default function SocialLinks({ links }: { links: Array<{ platform: string
   return (
     <View style={styles.row}>
       {links.map((l, i) => {
-        const Icon = ICON[l.platform] ?? LinkIcon;
+        const Icon = SOCIAL_PLATFORM_ICON[l.platform] ?? LinkIcon;
         return (
           <Pressable key={`${l.platform}-${i}`} onPress={() => void Linking.openURL(l.url)} style={[styles.pill, { backgroundColor: tokens['surface-2'] }]}>
             <Icon size={15} color={tokens['text-2']} />
