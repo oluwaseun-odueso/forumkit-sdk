@@ -17,7 +17,10 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }:
   onSearch?: ((query: string) => void) | undefined;
 }) {
   const { tokens, mode, toggleTheme } = useTheme();
-  const [searchOpen, setSearchOpen] = useState(false);
+  // The expanded search pill (mascot + input) is the default look, matching
+  // web's always-visible search bar — collapsing to the icon-only row is a
+  // user action (the close button below), not the initial state.
+  const [searchOpen, setSearchOpen] = useState(true);
   const [searchText, setSearchText] = useState('');
 
   function submitSearch() {
