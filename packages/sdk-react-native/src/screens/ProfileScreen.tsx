@@ -19,7 +19,7 @@ import Mascot from '../components/Mascot';
 import PostRow from '../feed/PostRow';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
-import { EyeIcon, CameraIcon, PencilIcon } from '../components/icons';
+import { EyeIcon, CameraIcon, PencilIcon, PlusIcon } from '../components/icons';
 import SocialLinks from '../profile/SocialLinks';
 import ProfileCommentCard from '../profile/ProfileCommentCard';
 import EditProfileSheet from '../profile/EditProfileSheet';
@@ -103,6 +103,10 @@ function ProfileBody() {
       const uploaded = await pickAndUploadImage(apiUrl, forumId, kind, token, kind === 'avatar' ? [1, 1] : [3, 1]);
       if (!uploaded) return;
       const field = kind === 'avatar' ? { avatarUrl: uploaded.downloadUrl } : { bannerUrl: uploaded.downloadUrl };
+      // Reflect immediately with the URL we already know is valid (the
+      // upload's own confirm step already succeeded) — don't wait on the
+      // PATCH round-trip just to show the image the user just picked.
+      setProfile(p => (p ? { ...p, ...field } : p));
       const updated = await updateMyProfile(apiUrl, forumId, {
         displayName: profile.displayName, bio: profile.bio, socialLinks: profile.socialLinks, ...field,
       }, token);
@@ -150,9 +154,14 @@ function ProfileBody() {
             <Text style={[styles.name, { color: tokens.text }]}>{name}</Text>
             <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
           </View>
-          <Pressable onPress={() => setEditOpen(true)} hitSlop={8} style={[styles.editIconBtn, { borderColor: tokens['border-strong'] }]}>
-            <PencilIcon size={15} color={tokens.text} />
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable onPress={openComposer} hitSlop={8} style={[styles.editIconBtn, { borderColor: tokens['border-strong'] }]}>
+              <PlusIcon size={16} color={tokens.text} />
+            </Pressable>
+            <Pressable onPress={() => setEditOpen(true)} hitSlop={8} style={[styles.editIconBtn, { borderColor: tokens['border-strong'] }]}>
+              <PencilIcon size={15} color={tokens.text} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.statsRow}>
@@ -170,12 +179,6 @@ function ProfileBody() {
           <Text style={[styles.bio, { color: tokens['text-2'] }]}>{profile.bio}</Text>
         )}
         {profile && <SocialLinks links={profile.socialLinks} />}
-
-        <View style={styles.headerBtns}>
-          <Pressable onPress={openComposer} style={[styles.outlineBtn, { borderColor: tokens['border-strong'] }]}>
-            <Text style={{ color: tokens.text, fontSize: 13, fontWeight: '600' }}>Create Post</Text>
-          </Pressable>
-        </View>
       </View>
 
       <View style={{ marginTop: 14 }}>
@@ -263,8 +266,6 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: '800' },
   statLabel: { fontSize: 12, marginTop: 1 },
   bio: { fontSize: 13.5, lineHeight: 20, marginTop: 8 },
-  headerBtns: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  outlineBtn: { borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
   showingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, paddingHorizontal: 16 },
   divider: { height: 1, marginTop: 14 },
   empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 24 },
