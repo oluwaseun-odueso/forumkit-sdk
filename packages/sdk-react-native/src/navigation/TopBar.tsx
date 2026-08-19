@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { View, Pressable, TextInput, StyleSheet, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
 import { HamburgerIcon, SearchIcon, CloseIcon, SunIcon, MoonIcon } from '../components/icons';
 import { GradientBorderPill } from '../components/Pill';
+import { glassTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 
 // Top bar per design_handoff_forum_kit_mobile/README.md §4 — 52px,
 // hamburger / mascot (no wordmark here) / collapsible search / theme
@@ -37,11 +40,24 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }:
 
   return (
     <View style={[styles.bar, { borderBottomColor: tokens.border, backgroundColor: tokens.bg }]}>
-      <Pressable
-        onPress={onOpenDrawer}
-        style={[styles.hamburgerBtn, { backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}
-      >
-        <HamburgerIcon size={18} color={tokens['text-2']} />
+      <Pressable onPress={onOpenDrawer}>
+        {/* Same glass treatment as the bottom bar's active tab (see
+            BottomBar.tsx) — real Liquid Glass on iOS 26+, frosted blur
+            fallback elsewhere. */}
+        {LIQUID_GLASS_AVAILABLE ? (
+          <GlassView style={styles.hamburgerBtn} glassEffectStyle="clear" colorScheme="light" tintColor="#ffffff" isInteractive>
+            <HamburgerIcon size={18} color={tokens['text-2']} />
+          </GlassView>
+        ) : (
+          <BlurView
+            intensity={GLASS_INTENSITY}
+            tint={glassTint()}
+            blurMethod="dimezisBlurView"
+            style={[styles.hamburgerBtn, glassFill(tokens.glass)]}
+          >
+            <HamburgerIcon size={18} color={tokens['text-2']} />
+          </BlurView>
+        )}
       </Pressable>
 
       {!searchOpen && (
@@ -111,6 +127,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
