@@ -1,10 +1,18 @@
 import DropdownMenu, { DropdownMenuTitle, DropdownMenuItem } from '../shared/dropdown-menu';
-import { ChevronDownIcon, CompactViewIcon, CardViewIcon } from '../shared/icons';
+import {
+  ChevronDownIcon, CompactViewIcon, CardViewIcon, RocketIcon, FlameIcon, FreshIcon, TopIcon, RisingIcon,
+} from '../shared/icons';
 import type { FeedSort, FeedView } from '../../hooks/use-forum-state';
 import type { TopWindow } from '@forumkit/types';
 import './feed-controls.css';
 
-const SORT_OPTIONS: FeedSort[] = ['Best', 'Hot', 'New', 'Top', 'Rising'];
+const SORT_OPTIONS: { id: FeedSort; icon: React.ReactNode }[] = [
+  { id: 'Best', icon: <RocketIcon size={18} /> },
+  { id: 'Hot', icon: <FlameIcon size={18} /> },
+  { id: 'New', icon: <FreshIcon size={18} /> },
+  { id: 'Top', icon: <TopIcon size={18} /> },
+  { id: 'Rising', icon: <RisingIcon size={18} /> },
+];
 
 const TOP_WINDOW_LABELS: Record<TopWindow, string> = {
   hour: 'Past hour', day: 'Today', week: 'This week', month: 'This month', year: 'This year', all: 'All time',
@@ -42,7 +50,13 @@ export default function FeedControls({
         <DropdownMenu open={sortMenuOpen} onClose={onCloseMenus} style={{ top: 42, left: 0, width: 180 }}>
           <DropdownMenuTitle>Sort by</DropdownMenuTitle>
           {SORT_OPTIONS.map(option => (
-            <DropdownMenuItem key={option} label={option} active={sort === option} onClick={() => onSelectSort(option)} />
+            <DropdownMenuItem
+              key={option.id}
+              icon={option.icon}
+              label={option.id}
+              active={sort === option.id}
+              onClick={() => onSelectSort(option.id)}
+            />
           ))}
         </DropdownMenu>
       </div>

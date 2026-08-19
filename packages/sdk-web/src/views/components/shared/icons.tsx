@@ -272,6 +272,33 @@ export function OldIcon({ size = 22 }: IconProps) {
   );
 }
 
+// Feed sort icons (Hot/New/Rising) — Best and Top reuse RocketIcon/TopIcon
+// above, same as the comment sort dropdown.
+export function FlameIcon({ size = 22 }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base} strokeWidth={1.7}>
+      <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
+    </svg>
+  );
+}
+
+export function FreshIcon({ size = 22 }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base} strokeWidth={1.7}>
+      <path d="M12 3v6M12 15v6M4.2 12h6M13.8 12h6" />
+      <path d="M6.3 6.3l4.2 4.2M13.5 13.5l4.2 4.2M17.7 6.3l-4.2 4.2M10.5 13.5l-4.2 4.2" />
+    </svg>
+  );
+}
+
+export function RisingIcon({ size = 22 }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base} strokeWidth={1.7}>
+      <path d="M4 20V14M9 20V10M14 20V6M19 20V3" />
+    </svg>
+  );
+}
+
 export function EyeIcon({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} {...base}>
