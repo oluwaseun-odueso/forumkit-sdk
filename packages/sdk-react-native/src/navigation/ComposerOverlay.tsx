@@ -6,7 +6,7 @@ import type { DraftContent } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import { pickAndUploadMedia, type UploadedMedia } from '../lib/upload';
-import { CloseIcon, SparkleIcon, PlusIcon } from '../components/icons';
+import { CloseIcon, SparkleIcon, PlusIcon, PencilIcon } from '../components/icons';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
@@ -170,13 +170,14 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
             </Text>
           )}
 
-          <View style={[styles.tagsWrap, { borderColor: tokens['border-strong'] }]}>
+          <View style={[styles.tagsWrap, { backgroundColor: tokens['surface-2'] }]}>
+            <PencilIcon size={12} color={tokens.muted} />
             <TextInput
               value={tags}
               onChangeText={setTags}
               placeholder="Add tags, comma separated"
               placeholderTextColor={tokens.muted}
-              style={{ color: tokens.text, fontSize: 13, padding: 0 }}
+              style={{ color: tokens.text, fontSize: 13, fontWeight: '500', padding: 0, minWidth: 160 }}
             />
           </View>
 
@@ -265,7 +266,12 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingBottom: 24 },
   draftNote: { fontSize: 12, marginBottom: 10 },
   suggestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tagsWrap: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  // Matches sdk-web's fk-composer-tags-wrap — a filled, fully-rounded,
+  // content-hugging pill (not a full-width bordered box).
+  tagsWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14,
+  },
   dropzone: { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, minHeight: 160, alignItems: 'center', justifyContent: 'center' },
   // 3-column grid, mirrors sdk-web's fk-media-gallery-grid proportions.
   mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderWidth: 1, borderRadius: 18, padding: 10 },
