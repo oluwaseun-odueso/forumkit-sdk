@@ -146,7 +146,7 @@ export default function ComposerModal({
 
       <div className="fk-composer-footer">
         <PillButton variant="surface" onClick={onSaveDraft} disabled={!canSaveDraft}>
-          {composer.savingDraft ? 'Saving…' : 'Save Draft'}
+          {composer.savingDraft ? 'Saving…' : 'Save as Draft'}
         </PillButton>
         <PillButton variant="accent" onClick={onSubmit} disabled={!canPost}>
           {composer.submitting ? 'Posting…' : hasUploadsInFlight ? 'Uploading…' : 'Post'}
