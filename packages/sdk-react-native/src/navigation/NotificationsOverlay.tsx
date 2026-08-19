@@ -3,7 +3,7 @@ import { Platform, View, Text, Image, Pressable, FlatList, Alert, StyleSheet } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import {
-  listNotifications, markNotificationRead, deleteNotification, describeNotification, fmtRelativeTime,
+  listNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, describeNotification, fmtRelativeTime,
 } from '@forumkit/shared';
 import type { Notification } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
@@ -87,6 +87,14 @@ export default function NotificationsOverlay({ onClose }: { onClose: () => void 
     ]);
   }
 
+  function handleMarkAllRead() {
+    if (!token) return;
+    setItems(prev => prev.map(n => (n.readAt ? n : { ...n, readAt: new Date() })));
+    void markAllNotificationsRead(apiUrl, forumId, token).catch(() => { /* best effort, same as individual mark-read */ });
+  }
+
+  const hasUnread = items.some(n => !n.readAt);
+
   return (
     <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
       <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
@@ -96,6 +104,11 @@ export default function NotificationsOverlay({ onClose }: { onClose: () => void 
           </Pressable>
           <Text style={[styles.title, { color: tokens.text }]}>Notifications</Text>
           <View style={{ flex: 1 }} />
+          {hasUnread && (
+            <Pressable onPress={handleMarkAllRead} hitSlop={8}>
+              <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: '600' }}>Mark all read</Text>
+            </Pressable>
+          )}
           <Pressable onPress={() => setSettingsOpen(true)} hitSlop={8}>
             <GearIcon size={20} color={tokens['text-2']} />
           </Pressable>
