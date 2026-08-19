@@ -49,7 +49,9 @@ export const darkTokens: TokenSet = {
   // A soft white tint layered over a native blur (mobile's floating bottom
   // bar + hamburger drawer) — the classic "frosted glass" look, same in both
   // themes (not overridden in lightTokens) rather than swapping per-theme.
-  'glass': 'rgba(255, 255, 255, 0.16)',
+  // Kept light on purpose: the blur itself (not this tint) is what makes the
+  // panel read as "glass" rather than a flat translucent smudge.
+  'glass': 'rgba(255, 255, 255, 0.10)',
 };
 
 export const lightTokens: TokenSet = {

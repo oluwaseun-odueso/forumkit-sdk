@@ -27,8 +27,13 @@ export default function BottomBar({ onHome, onCreate, onNotifications, onProfile
 
   return (
     <BlurView
-      intensity={60}
+      intensity={80}
       tint={mode === 'dark' ? 'dark' : 'light'}
+      // expo-blur's Android blur defaults to 'none' (no actual blur, just a
+      // flat translucent fill) unless opted into — without this, the bar had
+      // no real glass distortion on Android, just a faint tint that read as
+      // "blends into the background".
+      blurMethod="dimezisBlurView"
       style={[
         styles.bar,
         { left: insets.left, right: insets.right, bottom: insets.bottom, backgroundColor: tokens.glass },

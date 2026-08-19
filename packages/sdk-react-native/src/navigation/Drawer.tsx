@@ -32,8 +32,10 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
             this inner Pressable swallowing the event. */}
         <Pressable onPress={() => {}}>
         <BlurView
-          intensity={60}
+          intensity={80}
           tint={mode === 'dark' ? 'dark' : 'light'}
+          // See BottomBar.tsx — Android needs this opted in for real blur.
+          blurMethod="dimezisBlurView"
           style={[styles.panel, { backgroundColor: tokens.glass, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
         >
           <View style={styles.brandRow}>
