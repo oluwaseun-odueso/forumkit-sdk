@@ -2,6 +2,7 @@ import { Modal, View, Pressable, Text, StyleSheet, Platform } from 'react-native
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
+import { glassTint, glassFill, GLASS_INTENSITY } from '../lib/glass';
 import Mascot from '../components/Mascot';
 import { HomeIcon, PopularIcon, NewsIcon } from '../components/icons';
 
@@ -34,11 +35,11 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
             this inner Pressable swallowing the event. */}
         <Pressable onPress={() => {}}>
         <BlurView
-          intensity={80}
-          tint={mode === 'dark' ? 'dark' : 'light'}
-          // See BottomBar.tsx — Android needs this opted in for real blur.
+          intensity={GLASS_INTENSITY}
+          tint={glassTint(mode)}
+          // Android needs this opted in for real blur (see lib/glass.ts).
           blurMethod="dimezisBlurView"
-          style={[styles.panel, { backgroundColor: tokens.glass, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
+          style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
         >
           <View style={styles.brandRow}>
             {Platform.OS === 'ios'

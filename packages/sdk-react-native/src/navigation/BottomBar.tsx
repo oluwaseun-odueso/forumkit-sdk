@@ -3,15 +3,16 @@ import { Platform, View, Text, Pressable, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { GlossyPill } from '../components/Pill';
+import { glassTint, glassFill, GLASS_INTENSITY } from '../lib/glass';
 import { HomeIcon, BellIcon } from '../components/icons';
 
+const IS_IOS = Platform.OS === 'ios';
+
 // Floating pill bottom bar per README §7 — Home / Create FAB / Notifications
-// bell / profile avatar, exactly four items. Glassy per user feedback: a real
-// blur (not just a translucent fill) with no border/shadow. The bottom offset
-// adds the device's own safe-area inset (the 3-button/gesture nav bar on
-// Android, home indicator on iOS) on top of the visual margin, so hardware
-// nav controls never sit over the bar.
+// bell / profile avatar, exactly four items. Real frosted-glass blur, no
+// border/shadow. The bottom offset adds the device's own safe-area inset (the
+// 3-button/gesture nav bar on Android, home indicator on iOS) on top of the
+// visual margin, so hardware nav controls never sit over the bar.
 // avatarUrl intentionally not wired yet — this step ships a placeholder
 // gradient circle only (real avatar image comes with the actual Profile
 // screen content in a later step).
@@ -28,22 +29,20 @@ export default function BottomBar({
 }) {
   const { tokens, mode } = useTheme();
   const safeBottom = useSafeAreaInsets().bottom;
-  const insets = Platform.OS === 'ios'
+  const insets = IS_IOS
     ? { left: 24, right: 24, bottom: safeBottom + 8 }
     : { left: 20, right: 20, bottom: safeBottom + 10 };
 
   return (
     <BlurView
-      intensity={80}
-      tint={mode === 'dark' ? 'dark' : 'light'}
-      // expo-blur's Android blur defaults to 'none' (no actual blur, just a
-      // flat translucent fill) unless opted into — without this, the bar had
-      // no real glass distortion on Android, just a faint tint that read as
-      // "blends into the background".
+      intensity={GLASS_INTENSITY}
+      tint={glassTint(mode)}
+      // Android's blur is off ('none') by default — opt in for real blur.
       blurMethod="dimezisBlurView"
       style={[
         styles.bar,
-        { left: insets.left, right: insets.right, bottom: insets.bottom, backgroundColor: tokens.glass },
+        { left: insets.left, right: insets.right, bottom: insets.bottom },
+        glassFill(tokens.glass),
       ]}
     >
       <TabItem active={homeActive} onPress={onHome} label="Home" renderIcon={color => <HomeIcon size={20} color={color} />} />
@@ -56,11 +55,11 @@ export default function BottomBar({
   );
 }
 
-// One tab's icon+label — inactive is a plain (no fill) column, active wraps
-// the same content in GlossyPill (dark/translucent/glossy fill, well-rounded
-// per feedback) so the active tab reads clearly against the bar's own light
-// glass tint. `renderIcon` takes the resolved color so the same icon can be
-// muted (inactive) or accent-colored (active) without the caller branching.
+// One tab's icon+label. The active tab gets a subtle, fully-rounded frosted
+// highlight (the theme-aware hover-2 token: a faint light overlay on dark, a
+// faint dark overlay on light) matching the reference's active-pill look —
+// deliberately subtle, not a heavy solid fill. `renderIcon` takes the resolved
+// color so the same icon is muted when inactive, accent when active.
 function TabItem({ active, renderIcon, label, onPress }: {
   active: boolean;
   renderIcon: (color: string) => ReactNode;
@@ -69,18 +68,11 @@ function TabItem({ active, renderIcon, label, onPress }: {
 }) {
   const { tokens } = useTheme();
   const color = active ? tokens.accent : tokens['text-2'];
-  const content = (
-    <>
-      {renderIcon(color)}
-      <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
-    </>
-  );
 
   return (
-    <Pressable onPress={onPress} style={styles.item}>
-      {active
-        ? <GlossyPill contentStyle={styles.itemInner}>{content}</GlossyPill>
-        : <View style={styles.itemInner}>{content}</View>}
+    <Pressable onPress={onPress} style={[styles.item, active && { backgroundColor: tokens['hover-2'] }]}>
+      {renderIcon(color)}
+      <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
@@ -108,19 +100,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
+  // Icon + label stacked; the active tab fills this with a fully-rounded
+  // frosted pill (borderRadius 999 = well-rounded per feedback).
   item: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Icon + label stacked; used both as the inactive (unfilled) layout and as
-  // GlossyPill's inner content when active.
-  itemInner: {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
     paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
+    borderRadius: 999,
   },
   label: {
     fontSize: 10,
