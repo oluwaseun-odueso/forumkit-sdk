@@ -63,7 +63,7 @@ export default function BottomBar({
             transparent, less blurry. colorScheme="light" alone did NOT force
             a light render on-device — the explicit white tintColor is what
             actually did. */}
-        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="clear" colorScheme="light" tintColor="#d5d2d2" />
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="clear" colorScheme="light" tintColor="#d5d2d27d" />
         {items}
       </GlassContainer>
     );
@@ -145,6 +145,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     height: 66,
     borderRadius: 33,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
