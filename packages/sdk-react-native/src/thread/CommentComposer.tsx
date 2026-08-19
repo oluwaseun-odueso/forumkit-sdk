@@ -31,7 +31,10 @@ export default function CommentComposer({
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      await onSubmit(body.trim(), attachments.map(a => a.attachmentId));
+      // Backend requires a non-empty body always — an image-only comment
+      // (no typed text) would otherwise send '' and 400. See the identical
+      // fix/comment in navigation/ComposerOverlay.tsx.
+      await onSubmit(body.trim() || ' ', attachments.map(a => a.attachmentId));
       setBody('');
       setAttachments([]);
     } finally {

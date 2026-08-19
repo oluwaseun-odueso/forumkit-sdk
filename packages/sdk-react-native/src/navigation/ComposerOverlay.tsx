@@ -94,7 +94,14 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
     if (!token || !canPost) return;
     setSubmitting(true);
     setError(null);
-    const postBody = tab === 'link' ? (body.trim() ? `${body.trim()}\n${linkUrl.trim()}` : linkUrl.trim()) : body;
+    const rawBody = tab === 'link' ? (body.trim() ? `${body.trim()}\n${linkUrl.trim()}` : linkUrl.trim()) : body;
+    // The backend requires a non-empty body always (title + media alone
+    // aren't enough) — web never hits this because its rich-text editor
+    // serializes an "empty" doc as non-empty markup (e.g. `<p></p>`), but
+    // mobile's plain TextInput is a genuinely empty string when nothing's
+    // typed. Posting straight from the Images & Video tab without ever
+    // touching the Text tab was hitting the 400 this avoids.
+    const postBody = rawBody.trim().length > 0 ? rawBody : ' ';
     try {
       await createThread(apiUrl, forumId, {
         title: title.trim(),
