@@ -59,8 +59,11 @@ export default function BottomBar({
         {/* 'regular', not 'clear' — 'clear' is Apple's floating-over-media
             style (more vivid/reflective, sharper shine); 'regular' is what
             Apple actually recommends for persistent toolbar/tab-bar chrome,
-            calmer and less blurred-looking. */}
-        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" colorScheme={mode} />
+            calmer and less blurred-looking. colorScheme is hardcoded 'light'
+            (not the app's own dark/light theme) — the reference screenshots
+            show a light glass pill even over dark content, so this is tied
+            to the reference look, not our app's independent theme toggle. */}
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" colorScheme="light" />
         {items}
       </GlassContainer>
     );
@@ -79,19 +82,22 @@ export default function BottomBar({
   );
 }
 
-// One tab's icon+label. On iOS 26+, the active tab is its own small,
-// accent-tinted GlassView (isInteractive, merges with the bar's background
-// glass via the shared GlassContainer above) — the real "selected glass
-// capsule" look iOS tab bars use. Elsewhere, the active tab gets the
-// subtler theme-aware hover-2 fill instead. `renderIcon` takes the resolved
-// color so the same icon is muted when inactive, accent when active.
+// One tab's icon+label. On iOS 26+, the active tab is its own small, plain
+// (no color tint) GlassView — isInteractive, merges with the bar's
+// background glass via the shared GlassContainer above, giving it the real
+// "selected glass capsule" look iOS tab bars use. No tintColor: the
+// reference is a neutral light highlight, not a colored pill. Elsewhere, the
+// active tab gets the subtler theme-aware hover-2 fill instead. `renderIcon`
+// takes the resolved color so the same icon is muted when inactive, accent
+// when active — that accent color lives on the icon/label text, not the
+// pill's own background.
 function TabItem({ active, renderIcon, label, onPress }: {
   active: boolean;
   renderIcon: (color: string) => ReactNode;
   label: string;
   onPress: () => void;
 }) {
-  const { tokens, mode } = useTheme();
+  const { tokens } = useTheme();
   const color = active ? tokens.accent : tokens['text-2'];
   const content = (
     <>
@@ -103,7 +109,7 @@ function TabItem({ active, renderIcon, label, onPress }: {
   if (active && LIQUID_GLASS_AVAILABLE) {
     return (
       <Pressable onPress={onPress}>
-        <GlassView style={styles.item} glassEffectStyle="regular" colorScheme={mode} tintColor={tokens.accent} isInteractive>
+        <GlassView style={styles.item} glassEffectStyle="regular" colorScheme="light" isInteractive>
           {content}
         </GlassView>
       </Pressable>

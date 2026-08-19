@@ -70,7 +70,8 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
               style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
               // 'regular', not 'clear' — see BottomBar.tsx for why.
               glassEffectStyle="regular"
-              colorScheme={mode}
+              // Hardcoded 'light', not the app's own theme — see BottomBar.tsx.
+              colorScheme="light"
             >
               {panelContent}
             </GlassView>
