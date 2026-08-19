@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import {
   getMyProfile, getProfileActivity, updateMyProfile, profileEmptyCopy, PROFILE_TABS,
@@ -19,7 +19,7 @@ import Mascot from '../components/Mascot';
 import PostRow from '../feed/PostRow';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
-import { EyeIcon, CameraIcon } from '../components/icons';
+import { EyeIcon, CameraIcon, PencilIcon } from '../components/icons';
 import SocialLinks from '../profile/SocialLinks';
 import ProfileCommentCard from '../profile/ProfileCommentCard';
 import EditProfileSheet from '../profile/EditProfileSheet';
@@ -45,6 +45,7 @@ function ProfileBody() {
   const [editOpen, setEditOpen] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
   const [shareId, setShareId] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState<'avatar' | 'banner' | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -96,14 +97,24 @@ function ProfileBody() {
   }
 
   async function editImage(kind: 'avatar' | 'banner') {
-    if (!token || !profile) return;
-    const uploaded = await pickAndUploadImage(apiUrl, forumId, kind, token, kind === 'avatar' ? [1, 1] : [3, 1]);
-    if (!uploaded) return;
-    const field = kind === 'avatar' ? { avatarUrl: uploaded.downloadUrl } : { bannerUrl: uploaded.downloadUrl };
-    const updated = await updateMyProfile(apiUrl, forumId, {
-      displayName: profile.displayName, bio: profile.bio, socialLinks: profile.socialLinks, ...field,
-    }, token);
-    setProfile(p => (p ? { ...p, ...updated } : p));
+    if (!token || !profile || imageUploading) return;
+    setImageUploading(kind);
+    try {
+      const uploaded = await pickAndUploadImage(apiUrl, forumId, kind, token, kind === 'avatar' ? [1, 1] : [3, 1]);
+      if (!uploaded) return;
+      const field = kind === 'avatar' ? { avatarUrl: uploaded.downloadUrl } : { bannerUrl: uploaded.downloadUrl };
+      const updated = await updateMyProfile(apiUrl, forumId, {
+        displayName: profile.displayName, bio: profile.bio, socialLinks: profile.socialLinks, ...field,
+      }, token);
+      setProfile(p => (p ? { ...p, ...updated } : p));
+    } catch (e) {
+      // Previously had no error handling at all — any failure (upload,
+      // network, validation) just silently did nothing, indistinguishable
+      // from "avatar/banner update doesn't work".
+      Alert.alert('Update failed', e instanceof Error ? e.message : `Couldn't update your ${kind}. Please try again.`);
+    } finally {
+      setImageUploading(null);
+    }
   }
 
   if (loading) return <View style={styles.center}><Mascot size={36} /></View>;
@@ -116,31 +127,51 @@ function ProfileBody() {
       {/* Banner + avatar */}
       <View style={[styles.banner, { backgroundColor: tokens['surface-2'] }]}>
         {profile?.bannerUrl != null && <Image source={{ uri: profile.bannerUrl }} style={StyleSheet.absoluteFill} />}
-        <Pressable onPress={() => void editImage('banner')} style={[styles.bannerCam, { backgroundColor: tokens.elev }]}>
-          <CameraIcon size={14} color={tokens['text-2']} />
+        <Pressable onPress={() => void editImage('banner')} disabled={imageUploading != null} style={[styles.bannerCam, { backgroundColor: tokens.elev }]}>
+          {imageUploading === 'banner'
+            ? <ActivityIndicator size="small" color={tokens['text-2']} />
+            : <CameraIcon size={14} color={tokens['text-2']} />}
         </Pressable>
         <View style={styles.avatarWrap}>
           <View style={[styles.avatarRing, { borderColor: tokens.bg }]}>
             <Avatar authorId={profile?.id} author={name} avatarUrl={profile?.avatarUrl} size={72} />
           </View>
-          <Pressable onPress={() => void editImage('avatar')} style={[styles.avatarCam, { backgroundColor: tokens.accent }]}>
-            <CameraIcon size={12} color={tokens['accent-fg']} />
+          <Pressable onPress={() => void editImage('avatar')} disabled={imageUploading != null} style={[styles.avatarCam, { backgroundColor: tokens.accent }]}>
+            {imageUploading === 'avatar'
+              ? <ActivityIndicator size="small" color={tokens['accent-fg']} />
+              : <CameraIcon size={12} color={tokens['accent-fg']} />}
           </Pressable>
         </View>
       </View>
 
       <View style={{ paddingHorizontal: 16 }}>
-        <Text style={[styles.name, { color: tokens.text }]}>{name}</Text>
-        <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
+        <View style={styles.nameRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.name, { color: tokens.text }]}>{name}</Text>
+            <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
+          </View>
+          <Pressable onPress={() => setEditOpen(true)} hitSlop={8} style={[styles.editIconBtn, { borderColor: tokens['border-strong'] }]}>
+            <PencilIcon size={15} color={tokens.text} />
+          </Pressable>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View>
+            <Text style={[styles.statValue, { color: tokens.text }]}>{(profile?.postKarma ?? 0).toLocaleString()}</Text>
+            <Text style={[styles.statLabel, { color: tokens.muted }]}>Post Karma</Text>
+          </View>
+          <View>
+            <Text style={[styles.statValue, { color: tokens.text }]}>{(profile?.commentKarma ?? 0).toLocaleString()}</Text>
+            <Text style={[styles.statLabel, { color: tokens.muted }]}>Comment Karma</Text>
+          </View>
+        </View>
+
         {profile?.bio != null && profile.bio.trim().length > 0 && (
           <Text style={[styles.bio, { color: tokens['text-2'] }]}>{profile.bio}</Text>
         )}
         {profile && <SocialLinks links={profile.socialLinks} />}
 
         <View style={styles.headerBtns}>
-          <Pressable onPress={() => setEditOpen(true)} style={[styles.outlineBtn, { borderColor: tokens['border-strong'] }]}>
-            <Text style={{ color: tokens.text, fontSize: 13, fontWeight: '600' }}>Edit Profile</Text>
-          </Pressable>
           <Pressable onPress={openComposer} style={[styles.outlineBtn, { borderColor: tokens['border-strong'] }]}>
             <Text style={{ color: tokens.text, fontSize: 13, fontWeight: '600' }}>Create Post</Text>
           </Pressable>
@@ -218,14 +249,19 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingTop: 12, paddingBottom: 110 },
-  banner: { height: 120, marginTop: 12, marginBottom: 44, position: 'relative' },
+  content: { paddingBottom: 110 },
+  banner: { height: 120, marginBottom: 44, position: 'relative' },
   bannerCam: { position: 'absolute', top: 10, right: 12, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   avatarWrap: { position: 'absolute', left: 16, bottom: -36 },
   avatarRing: { borderRadius: 40, borderWidth: 3 },
   avatarCam: { position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'flex-start' },
   name: { fontSize: 20, fontWeight: '800' },
   handle: { fontSize: 13, marginTop: 2 },
+  editIconBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  statsRow: { flexDirection: 'row', gap: 24, marginTop: 12 },
+  statValue: { fontSize: 16, fontWeight: '800' },
+  statLabel: { fontSize: 12, marginTop: 1 },
   bio: { fontSize: 13.5, lineHeight: 20, marginTop: 8 },
   headerBtns: { flexDirection: 'row', gap: 10, marginTop: 14 },
   outlineBtn: { borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
