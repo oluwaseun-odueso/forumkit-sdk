@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import {
   getMyProfile, getProfileActivity, updateMyProfile, profileEmptyCopy, PROFILE_TABS,
@@ -106,7 +106,7 @@ function ProfileBody() {
     setProfile(p => (p ? { ...p, ...updated } : p));
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={tokens.accent} /></View>;
+  if (loading) return <View style={styles.center}><Mascot size={36} /></View>;
 
   const name = profile?.displayName ?? 'You';
   const copy = profileEmptyCopy(activeTab);
@@ -159,7 +159,7 @@ function ProfileBody() {
       <View style={[styles.divider, { backgroundColor: tokens.border }]} />
 
       {activityLoading ? (
-        <ActivityIndicator color={tokens.accent} style={{ marginTop: 30 }} />
+        <View style={{ alignItems: 'center', paddingVertical: 30 }}><Mascot size={36} /></View>
       ) : activity.length === 0 ? (
         <View style={styles.empty}>
           <Mascot size={88} animated={false} badge={false} />

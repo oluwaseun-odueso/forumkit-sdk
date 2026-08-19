@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { Platform, View, Text, Image, Pressable, FlatList, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { Platform, View, Text, Image, Pressable, FlatList, Alert, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import {
@@ -12,6 +12,7 @@ import {
   ChevronLeftIcon, MaterialBackIcon, GearIcon, CommentIcon, ShareIcon, ReportIcon, UpvoteIcon, DownvoteIcon, type IconProps,
 } from '../components/icons';
 import Avatar from '../components/Avatar';
+import Mascot from '../components/Mascot';
 import NotificationSettingsSheet from '../notifications/NotificationSettingsSheet';
 import type { RootStackParamList } from './RootNavigator';
 
@@ -102,7 +103,7 @@ export default function NotificationsOverlay({ onClose }: { onClose: () => void 
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={tokens.accent} /></View>
+        <View style={styles.center}><Mascot size={32} /></View>
       ) : error ? (
         <View style={styles.center}><Text style={{ color: tokens['text-2'] }}>{error}</Text></View>
       ) : items.length === 0 ? (

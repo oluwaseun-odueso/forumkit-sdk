@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import { searchThreads, fmtRelativeTime } from '@forumkit/shared';
 import type { SearchResult } from '@forumkit/types';
@@ -8,6 +8,7 @@ import { useTheme } from '../theme/ThemeContext';
 import Shell from '../navigation/Shell';
 import BackRow from '../components/BackRow';
 import Avatar from '../components/Avatar';
+import Mascot from '../components/Mascot';
 import Thumbnail from '../components/Thumbnail';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -43,7 +44,7 @@ export default function SearchScreen() {
         <Text style={[styles.heading, { color: tokens.text }]}>Results for “{query}”</Text>
 
         {loading ? (
-          <ActivityIndicator color={tokens.accent} style={{ marginTop: 40 }} />
+          <View style={{ alignItems: 'center', marginTop: 40 }}><Mascot size={32} /></View>
         ) : results.length === 0 ? (
           <Text style={{ color: tokens['text-2'], marginTop: 20 }}>No results</Text>
         ) : (

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TextInput, Pressable, StyleSheet } from 'react-native';
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import {
   getThread, createReply, updateReply, deleteComment, acceptAnswer, unacceptAnswer,
@@ -14,6 +14,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
 import Shell from '../navigation/Shell';
 import Avatar from '../components/Avatar';
+import Mascot from '../components/Mascot';
 import Thumbnail from '../components/Thumbnail';
 import VotePill from '../components/VotePill';
 import CommentPill from '../components/CommentPill';
@@ -185,7 +186,7 @@ export default function ThreadScreen() {
   return (
     <Shell>
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={tokens.accent} /></View>
+        <View style={styles.center}><Mascot size={36} /></View>
       ) : error && !thread ? (
         <View style={styles.center}><Text style={{ color: tokens['text-2'] }}>{error}</Text></View>
       ) : thread ? (

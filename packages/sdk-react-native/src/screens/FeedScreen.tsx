@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import {
   listThreads, saveThread, unsaveThread, voteOnThread, removeVoteFromThread, reportThread,
@@ -13,6 +13,7 @@ import Shell from '../navigation/Shell';
 import PostRow from '../feed/PostRow';
 import { SelectPill } from '../components/SelectPill';
 import { RocketIcon, FlameIcon, FreshIcon, TopIcon, RisingIcon } from '../components/icons';
+import Mascot from '../components/Mascot';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -127,7 +128,7 @@ export default function FeedScreen() {
   return (
     <Shell>
       {loading && rows.length === 0 ? (
-        <View style={styles.center}><ActivityIndicator color={tokens.accent} /></View>
+        <View style={styles.center}><Mascot size={36} /></View>
       ) : error ? (
         <View style={styles.center}>
           <Text style={{ color: tokens['text-2'], fontSize: 14 }}>{error}</Text>

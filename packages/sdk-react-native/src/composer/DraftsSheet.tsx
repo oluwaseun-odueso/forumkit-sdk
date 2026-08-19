@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 import { listDrafts, deleteDraft, fmtRelativeTime } from '@forumkit/shared';
 import type { Draft } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { CloseIcon } from '../components/icons';
+import Mascot from '../components/Mascot';
 
 // Drafts list (bottom sheet) — mirrors sdk-web's drafts-list-modal. Opened from
 // the composer's "Drafts" link: tap a draft to load it into the composer, or
@@ -43,7 +44,7 @@ export default function DraftsSheet({ apiUrl, forumId, token, onClose, onOpen }:
           <Text style={[styles.note, { color: tokens.muted }]}>Media isn’t saved in drafts.</Text>
 
           {loading ? (
-            <ActivityIndicator color={tokens.accent} style={{ padding: 16 }} />
+            <View style={{ alignItems: 'center', padding: 16 }}><Mascot size={36} /></View>
           ) : drafts.length === 0 ? (
             <Text style={{ color: tokens['text-2'], padding: 12 }}>No drafts yet</Text>
           ) : (
