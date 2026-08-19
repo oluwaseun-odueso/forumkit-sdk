@@ -1,8 +1,9 @@
 import { Modal, View, Pressable, Text, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { glassTint, glassFill, GLASS_INTENSITY } from '../lib/glass';
+import { glassTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 import Mascot from '../components/Mascot';
 import { HomeIcon, PopularIcon, NewsIcon } from '../components/icons';
 
@@ -14,8 +15,8 @@ export type DrawerRoute = 'home' | 'popular' | 'news';
 
 // Hamburger drawer per README §5 — scrim + 250px panel, brand row (mascot +
 // Michroma wordmark), Home/Popular/News. No divider, no Create Post row.
-// Glassy per user feedback (matches the bottom bar): a real blur instead of
-// an opaque fill, no border.
+// Real Apple Liquid Glass on iOS 26+ (matching the bottom bar), a frosted
+// blur fallback everywhere else — see lib/glass.ts.
 export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,36 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
   const { tokens, mode } = useTheme();
   const insets = useSafeAreaInsets();
 
+  const panelContent = (
+    <>
+      <View style={styles.brandRow}>
+        {Platform.OS === 'ios'
+          ? <View style={{ flexShrink: 0, flexGrow: 0, overflow: 'visible' }}><Mascot size={24} /></View>
+          : <Mascot size={24} />}
+        <Text style={[styles.wordmark, { color: tokens.text }]}>FORUM KIT</Text>
+      </View>
+
+      <DrawerRow
+        label="Home"
+        active={activeRoute === 'home'}
+        icon={<HomeIcon size={20} color={activeRoute === 'home' ? tokens.text : tokens['text-2']} />}
+        onPress={() => onSelectRoute('home')}
+      />
+      <DrawerRow
+        label="Popular"
+        active={activeRoute === 'popular'}
+        icon={<PopularIcon size={20} color={tokens['text-2']} />}
+        onPress={() => onSelectRoute('popular')}
+      />
+      <DrawerRow
+        label="News"
+        active={activeRoute === 'news'}
+        icon={<NewsIcon size={20} color={tokens['text-2']} />}
+        onPress={() => onSelectRoute('news')}
+      />
+    </>
+  );
+
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose}>
@@ -34,39 +65,25 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
             not forwarding the press to the scrim's Pressable, achieved by
             this inner Pressable swallowing the event. */}
         <Pressable onPress={() => {}}>
-        <BlurView
-          intensity={GLASS_INTENSITY}
-          tint={glassTint(mode)}
-          // Android needs this opted in for real blur (see lib/glass.ts).
-          blurMethod="dimezisBlurView"
-          style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-        >
-          <View style={styles.brandRow}>
-            {Platform.OS === 'ios'
-              ? <View style={{ flexShrink: 0, flexGrow: 0, overflow: 'visible' }}><Mascot size={24} /></View>
-              : <Mascot size={24} />}
-            <Text style={[styles.wordmark, { color: tokens.text }]}>FORUM KIT</Text>
-          </View>
-
-          <DrawerRow
-            label="Home"
-            active={activeRoute === 'home'}
-            icon={<HomeIcon size={20} color={activeRoute === 'home' ? tokens.text : tokens['text-2']} />}
-            onPress={() => onSelectRoute('home')}
-          />
-          <DrawerRow
-            label="Popular"
-            active={activeRoute === 'popular'}
-            icon={<PopularIcon size={20} color={tokens['text-2']} />}
-            onPress={() => onSelectRoute('popular')}
-          />
-          <DrawerRow
-            label="News"
-            active={activeRoute === 'news'}
-            icon={<NewsIcon size={20} color={tokens['text-2']} />}
-            onPress={() => onSelectRoute('news')}
-          />
-        </BlurView>
+          {LIQUID_GLASS_AVAILABLE ? (
+            <GlassView
+              style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
+              glassEffectStyle="clear"
+              colorScheme={mode}
+            >
+              {panelContent}
+            </GlassView>
+          ) : (
+            <BlurView
+              intensity={GLASS_INTENSITY}
+              tint={glassTint(mode)}
+              // Android needs this opted in for real blur (see lib/glass.ts).
+              blurMethod="dimezisBlurView"
+              style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
+            >
+              {panelContent}
+            </BlurView>
+          )}
         </Pressable>
       </Pressable>
     </Modal>

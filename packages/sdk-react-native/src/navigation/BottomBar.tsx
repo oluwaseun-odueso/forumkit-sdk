@@ -1,18 +1,22 @@
 import type { ReactNode } from 'react';
 import { Platform, View, Text, Pressable, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { GlassView, GlassContainer } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { glassTint, glassFill, GLASS_INTENSITY } from '../lib/glass';
+import { glassTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 import { HomeIcon, BellIcon } from '../components/icons';
 
 const IS_IOS = Platform.OS === 'ios';
 
 // Floating pill bottom bar per README §7 — Home / Create FAB / Notifications
-// bell / profile avatar, exactly four items. Real frosted-glass blur, no
-// border/shadow. The bottom offset adds the device's own safe-area inset (the
-// 3-button/gesture nav bar on Android, home indicator on iOS) on top of the
-// visual margin, so hardware nav controls never sit over the bar.
+// bell / profile avatar, exactly four items. On iOS 26+ this is real Apple
+// Liquid Glass (GlassContainer/GlassView from expo-glass-effect) — the actual
+// native glass material with specular highlights, not an approximation.
+// Everywhere else it falls back to expo-blur's frosted system material. The
+// bottom offset adds the device's own safe-area inset (the 3-button/gesture
+// nav bar on Android, home indicator on iOS) on top of the visual margin, so
+// hardware nav controls never sit over the bar.
 // avatarUrl intentionally not wired yet — this step ships a placeholder
 // gradient circle only (real avatar image comes with the actual Profile
 // screen content in a later step).
@@ -32,6 +36,31 @@ export default function BottomBar({
   const insets = IS_IOS
     ? { left: 24, right: 24, bottom: safeBottom + 8 }
     : { left: 20, right: 20, bottom: safeBottom + 10 };
+  const position = { left: insets.left, right: insets.right, bottom: insets.bottom };
+
+  const items = (
+    <>
+      <TabItem active={homeActive} onPress={onHome} label="Home" renderIcon={color => <HomeIcon size={20} color={color} />} />
+      <Pressable onPress={onCreate} style={[styles.fab, { backgroundColor: tokens.accent }]}>
+        <PlusIconGlyph />
+      </Pressable>
+      <TabItem active={notificationsActive} onPress={onNotifications} label="Inbox" renderIcon={color => <BellIcon size={19} color={color} />} />
+      <TabItem active={profileActive} onPress={onProfile} label="Profile" renderIcon={() => <View style={styles.avatar} />} />
+    </>
+  );
+
+  if (LIQUID_GLASS_AVAILABLE) {
+    return (
+      // spacing lets the active tab's own nested GlassView (below, in
+      // TabItem) visually merge with this background glass — the "liquid"
+      // part of Liquid Glass — rather than sitting as two flat unrelated
+      // layers.
+      <GlassContainer spacing={14} style={[styles.bar, position]}>
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="clear" colorScheme={mode} />
+        {items}
+      </GlassContainer>
+    );
+  }
 
   return (
     <BlurView
@@ -39,26 +68,18 @@ export default function BottomBar({
       tint={glassTint(mode)}
       // Android's blur is off ('none') by default — opt in for real blur.
       blurMethod="dimezisBlurView"
-      style={[
-        styles.bar,
-        { left: insets.left, right: insets.right, bottom: insets.bottom },
-        glassFill(tokens.glass),
-      ]}
+      style={[styles.bar, position, glassFill(tokens.glass)]}
     >
-      <TabItem active={homeActive} onPress={onHome} label="Home" renderIcon={color => <HomeIcon size={20} color={color} />} />
-      <Pressable onPress={onCreate} style={[styles.fab, { backgroundColor: tokens.accent }]}>
-        <PlusIconGlyph />
-      </Pressable>
-      <TabItem active={notificationsActive} onPress={onNotifications} label="Inbox" renderIcon={color => <BellIcon size={19} color={color} />} />
-      <TabItem active={profileActive} onPress={onProfile} label="Profile" renderIcon={() => <View style={styles.avatar} />} />
+      {items}
     </BlurView>
   );
 }
 
-// One tab's icon+label. The active tab gets a subtle, fully-rounded frosted
-// highlight (the theme-aware hover-2 token: a faint light overlay on dark, a
-// faint dark overlay on light) matching the reference's active-pill look —
-// deliberately subtle, not a heavy solid fill. `renderIcon` takes the resolved
+// One tab's icon+label. On iOS 26+, the active tab is its own small,
+// accent-tinted GlassView (isInteractive, merges with the bar's background
+// glass via the shared GlassContainer above) — the real "selected glass
+// capsule" look iOS tab bars use. Elsewhere, the active tab gets the
+// subtler theme-aware hover-2 fill instead. `renderIcon` takes the resolved
 // color so the same icon is muted when inactive, accent when active.
 function TabItem({ active, renderIcon, label, onPress }: {
   active: boolean;
@@ -66,13 +87,28 @@ function TabItem({ active, renderIcon, label, onPress }: {
   label: string;
   onPress: () => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
   const color = active ? tokens.accent : tokens['text-2'];
+  const content = (
+    <>
+      {renderIcon(color)}
+      <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
+    </>
+  );
+
+  if (active && LIQUID_GLASS_AVAILABLE) {
+    return (
+      <Pressable onPress={onPress}>
+        <GlassView style={styles.item} glassEffectStyle="regular" colorScheme={mode} tintColor={tokens.accent} isInteractive>
+          {content}
+        </GlassView>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable onPress={onPress} style={[styles.item, active && { backgroundColor: tokens['hover-2'] }]}>
-      {renderIcon(color)}
-      <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
+      {content}
     </Pressable>
   );
 }
@@ -101,7 +137,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   // Icon + label stacked; the active tab fills this with a fully-rounded
-  // frosted pill (borderRadius 999 = well-rounded per feedback).
+  // pill (borderRadius 999 = well-rounded per feedback).
   item: {
     flexDirection: 'column',
     alignItems: 'center',
