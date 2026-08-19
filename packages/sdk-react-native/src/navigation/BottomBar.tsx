@@ -56,7 +56,11 @@ export default function BottomBar({
       // part of Liquid Glass — rather than sitting as two flat unrelated
       // layers.
       <GlassContainer spacing={14} style={[styles.bar, position]}>
-        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="clear" colorScheme={mode} />
+        {/* 'regular', not 'clear' — 'clear' is Apple's floating-over-media
+            style (more vivid/reflective, sharper shine); 'regular' is what
+            Apple actually recommends for persistent toolbar/tab-bar chrome,
+            calmer and less blurred-looking. */}
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" colorScheme={mode} />
         {items}
       </GlassContainer>
     );
@@ -126,26 +130,31 @@ function PlusIconGlyph() {
 }
 
 const styles = StyleSheet.create({
+  // height + borderRadius are both explicit (not the usual borderRadius:999
+  // shorthand) because GlassView's native corner API doesn't clamp an
+  // oversized radius to half the shape's size the way CSS/plain RN Views do
+  // — 999 on a real GlassView overshot the ~64px-tall bar and rendered as a
+  // pinched/concave corner instead of a clean capsule. radius = height/2.
   bar: {
     position: 'absolute',
-    borderRadius: 999,
+    height: 66,
+    borderRadius: 33,
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 14,
-    paddingVertical: 8,
   },
   // Icon + label stacked; the active tab fills this with a fully-rounded
-  // pill (borderRadius 999 = well-rounded per feedback).
+  // pill. Same explicit-radius reasoning as `bar` above.
   item: {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    paddingVertical: 6,
+    height: 50,
     paddingHorizontal: 14,
-    borderRadius: 999,
+    borderRadius: 25,
   },
   label: {
     fontSize: 10,

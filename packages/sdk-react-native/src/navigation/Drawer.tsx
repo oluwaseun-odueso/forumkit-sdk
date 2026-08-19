@@ -68,7 +68,8 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
           {LIQUID_GLASS_AVAILABLE ? (
             <GlassView
               style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-              glassEffectStyle="clear"
+              // 'regular', not 'clear' — see BottomBar.tsx for why.
+              glassEffectStyle="regular"
               colorScheme={mode}
             >
               {panelContent}
