@@ -72,12 +72,12 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
             <Pressable onPress={onClose} hitSlop={8}><CloseIcon size={18} color={tokens.text} /></Pressable>
           </View>
 
-          <ScrollView style={{ maxHeight: 440 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
             <Text style={[styles.label, { color: tokens['text-2'] }]}>Display name</Text>
-            <TextInput value={name} onChangeText={setName} style={[styles.input, { color: tokens.text, backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]} />
+            <TextInput value={name} onChangeText={setName} style={[styles.input, { color: tokens.text, borderColor: tokens['border-strong'] }]} />
 
             <Text style={[styles.label, { color: tokens['text-2'] }]}>Bio</Text>
-            <TextInput value={bio} onChangeText={setBio} multiline style={[styles.input, { color: tokens.text, backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'], minHeight: 70, textAlignVertical: 'top' }]} />
+            <TextInput value={bio} onChangeText={setBio} multiline style={[styles.input, { color: tokens.text, borderColor: tokens['border-strong'], minHeight: 70, textAlignVertical: 'top' }]} />
 
             <Text style={[styles.label, { color: tokens['text-2'] }]}>Links</Text>
             {links.map(link => {
@@ -93,7 +93,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
                       <PlatformIcon size={17} />
                       <ChevronDownIcon size={11} color={tokens.muted} />
                     </Pressable>
-                    <View style={[styles.linkUrlWrap, { backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}>
+                    <View style={[styles.linkUrlWrap, { borderColor: tokens['border-strong'] }]}>
                       {prefix.length > 0 && <Text style={{ color: tokens.muted, fontSize: 12.5 }}>{prefix}</Text>}
                       <TextInput
                         value={link.suffix}
@@ -167,5 +167,5 @@ const styles = StyleSheet.create({
   platformOption: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   addLink: { paddingVertical: 6 },
   themeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, marginTop: 8, borderTopWidth: 1 },
-  saveBtn: { borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginTop: 14 },
+  saveBtn: { borderRadius: 999, paddingVertical: 10, alignItems: 'center', marginTop: 14 },
 });
