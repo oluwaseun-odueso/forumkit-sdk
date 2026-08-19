@@ -22,12 +22,17 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }:
   // user action (the close button below), not the initial state.
   const [searchOpen, setSearchOpen] = useState(true);
   const [searchText, setSearchText] = useState('');
+  // autoFocus only when the user explicitly taps to open search (below) —
+  // NOT on the default-open initial mount, or the keyboard would pop open on
+  // every screen just from navigating to it.
+  const [focusOnOpen, setFocusOnOpen] = useState(false);
 
   function submitSearch() {
     const q = searchText.trim();
     if (q) onSearch?.(q);
     setSearchOpen(false);
     setSearchText('');
+    setFocusOnOpen(false);
   }
 
   return (
@@ -45,7 +50,7 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }:
             <Mascot size={24} />
           </Pressable>
           <View style={{ flex: 1 }} />
-          <Pressable onPress={() => { setSearchOpen(true); onOpenSearch?.(); }} style={styles.searchIconBtn}>
+          <Pressable onPress={() => { setSearchOpen(true); setFocusOnOpen(true); onOpenSearch?.(); }} style={styles.searchIconBtn}>
             <SearchIcon size={18} color={tokens['text-2']} />
           </Pressable>
         </>
@@ -69,12 +74,12 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }:
               onChangeText={setSearchText}
               onSubmitEditing={submitSearch}
               returnKeyType="search"
-              autoFocus
+              autoFocus={focusOnOpen}
               placeholder="Find anything"
               placeholderTextColor={tokens.faint}
               style={{ flex: 1, minWidth: 0, fontSize: 13, color: tokens.text, padding: 0 }}
             />
-            <Pressable onPress={() => { setSearchOpen(false); setSearchText(''); }}>
+            <Pressable onPress={() => { setSearchOpen(false); setSearchText(''); setFocusOnOpen(false); }}>
               <CloseIcon size={16} color={tokens.muted} />
             </Pressable>
           </View>
