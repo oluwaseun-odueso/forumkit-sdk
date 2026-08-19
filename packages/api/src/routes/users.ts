@@ -110,10 +110,10 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
     const [updated, postKarma, commentKarma] = await Promise.all([
       userRepo.updateProfile(request.server.db, user.id, {
         displayName: parsed.data.displayName,
-        bio: parsed.data.bio ?? null,
-        avatarUrl: parsed.data.avatarUrl ?? null,
-        bannerUrl: parsed.data.bannerUrl ?? null,
-        socialLinks: parsed.data.socialLinks ?? [],
+        bio: parsed.data.bio,
+        avatarUrl: parsed.data.avatarUrl,
+        bannerUrl: parsed.data.bannerUrl,
+        socialLinks: parsed.data.socialLinks,
       }),
       threadRepo.getThreadKarma(request.server.db, forumId, user.id),
       commentRepo.getCommentKarma(request.server.db, forumId, user.id),

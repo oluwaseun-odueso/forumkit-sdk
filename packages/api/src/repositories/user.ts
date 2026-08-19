@@ -53,20 +53,25 @@ export async function updateProfile(
   userId: string,
   fields: {
     displayName: string;
-    bio: string | null;
-    avatarUrl: string | null;
-    bannerUrl: string | null;
-    socialLinks: Array<{ platform: string; url: string }>;
+    // undefined means "not part of this update, leave the column as-is" —
+    // distinct from null, which explicitly clears it. A caller that only
+    // sends e.g. { displayName, bio } (mobile's edit-profile sheet, which
+    // doesn't touch avatar/banner) must not wipe avatarUrl/bannerUrl just
+    // because it didn't mention them.
+    bio?: string | null | undefined;
+    avatarUrl?: string | null | undefined;
+    bannerUrl?: string | null | undefined;
+    socialLinks?: Array<{ platform: string; url: string }> | undefined;
   },
 ): Promise<Omit<UserProfile, 'postKarma' | 'commentKarma'> | null> {
   const rows = await db<UserProfileRow[]>`
     UPDATE users
     SET
       display_name = ${fields.displayName},
-      bio          = ${fields.bio},
-      avatar_url   = ${fields.avatarUrl},
-      banner_url   = ${fields.bannerUrl},
-      social_links = ${JSON.stringify(fields.socialLinks)}::jsonb
+      bio          = ${fields.bio         !== undefined ? fields.bio         : db`bio`},
+      avatar_url   = ${fields.avatarUrl   !== undefined ? fields.avatarUrl   : db`avatar_url`},
+      banner_url   = ${fields.bannerUrl   !== undefined ? fields.bannerUrl   : db`banner_url`},
+      social_links = ${fields.socialLinks !== undefined ? JSON.stringify(fields.socialLinks) : db`social_links`}::jsonb
     WHERE id = ${userId}
     RETURNING id, display_name, bio, avatar_url, banner_url, social_links, created_at, theme_preference
   `;
