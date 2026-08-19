@@ -14,7 +14,7 @@ export default function Field({ value, onChangeText, placeholder, required, mult
 }) {
   const { tokens } = useTheme();
   return (
-    <View style={[styles.box, { backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}>
+    <View style={[styles.box, { borderColor: tokens['border-strong'] }]}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
