@@ -13,7 +13,6 @@ import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
 import { pickAndUploadImage } from '../lib/upload';
 import Shell, { useShell } from '../navigation/Shell';
-import BackRow from '../components/BackRow';
 import Avatar from '../components/Avatar';
 import TabPills from '../components/TabPills';
 import Mascot from '../components/Mascot';
@@ -114,8 +113,6 @@ function ProfileBody() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <View style={{ paddingHorizontal: 16 }}><BackRow onPress={() => navigation.goBack()} /></View>
-
       {/* Banner + avatar */}
       <View style={[styles.banner, { backgroundColor: tokens['surface-2'] }]}>
         {profile?.bannerUrl != null && <Image source={{ uri: profile.bannerUrl }} style={StyleSheet.absoluteFill} />}
