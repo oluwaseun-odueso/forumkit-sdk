@@ -6,7 +6,7 @@ import type { DraftContent } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import { pickAndUploadMedia, type UploadedMedia } from '../lib/upload';
-import { CloseIcon } from '../components/icons';
+import { CloseIcon, SparkleIcon } from '../components/icons';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
@@ -46,6 +46,11 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "Suggest title & tags" mirrors sdk-web's composer-modal.tsx button, but per
+  // the standing decision to keep AI UI-only (see thread/AiRow.tsx), it isn't
+  // wired to a backend — it just reveals the same placeholder note that pattern
+  // uses elsewhere.
+  const [showAiNote, setShowAiNote] = useState(false);
 
   const hasTitle = title.trim().length > 0;
   const canPost = hasTitle && !submitting && !uploading
@@ -146,6 +151,16 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
         <View style={{ marginTop: 14, gap: 12 }}>
           <Field value={title} onChangeText={setTitle} placeholder="Title" required />
 
+          <Pressable onPress={() => setShowAiNote(s => !s)} style={styles.suggestRow} hitSlop={6}>
+            <SparkleIcon size={14} />
+            <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: '600' }}>Suggest title & tags</Text>
+          </Pressable>
+          {showAiNote && (
+            <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>
+              Suggestions will appear here once the AI service is connected.
+            </Text>
+          )}
+
           <View style={[styles.tagsWrap, { borderColor: tokens['border-strong'] }]}>
             <TextInput
               value={tags}
@@ -197,7 +212,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
 
           <View style={styles.footer}>
             <Pressable onPress={handleSaveDraft} disabled={!canSaveDraft} style={[styles.btn, { backgroundColor: tokens['surface-2'], opacity: canSaveDraft ? 1 : 0.5 }]}>
-              <Text style={{ color: tokens['text-2'], fontSize: 13.5, fontWeight: '700' }}>{savingDraft ? 'Saving…' : 'Save Draft'}</Text>
+              <Text style={{ color: tokens['text-2'], fontSize: 13.5, fontWeight: '700' }}>{savingDraft ? 'Saving…' : 'Save as Draft'}</Text>
             </Pressable>
             <Pressable onPress={handlePost} disabled={!canPost} style={[styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? 1 : 0.5 }]}>
               <Text style={{ color: tokens['accent-fg'], fontSize: 13.5, fontWeight: '700' }}>{submitting ? 'Posting…' : uploading ? 'Uploading…' : 'Post'}</Text>
@@ -215,6 +230,7 @@ const styles = StyleSheet.create({
   heading: { fontSize: 16, fontWeight: '800' },
   body: { paddingHorizontal: 16, paddingBottom: 24 },
   draftNote: { fontSize: 12, marginBottom: 10 },
+  suggestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   tagsWrap: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   dropzone: { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, minHeight: 160, alignItems: 'center', justifyContent: 'center' },
   thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
