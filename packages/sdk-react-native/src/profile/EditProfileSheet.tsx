@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Modal, View, Text, TextInput, Pressable, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import {
   updateMyProfile, SOCIAL_PLATFORMS, socialToSuffix, socialToUrl, socialPlaceholder, socialPrefix,
   type SocialPlatform,
@@ -64,6 +64,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
 
   return (
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Pressable style={styles.scrim} onPress={onClose}>
         <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border }]} onPress={() => {}}>
           <View style={styles.header}>
@@ -147,6 +148,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
           </Pressable>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
