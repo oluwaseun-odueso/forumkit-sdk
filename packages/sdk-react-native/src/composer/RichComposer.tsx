@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { View, Text, TextInput, Pressable, Image, ScrollView, ActivityIndicator, StyleSheet, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
 import { searchGifs, GifSearchNotConfiguredError, deleteAttachment } from '@forumkit/shared';
 import type { GifResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
-import { pickAndUploadMedia, type UploadedMedia } from '../lib/upload';
+import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttachment } from '../lib/upload';
 import { LinkIcon, ListIcon, ImageIcon, CloseIcon } from '../components/icons';
+import ImageLightbox from '../components/ImageLightbox';
 
 // The mobile rich composer — the RN counterpart to sdk-web's comment-composer
 // (TipTap can't run in RN, so this is a TextInput + markdown-insertion toolbar).
@@ -21,8 +22,8 @@ export default function RichComposer({
   token: string | undefined;
   value: string;
   onChangeText: (v: string) => void;
-  attachments: UploadedMedia[];
-  onAttachmentsChange: (a: UploadedMedia[]) => void;
+  attachments: ComposerAttachment[];
+  onAttachmentsChange: Dispatch<SetStateAction<ComposerAttachment[]>>;
   placeholder?: string;
   minHeight?: number;
   // The post composer sets this false — image/video for posts lives in the
@@ -34,14 +35,15 @@ export default function RichComposer({
 }) {
   const { tokens } = useTheme();
   const selection = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
-  const [uploading, setUploading] = useState(false);
   const [gifOpen, setGifOpen] = useState(false);
   const [gifQuery, setGifQuery] = useState('');
   const [gifResults, setGifResults] = useState<GifResult[]>([]);
   const [gifLoading, setGifLoading] = useState(false);
   const [gifNotConfigured, setGifNotConfigured] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
 
-  useEffect(() => { onUploadingChange?.(uploading); }, [uploading, onUploadingChange]);
+  const isUploading = attachments.some(a => a.status === 'uploading');
+  useEffect(() => { onUploadingChange?.(isUploading); }, [isUploading, onUploadingChange]);
 
   function onSelectionChange(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) {
     selection.current = e.nativeEvent.selection;
@@ -59,21 +61,24 @@ export default function RichComposer({
   }
 
   async function addMedia() {
-    if (!token || uploading) return;
-    setUploading(true);
-    try {
-      const uploaded = await pickAndUploadMedia(apiUrl, forumId, 'attachment', token, { videos: true, allowsMultipleSelection: true });
-      if (uploaded.length) onAttachmentsChange([...attachments, ...uploaded]);
-    } catch {
-      /* surfaced by the composer's own error line if needed */
-    } finally {
-      setUploading(false);
-    }
+    if (!token) return;
+    const assets = await pickMedia({ videos: true, allowsMultipleSelection: true });
+    if (assets.length === 0) return;
+    const placeholders = assets.map(makeLocalAttachment);
+    onAttachmentsChange(prev => [...prev, ...placeholders]);
+    uploadPickedAssets(apiUrl, forumId, 'attachment', token, assets, placeholders.map(p => p.localId), (localId, result) => {
+      onAttachmentsChange(prev => prev.map(a => (a.localId !== localId ? a : (
+        result.ok
+          ? { ...a, status: 'uploaded', attachmentId: result.media.attachmentId, downloadUrl: result.media.downloadUrl }
+          : { ...a, status: 'error' }
+      ))));
+    });
   }
 
-  function removeMedia(attachmentId: string) {
-    onAttachmentsChange(attachments.filter(a => a.attachmentId !== attachmentId));
-    if (token) void deleteAttachment(apiUrl, forumId, attachmentId, token).catch(() => { /* best effort */ });
+  function removeMedia(localId: string) {
+    const target = attachments.find(a => a.localId === localId);
+    onAttachmentsChange(prev => prev.filter(a => a.localId !== localId));
+    if (token && target?.attachmentId) void deleteAttachment(apiUrl, forumId, target.attachmentId, token).catch(() => { /* best effort */ });
   }
 
   useEffect(() => {
@@ -100,7 +105,7 @@ export default function RichComposer({
         <TBtn onPress={() => insert('\n> ')}><Glyph color={tokens['text-2']}>❝</Glyph></TBtn>
         <TBtn onPress={() => wrap('`', '`')}><Glyph color={tokens['text-2']} mono>{'</>'}</Glyph></TBtn>
         {allowMedia && (
-          <TBtn onPress={addMedia}>{uploading ? <ActivityIndicator size="small" color={tokens['text-2']} /> : <ImageIcon size={16} color={tokens['text-2']} />}</TBtn>
+          <TBtn onPress={addMedia}>{isUploading ? <ActivityIndicator size="small" color={tokens['text-2']} /> : <ImageIcon size={16} color={tokens['text-2']} />}</TBtn>
         )}
         <TBtn onPress={() => setGifOpen(o => !o)}><Glyph weight="800" color={gifOpen ? tokens.accent : tokens['text-2']} small>GIF</Glyph></TBtn>
       </View>
@@ -118,9 +123,20 @@ export default function RichComposer({
       {allowMedia && attachments.length > 0 && (
         <View style={styles.thumbs}>
           {attachments.map(a => (
-            <View key={a.attachmentId} style={styles.thumbWrap}>
-              <Image source={{ uri: a.downloadUrl }} style={[styles.thumb, { backgroundColor: tokens['surface-2'] }]} />
-              <Pressable onPress={() => removeMedia(a.attachmentId)} style={[styles.thumbX, { backgroundColor: tokens.elev }]} hitSlop={6}>
+            <View key={a.localId} style={styles.thumbWrap}>
+              <Pressable
+                disabled={a.kind !== 'image'}
+                onPress={() => setPreviewUri(a.downloadUrl ?? a.localUri)}
+              >
+                <Image
+                  source={{ uri: a.downloadUrl ?? a.localUri }}
+                  style={[styles.thumb, { backgroundColor: tokens['surface-2'] }, a.status === 'error' && { opacity: 0.4 }]}
+                />
+                {a.status === 'uploading' && (
+                  <View style={styles.thumbOverlay}><ActivityIndicator size="small" color="#fff" /></View>
+                )}
+              </Pressable>
+              <Pressable onPress={() => removeMedia(a.localId)} style={[styles.thumbX, { backgroundColor: tokens.elev }]} hitSlop={6}>
                 <CloseIcon size={12} color={tokens.text} />
               </Pressable>
             </View>
@@ -152,6 +168,8 @@ export default function RichComposer({
           )}
         </View>
       )}
+
+      {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
     </View>
   );
 }
@@ -182,7 +200,13 @@ const styles = StyleSheet.create({
   input: { fontSize: 14, paddingHorizontal: 12, paddingBottom: 12, textAlignVertical: 'top' },
   thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingBottom: 12 },
   thumbWrap: { position: 'relative' },
-  thumb: { width: 64, height: 64, borderRadius: 8 },
+  // Taller than wide — a portrait-ish preview reads as an actual photo
+  // rather than a small square icon (was a 64×64 square).
+  thumb: { width: 84, height: 108, borderRadius: 10 },
+  thumbOverlay: {
+    ...StyleSheet.absoluteFill, borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center',
+  },
   thumbX: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   gifPanel: { borderTopWidth: 1, paddingHorizontal: 12, paddingBottom: 8 },
   gifSearch: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, fontSize: 13, marginTop: 8 },

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import RichComposer from '../composer/RichComposer';
-import type { UploadedMedia } from '../lib/upload';
+import type { ComposerAttachment } from '../lib/upload';
 
 // Self-contained comment composer — the rich editor (formatting + media + GIF)
 // plus a submit button, mirroring sdk-web's comment-composer. Reused for the
@@ -20,7 +20,7 @@ export default function CommentComposer({
 }) {
   const { tokens } = useTheme();
   const [body, setBody] = useState('');
-  const [attachments, setAttachments] = useState<UploadedMedia[]>([]);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   // Block submit while a media upload is still in flight, so a comment never
@@ -34,7 +34,7 @@ export default function CommentComposer({
       // Backend requires a non-empty body always — an image-only comment
       // (no typed text) would otherwise send '' and 400. See the identical
       // fix/comment in navigation/ComposerOverlay.tsx.
-      await onSubmit(body.trim() || ' ', attachments.map(a => a.attachmentId));
+      await onSubmit(body.trim() || ' ', attachments.filter(a => a.attachmentId).map(a => a.attachmentId as string));
       setBody('');
       setAttachments([]);
     } finally {

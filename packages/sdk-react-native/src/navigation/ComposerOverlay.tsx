@@ -5,11 +5,12 @@ import { createThread, createDraft, deleteAttachment } from '@forumkit/shared';
 import type { DraftContent } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
-import { pickAndUploadMedia, type UploadedMedia } from '../lib/upload';
+import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttachment } from '../lib/upload';
 import { CloseIcon, SparkleIcon, PlusIcon, PencilIcon } from '../components/icons';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
+import ImageLightbox from '../components/ImageLightbox';
 
 const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
@@ -41,11 +42,12 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
   const [tags, setTags] = useState(initialDraft?.content.tags ?? '');
   const [body, setBody] = useState(initialDraft?.content.body ?? '');
   const [linkUrl, setLinkUrl] = useState(initialDraft?.content.linkUrl ?? '');
-  const [attachments, setAttachments] = useState<UploadedMedia[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  const isUploading = attachments.some(a => a.status === 'uploading');
   // "Suggest title & tags" mirrors sdk-web's composer-modal.tsx button, but per
   // the standing decision to keep AI UI-only (see thread/AiRow.tsx), it isn't
   // wired to a backend — it just reveals the same placeholder note that pattern
@@ -53,8 +55,8 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
   const [showAiNote, setShowAiNote] = useState(false);
 
   const hasTitle = title.trim().length > 0;
-  const canPost = hasTitle && !submitting && !uploading
-    && (tab === 'link' ? linkUrl.trim().length > 0 : tab === 'images' ? attachments.length > 0 : true);
+  const canPost = hasTitle && !submitting && !isUploading
+    && (tab === 'link' ? linkUrl.trim().length > 0 : tab === 'images' ? attachments.some(a => a.status === 'uploaded') : true);
   const canSaveDraft = hasTitle && body.trim().length > 0 && !savingDraft;
 
   function tagNames(): string[] {
@@ -63,7 +65,9 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
 
   function cleanupAttachments() {
     if (!token) return;
-    for (const a of attachments) void deleteAttachment(apiUrl, forumId, a.attachmentId, token).catch(() => { /* best effort */ });
+    for (const a of attachments) {
+      if (a.attachmentId) void deleteAttachment(apiUrl, forumId, a.attachmentId, token).catch(() => { /* best effort */ });
+    }
   }
 
   function handleCancel() {
@@ -72,22 +76,26 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
   }
 
   async function addMedia() {
-    if (!token || uploading) return;
-    setUploading(true);
+    if (!token) return;
     setError(null);
-    try {
-      const up = await pickAndUploadMedia(apiUrl, forumId, 'attachment', token, { videos: true, allowsMultipleSelection: true });
-      if (up.length) setAttachments(a => [...a, ...up]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
+    const assets = await pickMedia({ videos: true, allowsMultipleSelection: true });
+    if (assets.length === 0) return;
+    const placeholders = assets.map(makeLocalAttachment);
+    setAttachments(prev => [...prev, ...placeholders]);
+    uploadPickedAssets(apiUrl, forumId, 'attachment', token, assets, placeholders.map(p => p.localId), (localId, result) => {
+      setAttachments(prev => prev.map(a => (a.localId !== localId ? a : (
+        result.ok
+          ? { ...a, status: 'uploaded', attachmentId: result.media.attachmentId, downloadUrl: result.media.downloadUrl }
+          : { ...a, status: 'error' }
+      ))));
+      if (!result.ok) setError('An upload failed — remove it and try again');
+    });
   }
 
-  function removeMedia(attachmentId: string) {
-    setAttachments(a => a.filter(x => x.attachmentId !== attachmentId));
-    if (token) void deleteAttachment(apiUrl, forumId, attachmentId, token).catch(() => { /* best effort */ });
+  function removeMedia(localId: string) {
+    const target = attachments.find(a => a.localId === localId);
+    setAttachments(a => a.filter(x => x.localId !== localId));
+    if (token && target?.attachmentId) void deleteAttachment(apiUrl, forumId, target.attachmentId, token).catch(() => { /* best effort */ });
   }
 
   async function handlePost() {
@@ -108,7 +116,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
         body: postBody,
         tagIds: [],
         tagNames: tagNames(),
-        attachmentIds: attachments.map(a => a.attachmentId),
+        attachmentIds: attachments.filter(a => a.attachmentId).map(a => a.attachmentId as string),
       }, token);
       onClose(); // attachments are now part of the thread — don't clean up
     } catch (e) {
@@ -197,20 +205,34 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
           {tab === 'images' && (
             attachments.length === 0 ? (
               <Pressable onPress={addMedia} style={[styles.dropzone, { borderColor: tokens['border-strong'] }]}>
-                {uploading
-                  ? <ActivityIndicator color={tokens.accent} />
-                  : <Text style={{ color: tokens.muted, fontSize: 14 }}>Tap to upload image or video</Text>}
+                <Text style={{ color: tokens.muted, fontSize: 14 }}>Tap to upload image or video</Text>
               </Pressable>
             ) : (
               // Mirrors sdk-web's media-gallery.css grid (3-column, rounded
               // container + thumbs) rather than the old bare dropzone-above-
               // a-row-of-thumbs layout — the trailing tile re-opens the
-              // picker, so adding more doesn't need a separate control.
+              // picker, so adding more doesn't need a separate control. Each
+              // cell shows its local picked image immediately (via localUri)
+              // rather than waiting for the upload to finish, with a spinner
+              // overlay while it's still in flight.
               <View style={[styles.mediaGrid, { borderColor: tokens['border-strong'] }]}>
                 {attachments.map(a => (
-                  <View key={a.attachmentId} style={[styles.mediaCell, { backgroundColor: tokens['surface-2'] }]}>
-                    <Image source={{ uri: a.downloadUrl }} style={styles.mediaCellImg} resizeMode="cover" />
-                    <Pressable onPress={() => removeMedia(a.attachmentId)} style={styles.mediaCellDelete} hitSlop={6}>
+                  <View key={a.localId} style={[styles.mediaCell, { backgroundColor: tokens['surface-2'] }]}>
+                    <Pressable
+                      disabled={a.kind !== 'image'}
+                      onPress={() => setPreviewUri(a.downloadUrl ?? a.localUri)}
+                      style={styles.mediaCellImg}
+                    >
+                      <Image
+                        source={{ uri: a.downloadUrl ?? a.localUri }}
+                        style={[styles.mediaCellImg, a.status === 'error' && { opacity: 0.4 }]}
+                        resizeMode="cover"
+                      />
+                      {a.status === 'uploading' && (
+                        <View style={styles.mediaCellOverlay}><ActivityIndicator color="#fff" /></View>
+                      )}
+                    </Pressable>
+                    <Pressable onPress={() => removeMedia(a.localId)} style={styles.mediaCellDelete} hitSlop={6}>
                       <CloseIcon size={12} color="#fff" />
                     </Pressable>
                   </View>
@@ -219,14 +241,8 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
                   onPress={addMedia}
                   style={[styles.mediaCell, styles.mediaAddCell, { borderColor: tokens['border-strong'] }]}
                 >
-                  {uploading
-                    ? <ActivityIndicator color={tokens.accent} />
-                    : (
-                      <>
-                        <PlusIcon size={20} color={tokens['text-2']} />
-                        <Text style={{ color: tokens['text-2'], fontSize: 11, marginTop: 4, fontWeight: '600' }}>Add</Text>
-                      </>
-                    )}
+                  <PlusIcon size={20} color={tokens['text-2']} />
+                  <Text style={{ color: tokens['text-2'], fontSize: 11, marginTop: 4, fontWeight: '600' }}>Add</Text>
                 </Pressable>
               </View>
             )
@@ -240,12 +256,13 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
               <Text style={{ color: tokens['text-2'], fontSize: 13.5, fontWeight: '700' }}>{savingDraft ? 'Saving…' : 'Save as Draft'}</Text>
             </Pressable>
             <Pressable onPress={handlePost} disabled={!canPost} style={[styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? 1 : 0.5 }]}>
-              <Text style={{ color: tokens['accent-fg'], fontSize: 13.5, fontWeight: '700' }}>{submitting ? 'Posting…' : uploading ? 'Uploading…' : 'Post'}</Text>
+              <Text style={{ color: tokens['accent-fg'], fontSize: 13.5, fontWeight: '700' }}>{submitting ? 'Posting…' : isUploading ? 'Uploading…' : 'Post'}</Text>
             </Pressable>
           </View>
         </View>
       </ScrollView>
       </View>
+      {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
     </>
   );
 }
@@ -277,6 +294,10 @@ const styles = StyleSheet.create({
   mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderWidth: 1, borderRadius: 18, padding: 10 },
   mediaCell: { width: '31%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', position: 'relative' },
   mediaCellImg: { width: '100%', height: '100%' },
+  mediaCellOverlay: {
+    ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
   mediaCellDelete: {
     position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11,
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
