@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, View, Text, TextInput, Pressable, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TextInput, Pressable, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   updateMyProfile, SOCIAL_PLATFORMS, socialToSuffix, socialToUrl, socialPlaceholder, socialPrefix,
   type SocialPlatform,
@@ -24,6 +25,14 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
   onSaved: (p: UserProfile) => void;
 }) {
   const { tokens, mode, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  // Hard ceiling so the sheet can never reach the very top of the screen —
+  // previously unbounded (only the inner ScrollView had a fixed 360pt cap,
+  // regardless of screen size), which crowded the status bar on shorter
+  // phones and especially with the keyboard open.
+  const sheetMaxHeight = windowHeight - insets.top - 24;
+  const scrollMaxHeight = Math.min(360, windowHeight * 0.42);
   const [name, setName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? '');
   const [links, setLinks] = useState<DraftLink[]>(
@@ -66,13 +75,13 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Pressable style={styles.scrim} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight: sheetMaxHeight }]} onPress={() => {}}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: tokens.text }]}>Edit profile</Text>
             <Pressable onPress={onClose} hitSlop={8}><CloseIcon size={18} color={tokens.text} /></Pressable>
           </View>
 
-          <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: scrollMaxHeight }} keyboardShouldPersistTaps="handled">
             <Text style={[styles.label, { color: tokens['text-2'] }]}>Display name</Text>
             <TextInput value={name} onChangeText={setName} style={[styles.input, { color: tokens.text, borderColor: tokens['border-strong'] }]} />
 
@@ -155,7 +164,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
 
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
+  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   title: { fontSize: 16, fontWeight: '800' },
   label: { fontSize: 12.5, fontWeight: '600', marginTop: 12, marginBottom: 6 },
