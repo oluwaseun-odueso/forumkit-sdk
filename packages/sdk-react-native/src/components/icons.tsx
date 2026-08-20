@@ -413,8 +413,8 @@ export function PencilIcon({ size = 14, color = '#000' }: IconProps) {
 export function GearIcon({ size = 18, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
-      <Circle cx={12} cy={12} r={3.2} />
-      <Path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7" />
+      <Circle cx={12} cy={12} r={3} />
+      <Path d="M19 12a7 7 0 00-.14-1.4l2-1.5-2-3.46-2.3.9a7 7 0 00-2.42-1.4L13.8 2h-3.6l-.34 2.44a7 7 0 00-2.42 1.4l-2.3-.9-2 3.46 2 1.5A7 7 0 005 12a7 7 0 00.14 1.4l-2 1.5 2 3.46 2.3-.9a7 7 0 002.42 1.4l.34 2.44h3.6l.34-2.44a7 7 0 002.42-1.4l2.3.9 2-3.46-2-1.5A7 7 0 0019 12z" />
     </Svg>
   );
 }
