@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { glassTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 import { HomeIcon, BellIcon } from '../components/icons';
+import Avatar from '../components/Avatar';
 
 const IS_IOS = Platform.OS === 'ios';
 
@@ -17,15 +18,16 @@ const IS_IOS = Platform.OS === 'ios';
 // bottom offset adds the device's own safe-area inset (the 3-button/gesture
 // nav bar on Android, home indicator on iOS) on top of the visual margin, so
 // hardware nav controls never sit over the bar.
-// avatarUrl intentionally not wired yet — this step ships a placeholder
-// gradient circle only (real avatar image comes with the actual Profile
-// screen content in a later step).
 export default function BottomBar({
-  homeActive, notificationsActive, profileActive, onHome, onCreate, onNotifications, onProfile,
+  homeActive, notificationsActive, profileActive, authorId, displayName, avatarUrl,
+  onHome, onCreate, onNotifications, onProfile,
 }: {
   homeActive: boolean;
   notificationsActive: boolean;
   profileActive: boolean;
+  authorId?: string | undefined;
+  displayName?: string | undefined;
+  avatarUrl?: string | null | undefined;
   onHome: () => void;
   onCreate: () => void;
   onNotifications: () => void;
@@ -45,7 +47,12 @@ export default function BottomBar({
         <PlusIconGlyph />
       </Pressable>
       <TabItem active={notificationsActive} onPress={onNotifications} label="Inbox" renderIcon={color => <BellIcon size={19} color={color} />} />
-      <TabItem active={profileActive} onPress={onProfile} label="Profile" renderIcon={() => <View style={styles.avatar} />} />
+      <TabItem
+        active={profileActive}
+        onPress={onProfile}
+        label="Profile"
+        renderIcon={() => <Avatar authorId={authorId} author={displayName ?? 'You'} avatarUrl={avatarUrl} size={20} />}
+      />
     </>
   );
 
@@ -178,11 +185,5 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#b97d52',
   },
 });
