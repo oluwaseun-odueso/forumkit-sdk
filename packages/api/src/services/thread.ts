@@ -45,7 +45,7 @@ export async function listThreads(
   const page = Math.max(1, query.page ?? DEFAULT_PAGE);
   const limit = Math.min(MAX_LIMIT, Math.max(1, query.limit ?? DEFAULT_LIMIT));
 
-  const result = await threadRepo.listThreads(db, forumId, {
+  const result = await threadRepo.listThreads(db, publicApiUrl, forumId, {
     tagId: query.tagId,
     tagName: query.tagName,
     pinned: query.pinned,
@@ -80,14 +80,15 @@ export async function listThreads(
 // which only reads title/body/comments and shouldn't need a storage adapter.
 export async function getThread(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   requesterId?: string | undefined,
 ): Promise<Result<{ thread: ThreadWithMetaData; comments: Comment[] }, 'thread_not_found'>> {
-  const thread = await threadRepo.getThreadById(db, threadId, requesterId);
+  const thread = await threadRepo.getThreadById(db, publicApiUrl, threadId, requesterId);
   if (!thread || thread.forumId !== forumId) return err('thread_not_found');
 
-  const comments = await commentRepo.listCommentsByThread(db, threadId, requesterId);
+  const comments = await commentRepo.listCommentsByThread(db, publicApiUrl, threadId, requesterId);
 
   // Fire-and-forget: view count increment never blocks the response
   void threadRepo.incrementViewCount(db, threadId);
@@ -104,7 +105,7 @@ export async function getThreadWithAttachments(
   threadId: string,
   requesterId?: string | undefined,
 ): Promise<Result<{ thread: ThreadWithAttachments; comments: Comment[] }, 'thread_not_found'>> {
-  const result = await getThread(db, forumId, threadId, requesterId);
+  const result = await getThread(db, publicApiUrl, forumId, threadId, requesterId);
   if (!result.ok) return result;
 
   const { thread, comments } = result.value;
@@ -118,20 +119,21 @@ export async function getThreadWithAttachments(
 
 export async function updateThread(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   userId: string,
   role: UserRole,
   patch: { title?: string | undefined; body?: string | undefined; tagIds?: string[] | undefined },
 ): Promise<Result<ThreadWithMetaData, ThreadError>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread || thread.forumId !== forumId) return err('thread_not_found');
 
   if (role !== 'admin' && role !== 'moderator' && thread.authorId !== userId) {
     return err('forbidden');
   }
 
-  const updated = await threadRepo.updateThread(db, threadId, patch);
+  const updated = await threadRepo.updateThread(db, publicApiUrl, threadId, patch);
   if (!updated) return err('thread_not_found');
   return ok(updated);
 }
@@ -143,7 +145,7 @@ export async function deleteThread(
   userId: string,
   role: UserRole,
 ): Promise<Result<void, ThreadError>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread || thread.forumId !== forumId) return err('thread_not_found');
 
   if (role !== 'admin' && role !== 'moderator' && thread.authorId !== userId) {
@@ -164,7 +166,7 @@ export async function reportThread(
   reporterId: string,
   reason: string,
 ): Promise<Result<void, 'thread_not_found'>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread) return err('thread_not_found');
   await threadRepo.insertReport(db, threadId, reporterId, reason);
   void notifyReport(db, { forumId, reporterId, reason, threadId });
@@ -179,7 +181,7 @@ export async function shareThread(
   recipientUserIds: string[],
   message: string | null,
 ): Promise<Result<void, 'thread_not_found'>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread) return err('thread_not_found');
   // Unlike notifyReport/notifyCommentReply/notifyVote (side effects of some
   // other primary write that must never fail because of them), the
@@ -191,28 +193,30 @@ export async function shareThread(
 
 export async function lockThread(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   lock: boolean,
 ): Promise<Result<ThreadWithMetaData, 'thread_not_found'>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread || thread.forumId !== forumId) return err('thread_not_found');
 
-  const updated = await threadRepo.setThreadLocked(db, threadId, lock);
+  const updated = await threadRepo.setThreadLocked(db, publicApiUrl, threadId, lock);
   if (!updated) return err('thread_not_found');
   return ok(updated);
 }
 
 export async function pinThread(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   pin: boolean,
 ): Promise<Result<ThreadWithMetaData, 'thread_not_found'>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread || thread.forumId !== forumId) return err('thread_not_found');
 
-  const updated = await threadRepo.setThreadPinned(db, threadId, pin);
+  const updated = await threadRepo.setThreadPinned(db, publicApiUrl, threadId, pin);
   if (!updated) return err('thread_not_found');
   return ok(updated);
 }
@@ -253,7 +257,7 @@ export async function getSimilarThreadsForRail(
   if (!thread.embedding) return ok([]);
 
   const vector = JSON.parse(thread.embedding) as number[];
-  const related = await searchRepo.findRelatedThreadsForRail(db, forumId, vector, threadId, limit);
+  const related = await searchRepo.findRelatedThreadsForRail(db, publicApiUrl, forumId, vector, threadId, limit);
 
   // Real media only — never a decorative placeholder. First image
   // attachment per related thread, resolved to a real download URL.
@@ -281,7 +285,7 @@ export async function createThread(
   authorId: string,
   body: CreateThreadBody,
 ): Promise<ThreadWithAttachments> {
-  const thread = await threadRepo.createThread(db, {
+  const thread = await threadRepo.createThread(db, publicApiUrl, {
     forumId,
     authorId,
     title: body.title,

@@ -103,7 +103,7 @@ export async function searchThreads(
 
   // Keyword+fuzzy always runs — it's cheap (a single indexed query) and is
   // the only source at all when embedding generation fails.
-  const keywordPromise = searchRepo.keywordSearch(db, forumId, query, fetchOpts);
+  const keywordPromise = searchRepo.keywordSearch(db, publicApiUrl, forumId, query, fetchOpts);
 
   if (!vector) {
     const { results, total } = await keywordPromise;
@@ -116,7 +116,7 @@ export async function searchThreads(
   // dependency of the keyword one, so there's no reason to wait on one
   // before starting the other.
   const [semantic, keyword] = await Promise.all([
-    searchRepo.semanticSearch(db, forumId, vector, fetchOpts),
+    searchRepo.semanticSearch(db, publicApiUrl, forumId, vector, fetchOpts),
     keywordPromise,
   ]);
   const merged = mergeRanked(semantic.results, keyword.results, (r) => r.threadId);
@@ -136,7 +136,7 @@ export async function searchComments(
   const vector = await embedOne(query, embedFn);
   const fetchOpts = overfetchOpts(opts);
 
-  const keywordPromise = searchRepo.keywordSearchComments(db, forumId, query, fetchOpts, threadId);
+  const keywordPromise = searchRepo.keywordSearchComments(db, publicApiUrl, forumId, query, fetchOpts, threadId);
 
   if (!vector) {
     const { results, total } = await keywordPromise;
@@ -146,7 +146,7 @@ export async function searchComments(
   }
 
   const [semantic, keyword] = await Promise.all([
-    searchRepo.semanticSearchComments(db, forumId, vector, fetchOpts, threadId),
+    searchRepo.semanticSearchComments(db, publicApiUrl, forumId, vector, fetchOpts, threadId),
     keywordPromise,
   ]);
   const merged = mergeRanked(semantic.results, keyword.results, (r) => r.commentId);

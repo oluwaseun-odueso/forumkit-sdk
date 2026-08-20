@@ -336,6 +336,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await threadService.updateThread(
         request.server.db,
+        request.server.config.publicApiUrl,
         forumId,
         threadId,
         user.id,
@@ -473,6 +474,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await threadService.lockThread(
         request.server.db,
+        request.server.config.publicApiUrl,
         forumId,
         threadId,
         parsed.data.locked,
@@ -506,6 +508,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await threadService.pinThread(
         request.server.db,
+        request.server.config.publicApiUrl,
         forumId,
         threadId,
         parsed.data.pinned,

@@ -85,7 +85,7 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { q, page, limit } = parsed.data;
-    const { results, total } = await userRepo.searchUsers(request.server.db, fid, q, { page, limit });
+    const { results, total } = await userRepo.searchUsers(request.server.db, request.server.config.publicApiUrl, fid, q, { page, limit });
 
     // Karma is deliberately not part of the users-table query itself (see
     // repositories/user.ts) — it's a cross-table sum composed here the same

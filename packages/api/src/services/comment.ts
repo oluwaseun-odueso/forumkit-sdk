@@ -5,7 +5,6 @@ import { embedOne, safeModerate } from '@forumkit/ai';
 import { ok, err } from '../lib/result';
 import type { Result } from '../lib/result';
 import * as repo from '../repositories/comment';
-import * as threadRepo from '../repositories/thread';
 import { attachToExistingComment } from './storage';
 import { notifyReport, notifyCommentReply } from './notification';
 
@@ -21,6 +20,7 @@ type CreateCommentOptions = {
 
 export async function createComment(
   db: DB,
+  publicApiUrl: string,
   embedFn: EmbedFn,
   moderateFn: ModerateFn,
   opts: CreateCommentOptions,
@@ -30,7 +30,7 @@ export async function createComment(
   if (thread.status === 'locked') return err('thread_locked');
   if (thread.status === 'deleted') return err('thread_not_found');
 
-  const comment = await repo.createComment(db, opts);
+  const comment = await repo.createComment(db, publicApiUrl, opts);
 
   // Best-effort: a bad/foreign attachment id shouldn't fail the whole
   // comment creation, since the comment itself was already created successfully.
@@ -50,12 +50,13 @@ export async function createComment(
 
 export async function updateComment(
   db: DB,
+  publicApiUrl: string,
   commentId: string,
   requesterId: string,
   requesterRole: UserRole,
   body: string,
 ): Promise<Result<Comment, CommentError>> {
-  const existing = await repo.getCommentById(db, commentId);
+  const existing = await repo.getCommentInfo(db, commentId);
   if (!existing) return err('comment_not_found');
 
   const canEdit =
@@ -65,7 +66,7 @@ export async function updateComment(
 
   if (!canEdit) return err('forbidden');
 
-  const comment = await repo.updateComment(db, commentId, body);
+  const comment = await repo.updateComment(db, publicApiUrl, commentId, body);
   if (!comment) return err('comment_not_found');
   return ok(comment);
 }
@@ -76,7 +77,7 @@ export async function deleteComment(
   requesterId: string,
   requesterRole: UserRole,
 ): Promise<Result<void, CommentError>> {
-  const comment = await repo.getCommentById(db, commentId);
+  const comment = await repo.getCommentInfo(db, commentId);
   if (!comment) return err('comment_not_found');
 
   const canDelete =
@@ -96,7 +97,7 @@ export async function reactToComment(
   userId: string,
   type: ReactionType,
 ): Promise<Result<Partial<Record<ReactionType, number>>, CommentError>> {
-  const comment = await repo.getCommentById(db, commentId);
+  const comment = await repo.getCommentInfo(db, commentId);
   if (!comment) return err('comment_not_found');
   await repo.upsertReaction(db, commentId, userId, type);
   const counts = await repo.getReactionCounts(db, commentId);
@@ -109,7 +110,7 @@ export async function removeReaction(
   userId: string,
   type: ReactionType,
 ): Promise<Result<Partial<Record<ReactionType, number>>, CommentError>> {
-  const comment = await repo.getCommentById(db, commentId);
+  const comment = await repo.getCommentInfo(db, commentId);
   if (!comment) return err('comment_not_found');
   await repo.deleteReaction(db, commentId, userId, type);
   const counts = await repo.getReactionCounts(db, commentId);
@@ -122,12 +123,12 @@ export async function reportComment(
   reporterId: string,
   reason: string,
 ): Promise<Result<void, CommentError>> {
-  const comment = await repo.getCommentById(db, commentId);
+  const comment = await repo.getCommentInfo(db, commentId);
   if (!comment) return err('comment_not_found');
   await repo.insertReport(db, commentId, reporterId, reason);
   // forumId isn't on hand from the comment lookup alone — thread's own
   // record has it (comments don't carry forum_id directly, only threads do).
-  const thread = await threadRepo.getThreadById(db, comment.threadId);
+  const thread = await repo.getThreadInfo(db, comment.threadId);
   if (thread) void notifyReport(db, { forumId: thread.forumId, reporterId, reason, commentId });
   return ok(undefined);
 }
@@ -141,10 +142,11 @@ type AcceptAnswerOptions = {
 
 export async function acceptAnswer(
   db: DB,
+  publicApiUrl: string,
   opts: AcceptAnswerOptions,
 ): Promise<Result<Comment, CommentError>> {
   const [comment, thread] = await Promise.all([
-    repo.getCommentById(db, opts.commentId),
+    repo.getCommentInfo(db, opts.commentId),
     repo.getThreadInfo(db, opts.threadId),
   ]);
 
@@ -159,16 +161,17 @@ export async function acceptAnswer(
 
   if (!canAccept) return err('forbidden');
 
-  const updated = await repo.setAcceptedAnswer(db, opts.commentId, opts.threadId);
+  const updated = await repo.setAcceptedAnswer(db, publicApiUrl, opts.commentId, opts.threadId);
   return ok(updated);
 }
 
 export async function unacceptAnswer(
   db: DB,
+  publicApiUrl: string,
   opts: AcceptAnswerOptions,
 ): Promise<Result<Comment, CommentError>> {
   const [comment, thread] = await Promise.all([
-    repo.getCommentById(db, opts.commentId),
+    repo.getCommentInfo(db, opts.commentId),
     repo.getThreadInfo(db, opts.threadId),
   ]);
 
@@ -184,7 +187,7 @@ export async function unacceptAnswer(
   if (!canAccept) return err('forbidden');
 
   await repo.clearAcceptedAnswer(db, opts.threadId);
-  const updated = await repo.getCommentById(db, opts.commentId);
+  const updated = await repo.getCommentById(db, publicApiUrl, opts.commentId);
   if (!updated) return err('comment_not_found');
   return ok(updated);
 }
@@ -197,7 +200,7 @@ async function notifyParentCommentAuthor(
   replierId: string,
   replyCommentId: string,
 ): Promise<void> {
-  const parent = await repo.getCommentById(db, parentCommentId);
+  const parent = await repo.getCommentInfo(db, parentCommentId);
   if (!parent) return;
   await notifyCommentReply(db, {
     forumId,

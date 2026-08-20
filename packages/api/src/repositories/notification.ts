@@ -1,7 +1,7 @@
 import type { DB } from '../db';
 import type { Notification, NotificationType, NotificationPrefs } from '@forumkit/types';
 import * as attachmentRepo from './attachment';
-import { rawAttachmentUrl } from '../lib/attachment-url';
+import { rawAttachmentUrl, resolveMediaUrl } from '../lib/attachment-url';
 
 type NotificationRow = {
   id: string;
@@ -28,14 +28,14 @@ type BaseNotification = Omit<
   'threadTitle' | 'threadImageUrl' | 'threadAuthorId' | 'threadAuthorDisplayName' | 'threadAuthorAvatarUrl'
 >;
 
-function toBaseNotification(row: NotificationRow): BaseNotification {
+function toBaseNotification(row: NotificationRow, publicApiUrl: string): BaseNotification {
   return {
     id: row.id,
     forumId: row.forum_id,
     userId: row.user_id,
     actorId: row.actor_id,
     actorDisplayName: row.actor_display_name,
-    actorAvatarUrl: row.actor_avatar_url,
+    actorAvatarUrl: resolveMediaUrl(publicApiUrl, row.actor_avatar_url),
     type: row.type,
     threadId: row.thread_id,
     commentId: row.comment_id,
@@ -110,12 +110,12 @@ async function hydrateThreadInfo(
     const tid = effectiveThreadId(row);
     const thread = tid ? threadById.get(tid) : undefined;
     return {
-      ...toBaseNotification(row),
+      ...toBaseNotification(row, publicApiUrl),
       threadTitle: thread?.title ?? null,
       threadImageUrl: tid ? firstImageByThread.get(tid) ?? null : null,
       threadAuthorId: thread?.author_id ?? null,
       threadAuthorDisplayName: thread?.author_display_name ?? null,
-      threadAuthorAvatarUrl: thread?.author_avatar_url ?? null,
+      threadAuthorAvatarUrl: resolveMediaUrl(publicApiUrl, thread?.author_avatar_url ?? null),
     };
   });
 }

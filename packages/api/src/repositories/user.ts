@@ -1,5 +1,6 @@
 import type { DB } from '../db';
 import type { UserProfile, UserSearchResult } from '@forumkit/types';
+import { resolveMediaUrl, toRelativeMediaPath } from '../lib/attachment-url';
 
 type UserProfileRow = {
   id: string;
@@ -27,29 +28,34 @@ function parseSocialLinks(value: unknown): Array<{ platform: string; url: string
   return Array.isArray(parsed) ? parsed as Array<{ platform: string; url: string }> : [];
 }
 
-function toProfile(row: UserProfileRow): Omit<UserProfile, 'postKarma' | 'commentKarma'> {
+// publicApiUrl resolves the stored avatar/banner path fresh against the
+// *current* config on every read (see lib/attachment-url.ts) — a row saved
+// under a different PUBLIC_API_URL doesn't need a data fix to display
+// correctly once the config is right again.
+function toProfile(row: UserProfileRow, publicApiUrl: string): Omit<UserProfile, 'postKarma' | 'commentKarma'> {
   return {
     id: row.id,
     displayName: row.display_name,
     bio: row.bio,
-    avatarUrl: row.avatar_url,
-    bannerUrl: row.banner_url,
+    avatarUrl: resolveMediaUrl(publicApiUrl, row.avatar_url),
+    bannerUrl: resolveMediaUrl(publicApiUrl, row.banner_url),
     socialLinks: parseSocialLinks(row.social_links),
     joinedAt: row.created_at,
     themePreference: row.theme_preference,
   };
 }
 
-export async function findProfileById(db: DB, userId: string): Promise<Omit<UserProfile, 'postKarma' | 'commentKarma'> | null> {
+export async function findProfileById(db: DB, publicApiUrl: string, userId: string): Promise<Omit<UserProfile, 'postKarma' | 'commentKarma'> | null> {
   const rows = await db<UserProfileRow[]>`
     SELECT id, display_name, bio, avatar_url, banner_url, social_links, created_at, theme_preference
     FROM users WHERE id = ${userId}
   `;
-  return rows[0] ? toProfile(rows[0]) : null;
+  return rows[0] ? toProfile(rows[0], publicApiUrl) : null;
 }
 
 export async function updateProfile(
   db: DB,
+  publicApiUrl: string,
   userId: string,
   fields: {
     displayName: string;
@@ -64,18 +70,22 @@ export async function updateProfile(
     socialLinks?: Array<{ platform: string; url: string }> | undefined;
   },
 ): Promise<Omit<UserProfile, 'postKarma' | 'commentKarma'> | null> {
+  // Strip publicApiUrl down to a relative path before persisting — see
+  // toRelativeMediaPath's own doc comment for why.
+  const avatarUrl = toRelativeMediaPath(publicApiUrl, fields.avatarUrl);
+  const bannerUrl = toRelativeMediaPath(publicApiUrl, fields.bannerUrl);
   const rows = await db<UserProfileRow[]>`
     UPDATE users
     SET
       display_name = ${fields.displayName},
-      bio          = ${fields.bio         !== undefined ? fields.bio         : db`bio`},
-      avatar_url   = ${fields.avatarUrl   !== undefined ? fields.avatarUrl   : db`avatar_url`},
-      banner_url   = ${fields.bannerUrl   !== undefined ? fields.bannerUrl   : db`banner_url`},
+      bio          = ${fields.bio       !== undefined ? fields.bio       : db`bio`},
+      avatar_url   = ${avatarUrl        !== undefined ? avatarUrl        : db`avatar_url`},
+      banner_url   = ${bannerUrl        !== undefined ? bannerUrl        : db`banner_url`},
       social_links = ${fields.socialLinks !== undefined ? JSON.stringify(fields.socialLinks) : db`social_links`}::jsonb
     WHERE id = ${userId}
     RETURNING id, display_name, bio, avatar_url, banner_url, social_links, created_at, theme_preference
   `;
-  return rows[0] ? toProfile(rows[0]) : null;
+  return rows[0] ? toProfile(rows[0], publicApiUrl) : null;
 }
 
 export async function updateThemePreference(
@@ -99,6 +109,7 @@ type UserSearchRow = { id: string; display_name: string; avatar_url: string | nu
 // above — so this returns everything but that one field.
 export async function searchUsers(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   query: string,
   opts: { page: number; limit: number },
@@ -118,7 +129,7 @@ export async function searchUsers(
   `;
 
   return {
-    results: rows.map(r => ({ id: r.id, displayName: r.display_name, avatarUrl: r.avatar_url })),
+    results: rows.map(r => ({ id: r.id, displayName: r.display_name, avatarUrl: resolveMediaUrl(publicApiUrl, r.avatar_url) })),
     total: Number(rows[0]?.total_count ?? 0),
   };
 }

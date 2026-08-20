@@ -140,6 +140,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await aiService.summarise(
         request.server.db,
+        request.server.config.publicApiUrl,
         row.forum_id,
         threadId,
         request.server.ai.llm,
@@ -182,6 +183,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await aiService.suggest(
         request.server.db,
+        request.server.config.publicApiUrl,
         row.forum_id,
         threadId,
         request.server.ai.llm,

@@ -20,11 +20,12 @@ function buildCommentContext(comments: { body: string; status: string }[]): stri
 
 export async function summarise(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   llmFn: LLMFn,
 ): Promise<Result<AISummary, AICommandError>> {
-  const threadResult = await getThread(db, forumId, threadId);
+  const threadResult = await getThread(db, publicApiUrl, forumId, threadId);
   if (!threadResult.ok) return err('thread_not_found');
 
   const { thread, comments } = threadResult.value;
@@ -36,11 +37,12 @@ export async function summarise(
 
 export async function suggest(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   threadId: string,
   llmFn: LLMFn,
 ): Promise<Result<AISuggestion, AICommandError>> {
-  const threadResult = await getThread(db, forumId, threadId);
+  const threadResult = await getThread(db, publicApiUrl, forumId, threadId);
   if (!threadResult.ok) return err('thread_not_found');
 
   const { thread, comments } = threadResult.value;

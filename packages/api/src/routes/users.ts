@@ -75,7 +75,7 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const [profile, postKarma, commentKarma, notificationPrefs] = await Promise.all([
-      userRepo.findProfileById(request.server.db, user.id),
+      userRepo.findProfileById(request.server.db, request.server.config.publicApiUrl, user.id),
       threadRepo.getThreadKarma(request.server.db, forumId, user.id),
       commentRepo.getCommentKarma(request.server.db, forumId, user.id),
       notificationService.getNotificationPrefs(request.server.db, user.id),
@@ -108,7 +108,7 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const [updated, postKarma, commentKarma] = await Promise.all([
-      userRepo.updateProfile(request.server.db, user.id, {
+      userRepo.updateProfile(request.server.db, request.server.config.publicApiUrl, user.id, {
         displayName: parsed.data.displayName,
         bio: parsed.data.bio,
         avatarUrl: parsed.data.avatarUrl,
@@ -236,7 +236,7 @@ export async function usersRoutes(app: FastifyInstance): Promise<void> {
     const { forumId, userId } = request.params as { forumId: string; userId: string };
 
     const [profile, postKarma, commentKarma] = await Promise.all([
-      userRepo.findProfileById(request.server.db, userId),
+      userRepo.findProfileById(request.server.db, request.server.config.publicApiUrl, userId),
       threadRepo.getThreadKarma(request.server.db, forumId, userId),
       commentRepo.getCommentKarma(request.server.db, forumId, userId),
     ]);

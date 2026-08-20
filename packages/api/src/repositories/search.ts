@@ -1,6 +1,7 @@
 import type { DB } from '../db';
 import type { SimilarThread, RelatedThreadForRail, SearchResult, CommentSearchResult } from '@forumkit/types';
 import { THREAD_VOTE_COUNTS_SUBQUERY } from './vote';
+import { resolveMediaUrl } from '../lib/attachment-url';
 
 type SearchRow = {
   thread_id: string;
@@ -24,7 +25,7 @@ type SearchOpts = { page: number; limit: number };
 // same listAttachmentsByThreadIds + first-image-per-thread pattern already
 // used by services/thread.ts's surfaceRelated). Repositories/search.ts's
 // job is ranking and matching, not attachment resolution.
-function toSearchResult(row: SearchRow): SearchResult {
+function toSearchResult(row: SearchRow, publicApiUrl: string): SearchResult {
   return {
     threadId: row.thread_id,
     title: row.title,
@@ -35,7 +36,7 @@ function toSearchResult(row: SearchRow): SearchResult {
     commentCount: Number(row.comment_count),
     authorId: row.author_id,
     authorDisplayName: row.author_display_name,
-    authorAvatarUrl: row.author_avatar_url,
+    authorAvatarUrl: resolveMediaUrl(publicApiUrl, row.author_avatar_url),
     rank: Number(row.rank),
     createdAt: row.created_at,
   };
@@ -64,7 +65,7 @@ type CommentSearchRow = {
   thread_comment_count: string;
 };
 
-function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
+function toCommentSearchResult(row: CommentSearchRow, publicApiUrl: string): CommentSearchResult {
   return {
     commentId: row.comment_id,
     threadId: row.thread_id,
@@ -74,11 +75,11 @@ function toCommentSearchResult(row: CommentSearchRow): CommentSearchResult {
     mediaCount: 0,
     authorId: row.author_id,
     authorDisplayName: row.author_display_name,
-    authorAvatarUrl: row.author_avatar_url,
+    authorAvatarUrl: resolveMediaUrl(publicApiUrl, row.author_avatar_url),
     commentVoteCounts: row.comment_vote_counts,
     threadAuthorId: row.thread_author_id,
     threadAuthorDisplayName: row.thread_author_display_name,
-    threadAuthorAvatarUrl: row.thread_author_avatar_url,
+    threadAuthorAvatarUrl: resolveMediaUrl(publicApiUrl, row.thread_author_avatar_url),
     threadVoteCounts: row.vote_counts,
     threadCommentCount: Number(row.thread_comment_count),
     rank: Number(row.rank),
@@ -109,6 +110,7 @@ const FUZZY_SIMILARITY_THRESHOLD = 0.25;
 
 export async function keywordSearch(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   query: string,
   opts: SearchOpts,
@@ -158,7 +160,7 @@ export async function keywordSearch(
   `;
 
   return {
-    results: rows.map(toSearchResult),
+    results: rows.map(r => toSearchResult(r, publicApiUrl)),
     total: Number(rows[0]?.total_count ?? 0),
   };
 }
@@ -196,6 +198,7 @@ export async function findRelatedThreads(
 // (votes/comment-count/time) rather than just a bare title.
 export async function findRelatedThreadsForRail(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   embedding: number[],
   excludeThreadId: string,
@@ -252,12 +255,13 @@ export async function findRelatedThreadsForRail(
     imageUrl: null, // resolved by the service layer, which has the storage adapter
     authorId: r.author_id,
     authorDisplayName: r.author_display_name,
-    authorAvatarUrl: r.author_avatar_url,
+    authorAvatarUrl: resolveMediaUrl(publicApiUrl, r.author_avatar_url),
   }));
 }
 
 export async function semanticSearch(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   embedding: number[],
   opts: SearchOpts,
@@ -288,7 +292,7 @@ export async function semanticSearch(
   `;
 
   return {
-    results: rows.map(toSearchResult),
+    results: rows.map(r => toSearchResult(r, publicApiUrl)),
     total: Number(rows[0]?.total_count ?? 0),
   };
 }
@@ -302,6 +306,7 @@ export async function semanticSearch(
 // each matching comment belongs to.
 export async function keywordSearchComments(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   query: string,
   opts: SearchOpts,
@@ -350,7 +355,7 @@ export async function keywordSearchComments(
   `;
 
   return {
-    results: rows.map(toCommentSearchResult),
+    results: rows.map(r => toCommentSearchResult(r, publicApiUrl)),
     total: Number(rows[0]?.total_count ?? 0),
   };
 }
@@ -361,6 +366,7 @@ export async function keywordSearchComments(
 // matching, same pattern as semanticSearch's relationship to keywordSearch.
 export async function semanticSearchComments(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   embedding: number[],
   opts: SearchOpts,
@@ -401,7 +407,7 @@ export async function semanticSearchComments(
   `;
 
   return {
-    results: rows.map(toCommentSearchResult),
+    results: rows.map(r => toCommentSearchResult(r, publicApiUrl)),
     total: Number(rows[0]?.total_count ?? 0),
   };
 }

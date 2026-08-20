@@ -4,7 +4,6 @@ import { ok, err } from '../lib/result';
 import type { Result } from '../lib/result';
 import * as voteRepo from '../repositories/vote';
 import * as commentRepo from '../repositories/comment';
-import * as threadRepo from '../repositories/thread';
 import { notifyVote } from './notification';
 
 function directionLabel(direction: VoteDirection): 'up' | 'down' {
@@ -24,7 +23,7 @@ export async function voteOnThread(
   userId: string,
   direction: VoteDirection,
 ): Promise<Result<VoteResult, VoteError>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread) return err('thread_not_found');
 
   const target = { kind: 'thread' as const, id: threadId };
@@ -52,7 +51,7 @@ export async function removeVoteFromThread(
   threadId: string,
   userId: string,
 ): Promise<Result<VoteResult, VoteError>> {
-  const thread = await threadRepo.getThreadById(db, threadId);
+  const thread = await commentRepo.getThreadInfo(db, threadId);
   if (!thread) return err('thread_not_found');
 
   const target = { kind: 'thread' as const, id: threadId };
@@ -71,7 +70,7 @@ export async function voteOnComment(
   userId: string,
   direction: VoteDirection,
 ): Promise<Result<VoteResult, VoteError>> {
-  const comment = await commentRepo.getCommentById(db, commentId);
+  const comment = await commentRepo.getCommentInfo(db, commentId);
   if (!comment) return err('comment_not_found');
 
   const target = { kind: 'comment' as const, id: commentId };
@@ -81,7 +80,7 @@ export async function voteOnComment(
   } else {
     await voteRepo.upsertVote(db, target, userId, direction);
     if (userId !== comment.authorId) {
-      const thread = await threadRepo.getThreadById(db, comment.threadId);
+      const thread = await commentRepo.getThreadInfo(db, comment.threadId);
       if (thread) {
         void notifyVote(db, {
           forumId: thread.forumId,
@@ -105,7 +104,7 @@ export async function removeVoteFromComment(
   commentId: string,
   userId: string,
 ): Promise<Result<VoteResult, VoteError>> {
-  const comment = await commentRepo.getCommentById(db, commentId);
+  const comment = await commentRepo.getCommentInfo(db, commentId);
   if (!comment) return err('comment_not_found');
 
   const target = { kind: 'comment' as const, id: commentId };

@@ -104,21 +104,21 @@ export async function getProfileActivity(
 ): Promise<ProfileActivityResult> {
   if (scope === 'posts') {
     if (sort === 'top') {
-      const { threads, total } = await threadRepo.listThreadsByAuthor(db, forumId, userId, 1, OVERVIEW_FETCH_CAP, userId);
+      const { threads, total } = await threadRepo.listThreadsByAuthor(db, publicApiUrl, forumId, userId, 1, OVERVIEW_FETCH_CAP, userId);
       const hydrated = await hydrateThreadAttachments(db, publicApiUrl, forumId, threads);
       return { items: paginate(sortByScore(hydrated.map(threadItem)), page, limit), total, page, limit };
     }
-    const { threads, total } = await threadRepo.listThreadsByAuthor(db, forumId, userId, page, limit, userId);
+    const { threads, total } = await threadRepo.listThreadsByAuthor(db, publicApiUrl, forumId, userId, page, limit, userId);
     const hydrated = await hydrateThreadAttachments(db, publicApiUrl, forumId, threads);
     return { items: hydrated.map(threadItem), total, page, limit };
   }
 
   if (scope === 'comments') {
     if (sort === 'top') {
-      const { comments, total } = await commentRepo.listCommentsByAuthor(db, forumId, userId, 1, OVERVIEW_FETCH_CAP, userId);
+      const { comments, total } = await commentRepo.listCommentsByAuthor(db, publicApiUrl, forumId, userId, 1, OVERVIEW_FETCH_CAP, userId);
       return { items: paginate(sortByScore(comments.map(commentItem)), page, limit), total, page, limit };
     }
-    const { comments, total } = await commentRepo.listCommentsByAuthor(db, forumId, userId, page, limit, userId);
+    const { comments, total } = await commentRepo.listCommentsByAuthor(db, publicApiUrl, forumId, userId, page, limit, userId);
     return { items: comments.map(commentItem), total, page, limit };
   }
 
@@ -131,8 +131,8 @@ export async function getProfileActivity(
     for (const r of savedCommentRows) savedAtById.set(r.id, r.savedAt);
 
     const [threads, comments] = await Promise.all([
-      threadRepo.getThreadsByIds(db, savedThreadRows.map((r) => r.id), userId),
-      commentRepo.getCommentsByIds(db, savedCommentRows.map((r) => r.id), userId),
+      threadRepo.getThreadsByIds(db, publicApiUrl, savedThreadRows.map((r) => r.id), userId),
+      commentRepo.getCommentsByIds(db, publicApiUrl, savedCommentRows.map((r) => r.id), userId),
     ]);
     const hydratedThreads = await hydrateThreadAttachments(db, publicApiUrl, forumId, threads);
 
@@ -151,8 +151,8 @@ export async function getProfileActivity(
     for (const r of votedCommentRows) votedAtById.set(r.id, r.votedAt);
 
     const [threads, comments] = await Promise.all([
-      threadRepo.getThreadsByIds(db, votedThreadRows.map((r) => r.id), userId),
-      commentRepo.getCommentsByIds(db, votedCommentRows.map((r) => r.id), userId),
+      threadRepo.getThreadsByIds(db, publicApiUrl, votedThreadRows.map((r) => r.id), userId),
+      commentRepo.getCommentsByIds(db, publicApiUrl, votedCommentRows.map((r) => r.id), userId),
     ]);
     const hydratedThreads = await hydrateThreadAttachments(db, publicApiUrl, forumId, threads);
 
@@ -166,10 +166,10 @@ export async function getProfileActivity(
   const [threadsResult, commentsResult] = await Promise.all([
     contentType === 'comments'
       ? { threads: [] as ThreadWithMetaData[], total: 0 }
-      : threadRepo.listThreadsByAuthor(db, forumId, userId, 1, fetchLimit, userId),
+      : threadRepo.listThreadsByAuthor(db, publicApiUrl, forumId, userId, 1, fetchLimit, userId),
     contentType === 'posts'
       ? { comments: [] as CommentWithThreadContext[], total: 0 }
-      : commentRepo.listCommentsByAuthor(db, forumId, userId, 1, fetchLimit, userId),
+      : commentRepo.listCommentsByAuthor(db, publicApiUrl, forumId, userId, 1, fetchLimit, userId),
   ]);
   const hydratedThreads = await hydrateThreadAttachments(db, publicApiUrl, forumId, threadsResult.threads);
   const items = [...hydratedThreads.map(threadItem), ...commentsResult.comments.map(commentItem)];
