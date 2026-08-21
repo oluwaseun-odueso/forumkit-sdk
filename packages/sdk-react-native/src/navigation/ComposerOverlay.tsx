@@ -120,6 +120,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
       }, token);
       onClose(); // attachments are now part of the thread — don't clean up
     } catch (e) {
+      console.error('[composer] createThread failed:', e);
       setError(e instanceof Error ? e.message : 'Failed to post');
     } finally {
       setSubmitting(false);

@@ -58,20 +58,29 @@ export function makeLocalAttachment(asset: ImagePicker.ImagePickerAsset): Compos
 const MAX_DIMENSION = 1600;
 const JPEG_COMPRESS = 0.8;
 
+// Never lets a compression failure take the whole upload down with it — the
+// resize is a speed optimisation, not a requirement, so any error here
+// (a bad source file, a native-module issue, anything) falls back to
+// uploading the original, uncompressed asset instead of failing the post.
 async function compressImage(asset: ImagePicker.ImagePickerAsset): Promise<{ uri: string; width: number; height: number }> {
   const longEdge = Math.max(asset.width, asset.height);
   if (longEdge <= MAX_DIMENSION) return { uri: asset.uri, width: asset.width, height: asset.height };
 
-  const scale = MAX_DIMENSION / longEdge;
-  const context = ImageManipulator.manipulate(asset.uri);
-  context.resize({ width: Math.round(asset.width * scale), height: Math.round(asset.height * scale) });
-  const rendered = await context.renderAsync();
-  // PNGs keep their format (screenshots/graphics may rely on transparency);
-  // everything else compresses to JPEG, matching the HEIC->JPEG normalisation
-  // already done at pick time.
-  const format = asset.mimeType === 'image/png' ? SaveFormat.PNG : SaveFormat.JPEG;
-  const saved = await rendered.saveAsync({ format, compress: JPEG_COMPRESS });
-  return { uri: saved.uri, width: saved.width, height: saved.height };
+  try {
+    const scale = MAX_DIMENSION / longEdge;
+    const context = ImageManipulator.manipulate(asset.uri);
+    context.resize({ width: Math.round(asset.width * scale), height: Math.round(asset.height * scale) });
+    const rendered = await context.renderAsync();
+    // PNGs keep their format (screenshots/graphics may rely on transparency);
+    // everything else compresses to JPEG, matching the HEIC->JPEG normalisation
+    // already done at pick time.
+    const format = asset.mimeType === 'image/png' ? SaveFormat.PNG : SaveFormat.JPEG;
+    const saved = await rendered.saveAsync({ format, compress: JPEG_COMPRESS });
+    return { uri: saved.uri, width: saved.width, height: saved.height };
+  } catch (e) {
+    console.warn('[upload] image compression failed, uploading original instead:', e);
+    return { uri: asset.uri, width: asset.width, height: asset.height };
+  }
 }
 
 // Uploads a single already-picked asset through the presigned flow. Images are
@@ -194,7 +203,10 @@ export function uploadPickedAssets(
     if (!localId) return;
     uploadAsset(apiUrl, forumId, asset, purpose, token)
       .then(media => onSettled(localId, { ok: true, media }))
-      .catch(() => onSettled(localId, { ok: false }));
+      .catch(e => {
+        console.error('[upload] attachment upload failed:', e);
+        onSettled(localId, { ok: false });
+      });
   });
 }
 
