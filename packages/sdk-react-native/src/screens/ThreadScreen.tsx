@@ -15,7 +15,7 @@ import { applyVote, nextVoteDir } from '../lib/vote';
 import Shell from '../navigation/Shell';
 import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
-import Thumbnail from '../components/Thumbnail';
+import MediaGallery from '../components/MediaGallery';
 import VotePill from '../components/VotePill';
 import CommentPill from '../components/CommentPill';
 import BackRow from '../components/BackRow';
@@ -181,7 +181,7 @@ export default function ThreadScreen() {
     void shareThreadWithUsers(apiUrl, forumId, threadId, recipientIds, undefined, token).catch(() => { /* best effort */ });
   }
 
-  const heroImage = (thread?.attachments ?? []).find(a => a.mimeType.startsWith('image/'))?.downloadUrl ?? null;
+  const media = thread?.attachments ?? [];
 
   return (
     <Shell>
@@ -214,7 +214,7 @@ export default function ThreadScreen() {
               {thread.body.trim().length > 0 && (
                 <View style={{ marginBottom: 16 }}><RenderedBody body={thread.body} size={14.5} /></View>
               )}
-              {heroImage != null && <Thumbnail imageUrl={heroImage} aspectRatio={4 / 5} radius={14} style={{ marginBottom: 16 }} />}
+              <MediaGallery attachments={media} aspectRatio={4 / 5} radius={14} />
             </>
           )}
 
