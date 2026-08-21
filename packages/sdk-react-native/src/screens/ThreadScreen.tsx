@@ -214,7 +214,7 @@ export default function ThreadScreen() {
               {thread.body.trim().length > 0 && (
                 <View style={{ marginBottom: 16 }}><RenderedBody body={thread.body} size={14.5} /></View>
               )}
-              {heroImage != null && <Thumbnail imageUrl={heroImage} aspectRatio={4 / 3} radius={14} style={{ marginBottom: 16 }} />}
+              {heroImage != null && <Thumbnail imageUrl={heroImage} aspectRatio={4 / 5} radius={14} style={{ marginBottom: 16 }} />}
             </>
           )}
 

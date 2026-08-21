@@ -217,5 +217,5 @@ const styles = StyleSheet.create({
   listRow: { flexDirection: 'row', gap: 6, marginBottom: 4 },
   codeBlock: { borderRadius: 8, padding: 12, marginBottom: 10 },
   hr: { height: 1, marginVertical: 10 },
-  image: { width: '100%', aspectRatio: 4 / 3, borderRadius: 12, marginVertical: 8 },
+  image: { width: '100%', aspectRatio: 4 / 5, borderRadius: 12, marginVertical: 8 },
 });

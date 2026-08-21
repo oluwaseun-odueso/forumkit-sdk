@@ -43,7 +43,7 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
         <>
           <Text style={[styles.title, { color: tokens.text }]} numberOfLines={3}>{row.title}</Text>
           {imageUrl != null && (
-            <Thumbnail imageUrl={imageUrl} aspectRatio={4 / 3} radius={14} style={{ marginBottom: 10 }} />
+            <Thumbnail imageUrl={imageUrl} aspectRatio={4 / 5} radius={14} style={{ marginBottom: 10 }} />
           )}
         </>
       ) : (

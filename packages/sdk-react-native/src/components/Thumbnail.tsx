@@ -15,11 +15,11 @@ export default function Thumbnail({ imageUrl, radius, square, aspectRatio, style
   style?: StyleProp<ImageStyle>;
 }) {
   const { tokens } = useTheme();
-  // 4:3 (was 16:10) — a taller default crop so a card's photo reads as an
-  // actual image rather than a thin landscape strip.
+  // 4:5 (was 4:3, before that 16:10) — a portrait-leaning default crop so a
+  // card's photo reads as an actual image rather than a landscape strip.
   const dims: ImageStyle = square != null
     ? { width: square, height: square }
-    : { width: '100%', aspectRatio: aspectRatio ?? 4 / 3 };
+    : { width: '100%', aspectRatio: aspectRatio ?? 4 / 5 };
   return (
     <Image
       source={{ uri: imageUrl }}
