@@ -75,14 +75,29 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
   return (
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <Pressable style={styles.scrim} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight: sheetMaxHeight }]} onPress={() => {}}>
+      {/* Scrim and sheet are siblings, not nested — the scrim is a full-screen
+          Pressable behind everything, and the sheet-positioning wrapper is
+          pointerEvents="box-none" so a tap in the empty space above the sheet
+          falls through to it. This used to be a Pressable-in-Pressable
+          "swallow the tap" hack (sheet nested inside the scrim's Pressable,
+          with its own onPress={() => {}}); that pattern is fragile once a
+          ScrollView sits inside it — RN's touch responder negotiation between
+          the outer Pressable and the ScrollView's pan responder could let a
+          scroll gesture's release get treated as a tap that bubbled to the
+          scrim, closing the sheet mid-scroll. */}
+      <Pressable style={styles.scrim} onPress={onClose} />
+      <View style={styles.sheetWrap} pointerEvents="box-none">
+        <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight: sheetMaxHeight }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: tokens.text }]}>Edit profile</Text>
             <Pressable onPress={onClose} hitSlop={8}><CloseIcon size={18} color={tokens.text} /></Pressable>
           </View>
 
-          <ScrollView style={{ maxHeight: scrollMaxHeight }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            style={{ maxHeight: scrollMaxHeight, marginRight: -16 }}
+            contentContainerStyle={{ paddingRight: 26 }}
+            keyboardShouldPersistTaps="handled"
+          >
             <Text style={[styles.label, { color: tokens['text-2'] }]}>Display name</Text>
             <TextInput value={name} onChangeText={setName} style={[styles.input, { color: tokens.text, borderColor: tokens['border-strong'] }]} />
 
@@ -156,15 +171,20 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
           <Pressable onPress={save} disabled={saving} style={[styles.saveBtn, { backgroundColor: tokens.accent, opacity: saving ? 0.5 : 1 }]}>
             <Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 14 }}>{saving ? 'Saving…' : 'Save'}</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  // Full-screen dim backdrop, a sibling of sheetWrap below rather than its
+  // parent — see the comment above where it's rendered.
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
+  // Positions the sheet at the bottom; box-none means it never itself
+  // intercepts a touch, so a tap above the sheet reaches the scrim behind it.
+  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   title: { fontSize: 16, fontWeight: '800' },
