@@ -6,7 +6,7 @@ import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
 import { HamburgerIcon, SearchIcon, CloseIcon, SunIcon, MoonIcon } from '../components/icons';
 import { GradientBorderPill } from '../components/Pill';
-import { glassTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
+import { glassTint, glassPillTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 
 // Top bar per design_handoff_forum_kit_mobile/README.md §4 — 52px,
 // hamburger / mascot (no wordmark here) / collapsible search / theme
@@ -45,15 +45,21 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }:
             BottomBar.tsx) — real Liquid Glass on iOS 26+, frosted blur
             fallback elsewhere. */}
         {LIQUID_GLASS_AVAILABLE ? (
-          <GlassView style={styles.hamburgerBtn} glassEffectStyle="clear" colorScheme="light" tintColor="#ffffff" isInteractive>
+          <GlassView
+            style={[styles.hamburgerBtn, { borderColor: glassBorderColor(mode) }]}
+            glassEffectStyle="clear"
+            colorScheme={mode}
+            tintColor={glassPillTint(mode)}
+            isInteractive
+          >
             <HamburgerIcon size={18} color={tokens['text-2']} />
           </GlassView>
         ) : (
           <BlurView
             intensity={GLASS_INTENSITY}
-            tint={glassTint()}
+            tint={glassTint(mode)}
             blurMethod="dimezisBlurView"
-            style={[styles.hamburgerBtn, glassFill(tokens.glass)]}
+            style={[styles.hamburgerBtn, glassFill(tokens.glass), { borderColor: glassBorderColor(mode) }]}
           >
             <HamburgerIcon size={18} color={tokens['text-2']} />
           </BlurView>
@@ -127,7 +133,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
+    // borderColor is set per-theme at the call site.
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

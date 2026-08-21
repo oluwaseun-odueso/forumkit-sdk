@@ -16,16 +16,44 @@ export const LIQUID_GLASS_AVAILABLE = isLiquidGlassAvailable();
 // Shared so the floating bottom bar and hamburger drawer stay identical. The
 // blur "tint" is what makes background content bleed through slurry — iOS has
 // true system materials (Control Center / native tab-bar glass);
-// systemUltraThinMaterial is the most transparent one. Hardcoded to the Light
-// variant always, NOT tied to the app's own dark/light theme toggle — an
-// earlier version picked Dark whenever the app theme was dark, which is what
-// rendered this as a dark bar (Apple's dark material is a genuinely darker,
-// smokier glass, not a color we set directly). The reference screenshots
-// stay light-glass even over dark content, so this doesn't follow the app
-// theme, matching the same call already made for the real Liquid Glass path.
-export function glassTint(): BlurTint {
-  if (IS_IOS) return 'systemUltraThinMaterialLight';
-  return 'light';
+// systemUltraThinMaterial is the most transparent one.
+//
+// This used to be hardcoded to the Light variant always, regardless of the
+// app's own dark/light theme — reasoned from reference screenshots that
+// stayed light-glass even over dark content. On an actual device in dark
+// mode that reads as wrong (a bright light panel sitting on top of an
+// otherwise dark UI), so this now follows the app theme after all. An
+// earlier attempt at that (before the light-always hardcoding) rendered
+// Apple's plain `...MaterialDark` as an overly dark/smokey blob — paired
+// here with an explicit, moderate tintColor (glassPillTint/glassBarTint
+// below) rather than leaving the system material to carry the whole look,
+// which is what made that first attempt murky.
+export function glassTint(mode: 'light' | 'dark' = 'light'): BlurTint {
+  if (IS_IOS) return mode === 'dark' ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight';
+  return mode;
+}
+
+// Solid tintColor for the real Liquid Glass path (GlassView's `tintColor` +
+// `colorScheme` props) — same light/dark split as glassTint above, for the
+// small pill-shaped surfaces (hamburger button, active bottom-bar tab,
+// drawer panel isn't a pill but uses the same tone).
+export function glassPillTint(mode: 'light' | 'dark'): string {
+  return mode === 'dark' ? '#2c2c2e' : '#ffffff';
+}
+
+// Same idea as glassPillTint, for the bottom bar's own translucent base
+// layer, which uses a warmer, more opaque tint than the plain white pill.
+export function glassBarTint(mode: 'light' | 'dark'): string {
+  return mode === 'dark' ? '#1c1c1e7d' : '#d5d2d27d';
+}
+
+// The faint hairline border every glass surface (hamburger button, bottom
+// bar) draws around itself to separate it from whatever's behind it — was a
+// flat light-only rgba(255,255,255,...), which read as a bright ring around
+// a dark-mode surface. Dark mode gets a dimmer white line instead of a
+// brighter one, matching how these surfaces already invert their fill.
+export function glassBorderColor(mode: 'light' | 'dark'): string {
+  return mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.55)';
 }
 
 // Intensity is how much of the blur effect is "applied" (expo-blur drives it

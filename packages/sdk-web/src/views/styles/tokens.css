@@ -37,7 +37,7 @@
   --danger: #e0463a;
   --ring: rgba(63, 126, 226, 0.55);
   --thumb-shadow: rgba(0, 0, 0, 0.5);
-  --glass: rgba(255, 255, 255, 0.10);
+  --glass: rgba(12, 14, 18, 0.35);
 }
 
 :host([data-theme='light']),
@@ -63,6 +63,7 @@
   --danger: #d1372b;
   --ring: rgba(47, 111, 214, 0.5);
   --thumb-shadow: rgba(0, 0, 0, 0.18);
+  --glass: rgba(255, 255, 255, 0.10);
 }
 
 @keyframes fkdance {

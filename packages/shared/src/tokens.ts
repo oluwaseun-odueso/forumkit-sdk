@@ -46,12 +46,14 @@ export const darkTokens: TokenSet = {
   'danger': '#e0463a',
   'ring': 'rgba(63, 126, 226, 0.55)',
   'thumb-shadow': 'rgba(0, 0, 0, 0.5)',
-  // A soft white tint layered over a native blur (mobile's floating bottom
-  // bar + hamburger drawer) — the classic "frosted glass" look, same in both
-  // themes (not overridden in lightTokens) rather than swapping per-theme.
-  // Kept light on purpose: the blur itself (not this tint) is what makes the
-  // panel read as "glass" rather than a flat translucent smudge.
-  'glass': 'rgba(255, 255, 255, 0.10)',
+  // A tint layered over a native blur (mobile's floating bottom bar +
+  // hamburger drawer + hamburger button) — the classic "frosted glass" look.
+  // Used to be the same white tint in both themes on purpose (the blur
+  // itself, not this tint, is what makes it read as "glass"), but on an
+  // actual dark-mode device that reads as a bright panel contradicting the
+  // rest of the UI — so this is now dark by default, with lightTokens below
+  // overriding back to the original white.
+  'glass': 'rgba(12, 14, 18, 0.35)',
 };
 
 export const lightTokens: TokenSet = {
@@ -77,6 +79,7 @@ export const lightTokens: TokenSet = {
   'danger': '#d1372b',
   'ring': 'rgba(47, 111, 214, 0.5)',
   'thumb-shadow': 'rgba(0, 0, 0, 0.18)',
+  'glass': 'rgba(255, 255, 255, 0.10)',
 };
 
 // Timing/easing shared by the mascot's fkdance/fkdotpop/fkbadge animations

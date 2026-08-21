@@ -3,7 +3,7 @@ import { BlurView } from 'expo-blur';
 import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { glassTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
+import { glassTint, glassPillTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 import Mascot from '../components/Mascot';
 import { HomeIcon, PopularIcon, NewsIcon } from '../components/icons';
 
@@ -25,7 +25,7 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
   activeRoute: DrawerRoute | null;
   onSelectRoute: (route: DrawerRoute) => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
   const insets = useSafeAreaInsets();
 
   const panelContent = (
@@ -70,18 +70,20 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
               style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
               // 'clear' — more transparent, less blurry; see BottomBar.tsx.
               glassEffectStyle="clear"
-              // Hardcoded 'light' + explicit white tintColor — see
-              // BottomBar.tsx, colorScheme alone didn't force a light render
-              // on-device.
-              colorScheme="light"
-              tintColor="#ffffff"
+              // Follows the app's own theme — see lib/glass.ts's glassTint
+              // doc comment for why this used to be hardcoded light and no
+              // longer is (a light drawer panel over a dark-mode app read as
+              // wrong on-device). colorScheme alone doesn't force the render
+              // to match — the explicit tintColor does.
+              colorScheme={mode}
+              tintColor={glassPillTint(mode)}
             >
               {panelContent}
             </GlassView>
           ) : (
             <BlurView
               intensity={GLASS_INTENSITY}
-              tint={glassTint()}
+              tint={glassTint(mode)}
               // Android needs this opted in for real blur (see lib/glass.ts).
               blurMethod="dimezisBlurView"
               style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}

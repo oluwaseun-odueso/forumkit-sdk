@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { GlassView, GlassContainer } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { glassTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
+import { glassTint, glassPillTint, glassBarTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 import { HomeIcon, BellIcon } from '../components/icons';
 import Avatar from '../components/Avatar';
 
@@ -33,7 +33,7 @@ export default function BottomBar({
   onNotifications: () => void;
   onProfile: () => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
   const safeBottom = useSafeAreaInsets().bottom;
   const insets = IS_IOS
     ? { left: 24, right: 24, bottom: safeBottom + 8 }
@@ -62,15 +62,15 @@ export default function BottomBar({
       // TabItem) visually merge with this background glass — the "liquid"
       // part of Liquid Glass — rather than sitting as two flat unrelated
       // layers.
-      <GlassContainer spacing={14} style={[styles.bar, position]}>
+      <GlassContainer spacing={14} style={[styles.bar, position, { borderColor: glassBorderColor(mode) }]}>
         {/* 'clear' — Apple's more-transparent, less-adaptive-blur style; a
             prior version used 'regular' to calm an earlier too-dark/muddy
             render, but that was really the missing tintColor below, not this
             style. Now that the color is right, 'clear' per feedback: more
-            transparent, less blurry. colorScheme="light" alone did NOT force
-            a light render on-device — the explicit white tintColor is what
-            actually did. */}
-        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="clear" colorScheme="light" tintColor="#d5d2d27d" />
+            transparent, less blurry. colorScheme alone did NOT force a
+            render on-device in the matching theme — the explicit tintColor
+            is what actually did (see lib/glass.ts's glassBarTint). */}
+        <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="clear" colorScheme={mode} tintColor={glassBarTint(mode)} />
         {items}
       </GlassContainer>
     );
@@ -79,10 +79,10 @@ export default function BottomBar({
   return (
     <BlurView
       intensity={GLASS_INTENSITY}
-      tint={glassTint()}
+      tint={glassTint(mode)}
       // Android's blur is off ('none') by default — opt in for real blur.
       blurMethod="dimezisBlurView"
-      style={[styles.bar, position, glassFill(tokens.glass)]}
+      style={[styles.bar, position, glassFill(tokens.glass), { borderColor: glassBorderColor(mode) }]}
     >
       {items}
     </BlurView>
@@ -104,7 +104,7 @@ function TabItem({ active, renderIcon, label, onPress }: {
   label: string;
   onPress: () => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
   const color = active ? tokens.accent : tokens['text-2'];
   const content = (
     <>
@@ -116,7 +116,7 @@ function TabItem({ active, renderIcon, label, onPress }: {
   if (active && LIQUID_GLASS_AVAILABLE) {
     return (
       <Pressable onPress={onPress}>
-        <GlassView style={styles.item} glassEffectStyle="clear" colorScheme="light" tintColor="#ffffff" isInteractive>
+        <GlassView style={styles.item} glassEffectStyle="clear" colorScheme={mode} tintColor={glassPillTint(mode)} isInteractive>
           {content}
         </GlassView>
       </Pressable>
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     height: 66,
     borderRadius: 33,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
+    // borderColor is set per-theme at the call site.
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
