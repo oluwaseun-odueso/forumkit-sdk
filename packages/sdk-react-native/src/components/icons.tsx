@@ -202,6 +202,25 @@ export function ReportIcon({ size = 19, color = '#000' }: IconProps) {
   );
 }
 
+export function TrashIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M3 6L5 6L21 6" />
+      <Path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+      <Path d="M10 11v6M14 11v6" />
+      <Path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+    </Svg>
+  );
+}
+
+export function CheckIcon({ size = 18, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={2.5}>
+      <Path d="M5 13l4 4L19 7" />
+    </Svg>
+  );
+}
+
 export function CompactViewIcon({ size = 18, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color}>

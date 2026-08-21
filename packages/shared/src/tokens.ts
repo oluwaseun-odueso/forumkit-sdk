@@ -17,7 +17,7 @@ export type TokenKey =
   | 'text' | 'text-2' | 'muted' | 'faint'
   | 'hover' | 'hover-2'
   | 'accent' | 'accent-2' | 'accent-fg' | 'accent-soft'
-  | 'up' | 'down' | 'success' | 'danger'
+  | 'up' | 'down' | 'success' | 'success-soft' | 'success-soft-strong' | 'danger'
   | 'ring' | 'thumb-shadow' | 'glass';
 
 export type TokenSet = Record<TokenKey, string>;
@@ -43,6 +43,12 @@ export const darkTokens: TokenSet = {
   'up': '#ff6a3d',
   'down': '#8b6dff',
   'success': '#3fb950',
+  // Precomputed tints of `success` (rgb(63,185,80)) — matches the
+  // `accent-soft` pattern above rather than a runtime hex→rgba conversion
+  // (RN has no color-mix()). Used for the accepted-answer comment's row wash
+  // (6%) and badge fill (16%).
+  'success-soft': 'rgba(63, 185, 80, 0.06)',
+  'success-soft-strong': 'rgba(63, 185, 80, 0.16)',
   'danger': '#e0463a',
   'ring': 'rgba(63, 126, 226, 0.55)',
   'thumb-shadow': 'rgba(0, 0, 0, 0.5)',
@@ -76,6 +82,9 @@ export const lightTokens: TokenSet = {
   'accent-soft': 'rgba(47, 111, 214, 0.12)',
   'up': '#f0521f',
   'success': '#1f9d3c',
+  // rgb(31,157,60) tints — see darkTokens' comment.
+  'success-soft': 'rgba(31, 157, 60, 0.06)',
+  'success-soft-strong': 'rgba(31, 157, 60, 0.16)',
   'danger': '#d1372b',
   'ring': 'rgba(47, 111, 214, 0.5)',
   'thumb-shadow': 'rgba(0, 0, 0, 0.18)',

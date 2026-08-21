@@ -276,8 +276,8 @@ export default function ThreadScreen() {
 function PostAction({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
   const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} hitSlop={6} style={{ marginLeft: 14 }}>
-      <Text style={{ color: danger ? tokens.danger : tokens['text-2'], fontSize: 13, fontWeight: '600' }}>{label}</Text>
+    <Pressable onPress={onPress} hitSlop={6} style={[styles.postActionChip, { backgroundColor: tokens['surface-2'] }]}>
+      <Text style={{ color: danger ? tokens.danger : tokens['text-2'], fontSize: 13, fontWeight: '700' }}>{label}</Text>
     </Pressable>
   );
 }
@@ -290,6 +290,7 @@ const styles = StyleSheet.create({
   time: { fontSize: 13 },
   title: { fontSize: 20, fontWeight: '800', lineHeight: 26, marginBottom: 10 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  postActionChip: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4 },
   searchPill: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12 },
   editInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 14.5, textAlignVertical: 'top' },
