@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, BackHandler, Pressable } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type NavigationProp } from '@react-navigation/native';
 import { getMyProfile } from '@forumkit/shared';
@@ -8,7 +9,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import TopBar from './TopBar';
 import BottomBar from './BottomBar';
-import Drawer, { type DrawerRoute } from './Drawer';
+import Drawer, { DRAWER_WIDTH, type DrawerRoute } from './Drawer';
 import ComposerOverlay from './ComposerOverlay';
 import DraftsSheet from '../composer/DraftsSheet';
 import NotificationsOverlay from './NotificationsOverlay';
@@ -57,6 +58,28 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
   const [me, setMe] = useState<{ displayName: string; avatarUrl: string | null } | null>(null);
 
+  // Drives the "push" drawer — the main content translates right to reveal
+  // the drawer panel sitting behind it (see Drawer.tsx), rather than the
+  // drawer overlaying on top as a Modal. Same reanimated pattern already
+  // used by components/Mascot.tsx.
+  const drawerX = useSharedValue(0);
+  useEffect(() => {
+    drawerX.value = withTiming(drawerOpen ? DRAWER_WIDTH : 0, { duration: 250, easing: Easing.out(Easing.cubic) });
+  }, [drawerOpen, drawerX]);
+  const drawerPushStyle = useAnimatedStyle(() => ({ transform: [{ translateX: drawerX.value }] }));
+
+  // Modal's onRequestClose used to handle the Android hardware back button
+  // for free; now that the drawer isn't a Modal, it needs its own listener —
+  // only active while open, so back-navigation behaves normally otherwise.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setDrawerOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [drawerOpen]);
+
   // Just enough of the current user's profile for the bottom bar's Profile
   // tab avatar — Shell remounts fresh on every screen navigation (see the
   // useRoute comment above), so this naturally refetches and picks up a
@@ -102,28 +125,40 @@ export default function Shell({ children }: { children: ReactNode }) {
   }), []);
 
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
-      <TopBar
-        onOpenDrawer={() => setDrawerOpen(true)}
-        onHome={goHome}
-        onSearch={q => navigation.navigate('Search', { query: q })}
-      />
-      <ShellContext.Provider value={actions}>
-        <View style={{ flex: 1 }}>{children}</View>
-      </ShellContext.Provider>
-      <BottomBar
-        homeActive={isFeed}
-        notificationsActive={notifOpen}
-        profileActive={route.name === 'Profile'}
-        authorId={session.status === 'ready' ? session.userId : undefined}
-        displayName={me?.displayName}
-        avatarUrl={me?.avatarUrl}
-        onHome={goHome}
-        onCreate={() => setComposerOpen(true)}
-        onNotifications={() => setNotifOpen(true)}
-        onProfile={() => navigation.navigate('Profile')}
-      />
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} activeRoute={feedScope} onSelectRoute={goTo} />
+    <View style={[styles.root, { backgroundColor: tokens.bg }]}>
+      {/* Always mounted, sitting behind the pushed content below — only
+          becomes visible once that content translates right. Rendered
+          outside the padded/animated layer so its own top padding (see
+          Drawer.tsx) doesn't double up with the padding below. */}
+      <Drawer activeRoute={feedScope} onSelectRoute={goTo} />
+
+      <Animated.View style={[styles.pushed, drawerPushStyle, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
+        <TopBar
+          onOpenDrawer={() => setDrawerOpen(true)}
+          onHome={goHome}
+          onSearch={q => navigation.navigate('Search', { query: q })}
+        />
+        <ShellContext.Provider value={actions}>
+          <View style={{ flex: 1 }}>{children}</View>
+        </ShellContext.Provider>
+        <BottomBar
+          homeActive={isFeed}
+          notificationsActive={notifOpen}
+          profileActive={route.name === 'Profile'}
+          authorId={session.status === 'ready' ? session.userId : undefined}
+          displayName={me?.displayName}
+          avatarUrl={me?.avatarUrl}
+          onHome={goHome}
+          onCreate={() => setComposerOpen(true)}
+          onNotifications={() => setNotifOpen(true)}
+          onProfile={() => navigation.navigate('Profile')}
+        />
+        {/* Tap-outside-to-close — conditionally mounted (not just visually
+            hidden) so it never intercepts touches while the drawer is
+            closed, matching how the overlay group below is gated. */}
+        {drawerOpen && <Pressable style={StyleSheet.absoluteFill} onPress={() => setDrawerOpen(false)} />}
+      </Animated.View>
+
       {composerOpen && (
         <ComposerOverlay
           key={loadedDraft?.id ?? 'new'}
@@ -148,6 +183,9 @@ export default function Shell({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+  },
+  pushed: {
     flex: 1,
   },
 });

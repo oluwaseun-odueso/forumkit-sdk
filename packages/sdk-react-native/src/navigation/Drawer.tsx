@@ -1,4 +1,4 @@
-import { Modal, View, Pressable, Text, StyleSheet, Platform } from 'react-native';
+import { View, Pressable, Text, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,13 +13,20 @@ const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
 export type DrawerRoute = 'home' | 'popular' | 'news';
 
-// Hamburger drawer per README §5 — scrim + 250px panel, brand row (mascot +
-// Michroma wordmark), Home/Popular/News. No divider, no Create Post row.
-// Real Apple Liquid Glass on iOS 26+ (matching the bottom bar), a frosted
-// blur fallback everywhere else — see lib/glass.ts.
-export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
-  open: boolean;
-  onClose: () => void;
+// Exported so Shell.tsx's push animation can't drift out of sync with the
+// panel's own width.
+export const DRAWER_WIDTH = 250;
+
+// Hamburger drawer per README §5 — brand row (mascot + Michroma wordmark),
+// Home/Popular/News. Real Apple Liquid Glass on iOS 26+ (matching the bottom
+// bar), a frosted blur fallback everywhere else — see lib/glass.ts.
+//
+// This is just the panel's content now — no Modal, no scrim, no open/close
+// state of its own. It's always mounted, absolutely positioned at the left
+// edge of Shell's root view, and only becomes visible when Shell translates
+// the main content out of the way (a "push" drawer, not an overlay one).
+// Shell owns open/close state and the tap-outside-to-close affordance.
+export default function Drawer({ activeRoute, onSelectRoute }: {
   // null when the current screen isn't the feed (Thread/Profile/Search) —
   // none of Home/Popular/News apply there, so no row shows active.
   activeRoute: DrawerRoute | null;
@@ -58,42 +65,31 @@ export default function Drawer({ open, onClose, activeRoute, onSelectRoute }: {
     </>
   );
 
-  return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose}>
-        {/* Panel click doesn't close — stopPropagation equivalent is just
-            not forwarding the press to the scrim's Pressable, achieved by
-            this inner Pressable swallowing the event. */}
-        <Pressable onPress={() => {}}>
-          {LIQUID_GLASS_AVAILABLE ? (
-            <GlassView
-              style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-              // 'clear' — more transparent, less blurry; see BottomBar.tsx.
-              glassEffectStyle="clear"
-              // Follows the app's own theme — see lib/glass.ts's glassTint
-              // doc comment for why this used to be hardcoded light and no
-              // longer is (a light drawer panel over a dark-mode app read as
-              // wrong on-device). colorScheme alone doesn't force the render
-              // to match — the explicit tintColor does.
-              colorScheme={mode}
-              tintColor={glassPillTint(mode)}
-            >
-              {panelContent}
-            </GlassView>
-          ) : (
-            <BlurView
-              intensity={GLASS_INTENSITY}
-              tint={glassTint(mode)}
-              // Android needs this opted in for real blur (see lib/glass.ts).
-              blurMethod="dimezisBlurView"
-              style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-            >
-              {panelContent}
-            </BlurView>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+  return LIQUID_GLASS_AVAILABLE ? (
+    <GlassView
+      style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
+      // 'clear' — more transparent, less blurry; see BottomBar.tsx.
+      glassEffectStyle="clear"
+      // Follows the app's own theme — see lib/glass.ts's glassTint doc
+      // comment for why this used to be hardcoded light and no longer is (a
+      // light drawer panel over a dark-mode app read as wrong on-device).
+      // colorScheme alone doesn't force the render to match — the explicit
+      // tintColor does.
+      colorScheme={mode}
+      tintColor={glassPillTint(mode)}
+    >
+      {panelContent}
+    </GlassView>
+  ) : (
+    <BlurView
+      intensity={GLASS_INTENSITY}
+      tint={glassTint(mode)}
+      // Android needs this opted in for real blur (see lib/glass.ts).
+      blurMethod="dimezisBlurView"
+      style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
+    >
+      {panelContent}
+    </BlurView>
   );
 }
 
@@ -113,14 +109,12 @@ function DrawerRow({ label, icon, active, onPress }: { label: string; icon: Reac
 }
 
 const styles = StyleSheet.create({
-  scrim: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    flexDirection: 'row',
-  },
   panel: {
-    width: 250,
-    height: '100%',
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: DRAWER_WIDTH,
     paddingHorizontal: 12,
     paddingVertical: 16,
   },
