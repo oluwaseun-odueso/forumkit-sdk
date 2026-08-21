@@ -285,7 +285,7 @@ export async function createThread(
   authorId: string,
   body: CreateThreadBody,
 ): Promise<ThreadWithAttachments> {
-  const thread = await threadRepo.createThread(db, publicApiUrl, {
+  const created = await threadRepo.createThread(db, publicApiUrl, {
     forumId,
     authorId,
     title: body.title,
@@ -296,19 +296,25 @@ export async function createThread(
   // Best-effort: a bad/foreign attachment id shouldn't fail thread
   // creation, since the thread itself was already created successfully.
   for (const attachmentId of body.attachmentIds ?? []) {
-    await attachToExistingThread(db, attachmentId, thread.id, authorId);
+    await attachToExistingThread(db, attachmentId, created.id, authorId);
   }
 
   // A direct user action, unlike suggestAndApplyTags below — resolved
-  // synchronously so the tag is guaranteed present in the response.
+  // synchronously so the tag is guaranteed present in the response. `created`
+  // was read before this insert, so its own `tags` field would come back
+  // stale (empty) even though the tag is correctly linked — re-fetch after
+  // inserting so the response reflects it.
+  let thread = created;
   if (body.tagNames && body.tagNames.length > 0) {
     const tags = await Promise.all(body.tagNames.map((name) => tagsRepo.upsertTagByName(db, forumId, name)));
     const tagIds = tags.map((t) => t.id);
     await db`
       INSERT INTO thread_tags (thread_id, tag_id)
-      SELECT ${thread.id}, UNNEST(${tagIds}::uuid[])
+      SELECT ${created.id}, UNNEST(${tagIds}::uuid[])
       ON CONFLICT DO NOTHING
     `;
+    const refreshed = await threadRepo.getThreadById(db, publicApiUrl, created.id);
+    if (refreshed) thread = refreshed;
   }
 
   // Fire-and-forget async jobs — never block the response
