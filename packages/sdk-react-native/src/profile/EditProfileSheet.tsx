@@ -30,9 +30,10 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
   // Hard ceiling so the sheet can never reach the very top of the screen —
   // previously unbounded (only the inner ScrollView had a fixed 360pt cap,
   // regardless of screen size), which crowded the status bar on shorter
-  // phones and especially with the keyboard open.
-  const sheetMaxHeight = windowHeight - insets.top - 24;
-  const scrollMaxHeight = Math.min(360, windowHeight * 0.42);
+  // phones and especially with the keyboard open. Leaves a generous, fixed
+  // gap from the top rather than a tight one.
+  const sheetMaxHeight = windowHeight - insets.top - 100;
+  const scrollMaxHeight = Math.min(300, windowHeight * 0.34);
   const [name, setName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? '');
   const [links, setLinks] = useState<DraftLink[]>(
@@ -81,7 +82,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
             <Pressable onPress={onClose} hitSlop={8}><CloseIcon size={18} color={tokens.text} /></Pressable>
           </View>
 
-          <ScrollView style={{ maxHeight: scrollMaxHeight }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: scrollMaxHeight }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={[styles.label, { color: tokens['text-2'] }]}>Display name</Text>
             <TextInput value={name} onChangeText={setName} style={[styles.input, { color: tokens.text, borderColor: tokens['border-strong'] }]} />
 
@@ -99,7 +100,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
                       onPress={() => setOpenPickerId(id => (id === link.id ? null : link.id))}
                       style={[styles.platBtn, { backgroundColor: tokens['surface-2'] }]}
                     >
-                      <PlatformIcon size={17} />
+                      <PlatformIcon size={17} color={tokens.text} />
                       <ChevronDownIcon size={11} color={tokens.muted} />
                     </Pressable>
                     <View style={[styles.linkUrlWrap, { borderColor: tokens['border-strong'] }]}>
@@ -128,7 +129,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
                             onPress={() => selectPlatform(link.id, p)}
                             style={[styles.platformOption, link.platform === p && { backgroundColor: tokens['hover-2'] }]}
                           >
-                            <OptIcon size={18} />
+                            <OptIcon size={18} color={tokens.text} />
                           </Pressable>
                         );
                       })}
