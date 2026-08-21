@@ -19,7 +19,7 @@ import Mascot from '../components/Mascot';
 import PostRow from '../feed/PostRow';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
-import { EyeIcon, CameraIcon, PencilIcon, PlusIcon } from '../components/icons';
+import { CameraIcon, PencilIcon, PlusIcon } from '../components/icons';
 import SocialLinks from '../profile/SocialLinks';
 import ProfileCommentCard from '../profile/ProfileCommentCard';
 import EditProfileSheet from '../profile/EditProfileSheet';
@@ -164,12 +164,13 @@ function ProfileBody() {
           </View>
         </View>
 
-        <View style={styles.statsRow}>
-          <View>
+        <View style={[styles.statsCard, { borderColor: tokens.border, backgroundColor: tokens['surface-2'] }]}>
+          <View style={styles.statBlock}>
             <Text style={[styles.statValue, { color: tokens.text }]}>{(profile?.postKarma ?? 0).toLocaleString()}</Text>
             <Text style={[styles.statLabel, { color: tokens.muted }]}>Post Karma</Text>
           </View>
-          <View>
+          <View style={[styles.statDivider, { backgroundColor: tokens.border }]} />
+          <View style={styles.statBlock}>
             <Text style={[styles.statValue, { color: tokens.text }]}>{(profile?.commentKarma ?? 0).toLocaleString()}</Text>
             <Text style={[styles.statLabel, { color: tokens.muted }]}>Comment Karma</Text>
           </View>
@@ -183,11 +184,6 @@ function ProfileBody() {
 
       <View style={{ marginTop: 14 }}>
         <TabPills tabs={PROFILE_TABS} active={activeTab} onSelect={setActiveTab} />
-      </View>
-
-      <View style={styles.showingRow}>
-        <EyeIcon size={15} color={tokens.muted} />
-        <Text style={{ color: tokens.muted, fontSize: 13 }}>Showing all content</Text>
       </View>
 
       <View style={[styles.divider, { backgroundColor: tokens.border }]} />
@@ -209,7 +205,7 @@ function ProfileBody() {
             <PostRow
               key={`t-${a.row.id}-${i}`}
               row={a.row}
-              view="card"
+              view="compact"
               onOpen={() => navigation.navigate('Thread', { threadId: a.row.id })}
               onVote={dir => onVote(a.row, dir)}
               onSave={() => onSave(a.row)}
@@ -262,12 +258,17 @@ const styles = StyleSheet.create({
   name: { fontSize: 20, fontWeight: '800' },
   handle: { fontSize: 13, marginTop: 2 },
   editIconBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', gap: 24, marginTop: 12 },
-  statValue: { fontSize: 16, fontWeight: '800' },
+  // Demoted below the identity line into its own bordered card — previously
+  // two bare stat blocks at nearly the same weight as the name above them.
+  statsCard: {
+    flexDirection: 'row', borderRadius: 12, borderWidth: 1, marginTop: 14, paddingVertical: 10,
+  },
+  statBlock: { flex: 1, alignItems: 'center' },
+  statDivider: { width: 1, alignSelf: 'stretch', marginVertical: 2 },
+  statValue: { fontSize: 15, fontWeight: '700' },
   statLabel: { fontSize: 12, marginTop: 1 },
-  bio: { fontSize: 13.5, lineHeight: 20, marginTop: 8 },
-  showingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, paddingHorizontal: 16 },
-  divider: { height: 1, marginTop: 14 },
+  bio: { fontSize: 13.5, lineHeight: 20, marginTop: 12 },
+  divider: { height: 1, marginTop: 10 },
   empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 24 },
   emptyTitle: { fontSize: 17, fontWeight: '800', marginTop: 16, textAlign: 'center' },
   emptyDesc: { fontSize: 13.5, textAlign: 'center', marginTop: 8, maxWidth: 280, lineHeight: 20 },

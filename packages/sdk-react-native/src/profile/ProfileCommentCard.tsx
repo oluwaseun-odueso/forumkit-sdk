@@ -29,7 +29,11 @@ export default function ProfileCommentCard({ comment, threadTitle, replyingTo, o
           Replying to <Text style={{ fontWeight: '700' }}>{replyingTo.author}</Text>: “{replyingTo.snippet}”
         </Text>
       )}
-      <View style={{ marginTop: 4 }}><RenderedBody body={comment.body} size={13.5} /></View>
+      {/* RenderedBody has no line-clamp of its own (it renders sibling block
+          elements, not one Text node, so numberOfLines can't apply) — an
+          embedded image or long list would otherwise blow this single
+          activity row up to full-screen height. Hard-bound it instead. */}
+      <View style={{ marginTop: 4, maxHeight: 40, overflow: 'hidden' }}><RenderedBody body={comment.body} size={13.5} /></View>
       <View style={styles.stats}>
         <View style={styles.stat}><UpvoteIcon size={13} color={tokens.muted} /><Text style={[styles.statN, { color: tokens.muted }]}>{voteCounts.up}</Text></View>
         <View style={styles.stat}><DownvoteIcon size={13} color={tokens.muted} /><Text style={[styles.statN, { color: tokens.muted }]}>{voteCounts.down}</Text></View>
