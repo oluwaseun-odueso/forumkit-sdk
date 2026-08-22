@@ -209,14 +209,18 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
                 <Text style={{ color: tokens.muted, fontSize: 14 }}>Tap to upload image or video</Text>
               </Pressable>
             ) : (
-              // Mirrors sdk-web's media-gallery.css grid (3-column, rounded
-              // container + thumbs) rather than the old bare dropzone-above-
-              // a-row-of-thumbs layout — the trailing tile re-opens the
-              // picker, so adding more doesn't need a separate control. Each
-              // cell shows its local picked image immediately (via localUri)
-              // rather than waiting for the upload to finish, with a spinner
-              // overlay while it's still in flight.
-              <View style={[styles.mediaGrid, { borderColor: tokens['border-strong'] }]}>
+              // A horizontally-sliding strip rather than sdk-web's 3-column
+              // grid — the trailing tile re-opens the picker, so adding more
+              // doesn't need a separate control. Each cell shows its local
+              // picked image immediately (via localUri) rather than waiting
+              // for the upload to finish, with a spinner overlay while it's
+              // still in flight.
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={[styles.mediaStrip, { borderColor: tokens['border-strong'] }]}
+                contentContainerStyle={styles.mediaRow}
+              >
                 {attachments.map(a => (
                   <View key={a.localId} style={[styles.mediaCell, { backgroundColor: tokens['surface-2'] }]}>
                     <Pressable
@@ -245,7 +249,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
                   <PlusIcon size={20} color={tokens['text-2']} />
                   <Text style={{ color: tokens['text-2'], fontSize: 11, marginTop: 4, fontWeight: '600' }}>Add</Text>
                 </Pressable>
-              </View>
+              </ScrollView>
             )
           )}
           {tab === 'link' && <Field value={linkUrl} onChangeText={setLinkUrl} placeholder="Link URL" required />}
@@ -291,9 +295,9 @@ const styles = StyleSheet.create({
     borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14,
   },
   dropzone: { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, minHeight: 160, alignItems: 'center', justifyContent: 'center' },
-  // 3-column grid, mirrors sdk-web's fk-media-gallery-grid proportions.
-  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, borderWidth: 1, borderRadius: 18, padding: 10 },
-  mediaCell: { width: '31%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  mediaStrip: { borderWidth: 1, borderRadius: 18 },
+  mediaRow: { flexDirection: 'row', gap: 6, padding: 10 },
+  mediaCell: { width: 110, height: 110, borderRadius: 10, overflow: 'hidden', position: 'relative' },
   mediaCellImg: { width: '100%', height: '100%' },
   mediaCellOverlay: {
     ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center',

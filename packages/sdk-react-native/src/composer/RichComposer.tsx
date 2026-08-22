@@ -121,7 +121,7 @@ export default function RichComposer({
       />
 
       {allowMedia && attachments.length > 0 && (
-        <View style={styles.thumbs}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
           {attachments.map(a => (
             <View key={a.localId} style={styles.thumbWrap}>
               <Pressable
@@ -141,7 +141,7 @@ export default function RichComposer({
               </Pressable>
             </View>
           ))}
-        </View>
+        </ScrollView>
       )}
 
       {gifOpen && (
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 12, paddingVertical: 10, flexWrap: 'wrap' },
   tbtn: { minWidth: 20, alignItems: 'center', justifyContent: 'center' },
   input: { fontSize: 14, paddingHorizontal: 12, paddingBottom: 12, textAlignVertical: 'top' },
-  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingBottom: 12 },
+  thumbs: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingBottom: 12 },
   thumbWrap: { position: 'relative' },
   // Taller than wide — a portrait-ish preview reads as an actual photo
   // rather than a small square icon (was a 64×64 square).
