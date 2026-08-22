@@ -195,6 +195,8 @@ function ProfileBody() {
         </View>
       </View>
 
+      <View style={[styles.divider, { backgroundColor: tokens.border }]} />
+
       <View style={{ marginTop: 6 }}>
         <TabPills tabs={PROFILE_TABS} active={activeTab} onSelect={setActiveTab} />
       </View>
