@@ -201,8 +201,6 @@ function ProfileBody() {
         <TabPills tabs={PROFILE_TABS} active={activeTab} onSelect={setActiveTab} />
       </View>
 
-      <View style={[styles.divider, { backgroundColor: tokens.border }]} />
-
       {activityLoading ? (
         <View style={{ alignItems: 'center', paddingVertical: 30 }}><Mascot size={36} /></View>
       ) : activity.length === 0 ? (
