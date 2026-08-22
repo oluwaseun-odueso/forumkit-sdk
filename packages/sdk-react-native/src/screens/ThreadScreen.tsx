@@ -115,7 +115,7 @@ export default function ThreadScreen() {
   function swipeToThread(id: string, ids: string[] | undefined, entryX: number) {
     translateX.setValue(entryX);
     navigation.setParams({ threadId: id, threadIds: ids });
-    Animated.timing(translateX, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(translateX, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
   }
 
   const panResponder = useRef(
@@ -136,20 +136,28 @@ export default function ThreadScreen() {
           // Slide the current thread out, jump to the opposite (still fully
           // off-screen) edge, then swap params on this same screen instance
           // — see the comment above swipeToThread for why, vs. the old
-          // navigation.replace approach.
-          Animated.timing(translateX, { toValue: -screenWidth, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => {
+          // navigation.replace approach. useNativeDriver stays false
+          // throughout this gesture (here and in swipeToThread/the spring
+          // calls below) because onPanResponderMove above already writes
+          // translateX directly via setValue on every touch move — mixing
+          // that with a native-driven animation on the same Animated.Value
+          // desyncs the JS and native copies, so the setValue jump in
+          // swipeToThread doesn't reliably land before the slide-in
+          // animation starts, which is what caused the old "flash of the
+          // current thread" glitch.
+          Animated.timing(translateX, { toValue: -screenWidth, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(() => {
             swipeToThread(n, ids, screenWidth);
           });
         } else if (gesture.dx >= SWIPE_THRESHOLD && p) {
-          Animated.timing(translateX, { toValue: screenWidth, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => {
+          Animated.timing(translateX, { toValue: screenWidth, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(() => {
             swipeToThread(p, ids, -screenWidth);
           });
         } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: false, bounciness: 6 }).start();
         }
       },
       onPanResponderTerminate: () => {
-        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: false, bounciness: 6 }).start();
       },
     })
   ).current;
