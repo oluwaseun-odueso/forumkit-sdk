@@ -16,7 +16,12 @@ export type FeedScope = 'home' | 'popular' | 'news';
 // it entirely. Both are rendered as overlays from within Shell instead.
 export type RootStackParamList = {
   Feed: { scope?: FeedScope } | undefined;
-  Thread: { threadId: string };
+  // threadIds: the ordered list of thread ids the user was scrolling when
+  // they opened this one (e.g. the feed's current sort order) — lets
+  // ThreadScreen support swipe-to-next/previous. Absent when a thread is
+  // opened outside that context (Search, Profile, a notification, a deep
+  // link), in which case swipe is simply a no-op.
+  Thread: { threadId: string; threadIds?: string[] | undefined };
   Profile: { userId?: string } | undefined;
   Search: { query: string };
 };

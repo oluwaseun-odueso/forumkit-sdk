@@ -142,7 +142,7 @@ export default function FeedScreen() {
             <PostRow
               row={item}
               view="card"
-              onOpen={() => navigation.navigate('Thread', { threadId: item.id })}
+              onOpen={() => navigation.navigate('Thread', { threadId: item.id, threadIds: rows.map(r => r.id) })}
               onVote={dir => onVote(item, dir)}
               onSave={() => onSave(item)}
               onReport={() => setReportId(item.id)}

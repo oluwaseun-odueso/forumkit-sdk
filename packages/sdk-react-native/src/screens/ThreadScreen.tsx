@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, StyleSheet } from 'react-native';
-import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions } from 'react-native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   getThread, createReply, updateReply, deleteComment, acceptAnswer, unacceptAnswer,
   updateThread, deleteThread, reportThread, reportComment, shareThreadWithUsers,
@@ -57,9 +58,17 @@ function sortRoots(nodes: CommentNode[], sort: CommentSortOption): CommentNode[]
 export default function ThreadScreen() {
   const { tokens } = useTheme();
   const session = useSession();
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Thread'>>();
   const threadId = route.params.threadId;
+  const threadIds = route.params.threadIds;
+  // -1 (rather than a missing threadIds check alone) covers a thread opened
+  // via Search/Profile/notification/deep-link *and* the pathological case
+  // where threadId somehow isn't in the passed list — both should behave
+  // like "no swipe available", not throw off an out-of-bounds neighbour.
+  const currentIndex = threadIds ? threadIds.indexOf(threadId) : -1;
+  const nextId = currentIndex >= 0 ? threadIds?.[currentIndex + 1] : undefined;
+  const prevId = currentIndex >= 0 ? threadIds?.[currentIndex - 1] : undefined;
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
   const currentUserId = session.status === 'ready' ? session.userId : null;
@@ -79,6 +88,53 @@ export default function ThreadScreen() {
   const [postDeleteOpen, setPostDeleteOpen] = useState(false);
   const [postMenuOpen, setPostMenuOpen] = useState(false);
   const { ref: postMenuRef, anchor: postMenuAnchor, measure: measurePostMenu } = useAnchor();
+
+  // Swipe to next/previous thread — plain PanResponder + core Animated
+  // rather than react-native-gesture-handler, which isn't a dependency here
+  // and would force a dev-client rebuild to add. onMoveShouldSetPanResponder
+  // only claims the gesture once the drag is clearly horizontal, so vertical
+  // scrolling in the ScrollView below is unaffected.
+  const translateX = useRef(new Animated.Value(0)).current;
+  const screenWidth = Dimensions.get('window').width;
+  // PanResponder.create runs once; handlers close over whatever nextId/
+  // prevId/threadIds were at creation time unless they read from a ref that
+  // stays current across renders, hence swipeRef.
+  const swipeRef = useRef({ nextId, prevId, threadIds });
+  swipeRef.current = { nextId, prevId, threadIds };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) =>
+        Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+      onPanResponderMove: (_evt, gesture) => {
+        const draggingToNext = gesture.dx < 0;
+        const available = draggingToNext ? swipeRef.current.nextId !== undefined : swipeRef.current.prevId !== undefined;
+        // No valid neighbour that way: still follow the finger, just heavily
+        // damped, so the drag reads as resistant rather than dead.
+        translateX.setValue(available ? gesture.dx : gesture.dx * 0.25);
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        const SWIPE_THRESHOLD = 80;
+        const { nextId: n, prevId: p, threadIds: ids } = swipeRef.current;
+        if (gesture.dx <= -SWIPE_THRESHOLD && n) {
+          Animated.timing(translateX, { toValue: -screenWidth, duration: 180, useNativeDriver: true }).start(() => {
+            translateX.setValue(0);
+            navigation.replace('Thread', { threadId: n, threadIds: ids });
+          });
+        } else if (gesture.dx >= SWIPE_THRESHOLD && p) {
+          Animated.timing(translateX, { toValue: screenWidth, duration: 180, useNativeDriver: true }).start(() => {
+            translateX.setValue(0);
+            navigation.replace('Thread', { threadId: p, threadIds: ids });
+          });
+        } else {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (!token) return;
@@ -193,92 +249,94 @@ export default function ThreadScreen() {
       ) : error && !thread ? (
         <View style={styles.center}><Text style={{ color: tokens['text-2'] }}>{error}</Text></View>
       ) : thread ? (
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <BackRow onPress={() => navigation.goBack()} />
+        <Animated.View style={{ flex: 1, transform: [{ translateX }] }} {...panResponder.panHandlers}>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <BackRow onPress={() => navigation.goBack()} />
 
-          <View style={styles.head}>
-            <Avatar authorId={thread.authorId} author={thread.authorDisplayName ?? 'Member'} avatarUrl={thread.authorAvatarUrl} size={26} />
-            <Text style={[styles.author, { color: tokens.text }]}>{thread.authorDisplayName ?? 'Member'}</Text>
-            <Text style={[styles.time, { color: tokens.muted }]}>· {fmtRelativeTime(thread.createdAt)}</Text>
-          </View>
+            <View style={styles.head}>
+              <Avatar authorId={thread.authorId} author={thread.authorDisplayName ?? 'Member'} avatarUrl={thread.authorAvatarUrl} size={26} />
+              <Text style={[styles.author, { color: tokens.text }]}>{thread.authorDisplayName ?? 'Member'}</Text>
+              <Text style={[styles.time, { color: tokens.muted }]}>· {fmtRelativeTime(thread.createdAt)}</Text>
+            </View>
 
-          {postEditOpen ? (
-            <View style={{ marginBottom: 12 }}>
-              <TextInput value={postEditTitle} onChangeText={setPostEditTitle} style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], fontWeight: '700' }]} />
-              <TextInput value={postEditBody} onChangeText={setPostEditBody} multiline style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], minHeight: 100, marginTop: 8 }]} />
-              <View style={styles.editActions}>
-                <Pressable onPress={() => setPostEditOpen(false)} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}><Text style={{ color: tokens['text-2'], fontWeight: '700', fontSize: 13 }}>Cancel</Text></Pressable>
-                <Pressable onPress={savePostEdit} style={[styles.smallBtn, { backgroundColor: tokens.accent }]}><Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 13 }}>Save</Text></Pressable>
+            {postEditOpen ? (
+              <View style={{ marginBottom: 12 }}>
+                <TextInput value={postEditTitle} onChangeText={setPostEditTitle} style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], fontWeight: '700' }]} />
+                <TextInput value={postEditBody} onChangeText={setPostEditBody} multiline style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], minHeight: 100, marginTop: 8 }]} />
+                <View style={styles.editActions}>
+                  <Pressable onPress={() => setPostEditOpen(false)} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}><Text style={{ color: tokens['text-2'], fontWeight: '700', fontSize: 13 }}>Cancel</Text></Pressable>
+                  <Pressable onPress={savePostEdit} style={[styles.smallBtn, { backgroundColor: tokens.accent }]}><Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 13 }}>Save</Text></Pressable>
+                </View>
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.title, { color: tokens.text }]}>{thread.title}</Text>
+                {thread.body.trim().length > 0 && (
+                  <View style={{ marginBottom: 16 }}><RenderedBody body={thread.body} size={14.5} /></View>
+                )}
+                <MediaGallery attachments={media} aspectRatio={4 / 5} radius={14} />
+              </>
+            )}
+
+            <View style={styles.actions}>
+              <VotePill voteCounts={thread.voteCounts ?? { up: 0, down: 0 }} dir={thread.myVote ?? null} onVote={votePost} />
+              <CommentPill count={thread.commentCount ?? comments.length} />
+              <View style={{ flex: 1 }} />
+              <PostAction label="Share" onPress={() => setShareTarget({ kind: 'post', id: threadId })} />
+              {canModifyPost && (
+                <Pressable
+                  ref={postMenuRef}
+                  onPress={() => measurePostMenu(() => setPostMenuOpen(true))}
+                  hitSlop={6}
+                  style={[styles.ellipsisBtn, { backgroundColor: postMenuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
+                >
+                  <EllipsisIcon size={15} color={tokens['text-2']} />
+                </Pressable>
+              )}
+            </View>
+
+            <DropdownMenu visible={postMenuOpen} onClose={() => setPostMenuOpen(false)} anchor={postMenuAnchor} width={150} align="right">
+              {!postEditOpen && (
+                <DropdownMenuItem
+                  icon={<PencilIcon size={16} color={tokens['text-2']} />}
+                  label="Edit"
+                  onPress={() => {
+                    setPostMenuOpen(false);
+                    setPostEditTitle(thread.title);
+                    setPostEditBody(thread.body);
+                    setPostEditOpen(true);
+                  }}
+                />
+              )}
+              <DropdownMenuItem
+                icon={<TrashIcon size={16} color={tokens['text-2']} />}
+                label="Delete"
+                onPress={() => { setPostMenuOpen(false); setPostDeleteOpen(true); }}
+              />
+            </DropdownMenu>
+
+            <AiRow />
+
+            <CommentComposer apiUrl={apiUrl} forumId={forumId} token={token} onSubmit={submitTopLevel} />
+
+            <View style={styles.sortRow}>
+              <SelectPill<CommentSortOption>
+                value={commentSort}
+                options={COMMENT_SORTS}
+                onChange={setCommentSort}
+                label={commentSort}
+                menuWidth={160}
+                optionIcon={s => { const Icon = COMMENT_SORT_ICON[s]; return <Icon size={16} color={tokens['text-2']} />; }}
+              />
+              <View style={[styles.searchPill, { borderColor: tokens['border-strong'] }]}>
+                <SearchIcon size={15} color={tokens.muted} />
+                <TextInput value={search} onChangeText={setSearch} placeholder="Search Comments" placeholderTextColor={tokens.muted} style={{ flex: 1, color: tokens.text, fontSize: 13, padding: 0 }} />
               </View>
             </View>
-          ) : (
-            <>
-              <Text style={[styles.title, { color: tokens.text }]}>{thread.title}</Text>
-              {thread.body.trim().length > 0 && (
-                <View style={{ marginBottom: 16 }}><RenderedBody body={thread.body} size={14.5} /></View>
-              )}
-              <MediaGallery attachments={media} aspectRatio={4 / 5} radius={14} />
-            </>
-          )}
 
-          <View style={styles.actions}>
-            <VotePill voteCounts={thread.voteCounts ?? { up: 0, down: 0 }} dir={thread.myVote ?? null} onVote={votePost} />
-            <CommentPill count={thread.commentCount ?? comments.length} />
-            <View style={{ flex: 1 }} />
-            <PostAction label="Share" onPress={() => setShareTarget({ kind: 'post', id: threadId })} />
-            {canModifyPost && (
-              <Pressable
-                ref={postMenuRef}
-                onPress={() => measurePostMenu(() => setPostMenuOpen(true))}
-                hitSlop={6}
-                style={[styles.ellipsisBtn, { backgroundColor: postMenuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
-              >
-                <EllipsisIcon size={15} color={tokens['text-2']} />
-              </Pressable>
-            )}
-          </View>
-
-          <DropdownMenu visible={postMenuOpen} onClose={() => setPostMenuOpen(false)} anchor={postMenuAnchor} width={150} align="right">
-            {!postEditOpen && (
-              <DropdownMenuItem
-                icon={<PencilIcon size={16} color={tokens['text-2']} />}
-                label="Edit"
-                onPress={() => {
-                  setPostMenuOpen(false);
-                  setPostEditTitle(thread.title);
-                  setPostEditBody(thread.body);
-                  setPostEditOpen(true);
-                }}
-              />
-            )}
-            <DropdownMenuItem
-              icon={<TrashIcon size={16} color={tokens['text-2']} />}
-              label="Delete"
-              onPress={() => { setPostMenuOpen(false); setPostDeleteOpen(true); }}
-            />
-          </DropdownMenu>
-
-          <AiRow />
-
-          <CommentComposer apiUrl={apiUrl} forumId={forumId} token={token} onSubmit={submitTopLevel} />
-
-          <View style={styles.sortRow}>
-            <SelectPill<CommentSortOption>
-              value={commentSort}
-              options={COMMENT_SORTS}
-              onChange={setCommentSort}
-              label={commentSort}
-              menuWidth={160}
-              optionIcon={s => { const Icon = COMMENT_SORT_ICON[s]; return <Icon size={16} color={tokens['text-2']} />; }}
-            />
-            <View style={[styles.searchPill, { borderColor: tokens['border-strong'] }]}>
-              <SearchIcon size={15} color={tokens.muted} />
-              <TextInput value={search} onChangeText={setSearch} placeholder="Search Comments" placeholderTextColor={tokens.muted} style={{ flex: 1, color: tokens.text, fontSize: 13, padding: 0 }} />
-            </View>
-          </View>
-
-          {tree.map(node => <CommentRow key={node.id} node={node} ctx={ctx} />)}
-        </ScrollView>
+            {tree.map(node => <CommentRow key={node.id} node={node} ctx={ctx} />)}
+          </ScrollView>
+        </Animated.View>
       ) : null}
 
       {reportTarget && (
