@@ -47,7 +47,7 @@ export default function Drawer({ activeRoute, onSelectRoute }: {
     <View
       style={[
         styles.panel,
-        { backgroundColor: tokens.elev, borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA },
+        { backgroundColor: tokens['surface-2'], borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA },
       ]}
     >
       <View style={styles.brandRow}>
