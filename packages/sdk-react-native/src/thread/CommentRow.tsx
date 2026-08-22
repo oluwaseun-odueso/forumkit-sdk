@@ -8,7 +8,7 @@ import RenderedBody from '../components/RenderedBody';
 import VotePill from '../components/VotePill';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
-import { EllipsisIcon, ReportIcon, TrashIcon, CheckIcon } from '../components/icons';
+import { EllipsisIcon, ReportIcon, TrashIcon, CheckIcon, PencilIcon, ShareIcon } from '../components/icons';
 import CommentComposer from './CommentComposer';
 
 // Context passed down the recursion so every level shares the same handlers +
@@ -99,16 +99,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
       <View style={styles.actions}>
         <VotePill voteCounts={node.voteCounts} dir={node.myVote ?? null} onVote={dir => ctx.onVote(node.id, dir)} />
         <Action label="Reply" onPress={() => setReplyOpen(o => !o)} />
-        {canModify && <Action label="Edit" onPress={() => { setEditBody(node.body); setEditOpen(true); }} />}
         <Action label={node.isSaved ? 'Unsave' : 'Save'} onPress={() => ctx.onSave(node.id, !node.isSaved)} />
-        {depth === 0 && ctx.canAcceptAnswer && (
-          <Action
-            label={node.isAcceptedAnswer ? 'Unaccept' : 'Accept'}
-            accepted={node.isAcceptedAnswer}
-            onPress={() => ctx.onAccept(node.id, !node.isAcceptedAnswer)}
-          />
-        )}
-        {depth === 0 && <Action label="Share" onPress={() => ctx.onShare(node.id)} />}
         <Pressable
           ref={ellipsisRef}
           onPress={() => measure(() => setMenuOpen(true))}
@@ -119,7 +110,32 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
         </Pressable>
       </View>
 
-      <DropdownMenu visible={menuOpen} onClose={() => setMenuOpen(false)} anchor={anchor} width={150} align="right">
+      {/* Only the most frequent actions (vote, Reply, Save) stay inline —
+          everything else lives here, matching the pattern already used for
+          Report/Delete. */}
+      <DropdownMenu visible={menuOpen} onClose={() => setMenuOpen(false)} anchor={anchor} width={170} align="right">
+        {canModify && (
+          <DropdownMenuItem
+            icon={<PencilIcon size={16} color={tokens['text-2']} />}
+            label="Edit"
+            onPress={() => { setMenuOpen(false); setEditBody(node.body); setEditOpen(true); }}
+          />
+        )}
+        {depth === 0 && ctx.canAcceptAnswer && (
+          <DropdownMenuItem
+            icon={<CheckIcon size={16} color={node.isAcceptedAnswer ? tokens.success : tokens['text-2']} />}
+            label={node.isAcceptedAnswer ? 'Unaccept' : 'Accept'}
+            labelColor={node.isAcceptedAnswer ? tokens.success : undefined}
+            onPress={() => { setMenuOpen(false); ctx.onAccept(node.id, !node.isAcceptedAnswer); }}
+          />
+        )}
+        {depth === 0 && (
+          <DropdownMenuItem
+            icon={<ShareIcon size={16} color={tokens['text-2']} />}
+            label="Share"
+            onPress={() => { setMenuOpen(false); ctx.onShare(node.id); }}
+          />
+        )}
         <DropdownMenuItem
           icon={<ReportIcon size={16} color={tokens['text-2']} />}
           label="Report"
@@ -164,12 +180,11 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
   );
 }
 
-function Action({ label, onPress, danger, accepted }: { label: string; onPress: () => void; danger?: boolean; accepted?: boolean }) {
+function Action({ label, onPress }: { label: string; onPress: () => void }) {
   const { tokens } = useTheme();
-  const color = danger ? tokens.danger : accepted ? tokens.success : tokens.muted;
   return (
     <Pressable onPress={onPress} hitSlop={6}>
-      <Text style={{ color, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ color: tokens.muted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
 }

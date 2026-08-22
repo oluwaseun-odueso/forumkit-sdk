@@ -24,7 +24,8 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
 import { SelectPill } from '../components/SelectPill';
-import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon } from '../components/icons';
+import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
+import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon, EllipsisIcon, PencilIcon, TrashIcon } from '../components/icons';
 import AiRow from '../thread/AiRow';
 import CommentComposer from '../thread/CommentComposer';
 import CommentRow, { type CommentCtx } from '../thread/CommentRow';
@@ -76,6 +77,8 @@ export default function ThreadScreen() {
   const [postEditTitle, setPostEditTitle] = useState('');
   const [postEditBody, setPostEditBody] = useState('');
   const [postDeleteOpen, setPostDeleteOpen] = useState(false);
+  const [postMenuOpen, setPostMenuOpen] = useState(false);
+  const { ref: postMenuRef, anchor: postMenuAnchor, measure: measurePostMenu } = useAnchor();
 
   useEffect(() => {
     if (!token) return;
@@ -223,11 +226,37 @@ export default function ThreadScreen() {
             <CommentPill count={thread.commentCount ?? comments.length} />
             <View style={{ flex: 1 }} />
             <PostAction label="Share" onPress={() => setShareTarget({ kind: 'post', id: threadId })} />
-            {canModifyPost && !postEditOpen && (
-              <PostAction label="Edit" onPress={() => { setPostEditTitle(thread.title); setPostEditBody(thread.body); setPostEditOpen(true); }} />
+            {canModifyPost && (
+              <Pressable
+                ref={postMenuRef}
+                onPress={() => measurePostMenu(() => setPostMenuOpen(true))}
+                hitSlop={6}
+                style={[styles.ellipsisBtn, { backgroundColor: postMenuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
+              >
+                <EllipsisIcon size={15} color={tokens['text-2']} />
+              </Pressable>
             )}
-            {canModifyPost && <PostAction label="Delete" danger onPress={() => setPostDeleteOpen(true)} />}
           </View>
+
+          <DropdownMenu visible={postMenuOpen} onClose={() => setPostMenuOpen(false)} anchor={postMenuAnchor} width={150} align="right">
+            {!postEditOpen && (
+              <DropdownMenuItem
+                icon={<PencilIcon size={16} color={tokens['text-2']} />}
+                label="Edit"
+                onPress={() => {
+                  setPostMenuOpen(false);
+                  setPostEditTitle(thread.title);
+                  setPostEditBody(thread.body);
+                  setPostEditOpen(true);
+                }}
+              />
+            )}
+            <DropdownMenuItem
+              icon={<TrashIcon size={16} color={tokens['text-2']} />}
+              label="Delete"
+              onPress={() => { setPostMenuOpen(false); setPostDeleteOpen(true); }}
+            />
+          </DropdownMenu>
 
           <AiRow />
 
@@ -273,11 +302,11 @@ export default function ThreadScreen() {
   );
 }
 
-function PostAction({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+function PostAction({ label, onPress }: { label: string; onPress: () => void }) {
   const { tokens } = useTheme();
   return (
     <Pressable onPress={onPress} hitSlop={6} style={[styles.postActionChip, { backgroundColor: tokens['surface-2'] }]}>
-      <Text style={{ color: danger ? tokens.danger : tokens['text-2'], fontSize: 13, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color: tokens['text-2'], fontSize: 13, fontWeight: '700' }}>{label}</Text>
     </Pressable>
   );
 }
@@ -291,6 +320,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800', lineHeight: 26, marginBottom: 10 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   postActionChip: { borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
+  ellipsisBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   sortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 4 },
   searchPill: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12 },
   editInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 14.5, textAlignVertical: 'top' },

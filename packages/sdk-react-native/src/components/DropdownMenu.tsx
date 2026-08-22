@@ -58,17 +58,21 @@ export function DropdownMenu({ visible, onClose, anchor, width = 150, align = 'l
   );
 }
 
-export function DropdownMenuItem({ label, active, icon, onPress }: {
+export function DropdownMenuItem({ label, active, icon, labelColor, onPress }: {
   label: string;
   active?: boolean;
   icon?: ReactNode;
+  // Overrides the label's default tokens.text color — e.g. a menu item that
+  // reflects an active/toggled state (CommentRow's "Unaccept", once a
+  // comment is the accepted answer, renders in tokens.success).
+  labelColor?: string | undefined;
   onPress: () => void;
 }) {
   const { tokens } = useTheme();
   return (
     <Pressable onPress={onPress} style={[styles.item, active ? { backgroundColor: tokens['hover-2'] } : null]}>
       {icon}
-      <Text style={{ color: tokens.text, fontSize: 13.5, fontWeight: active ? '600' : '400' }}>{label}</Text>
+      <Text style={{ color: labelColor ?? tokens.text, fontSize: 13.5, fontWeight: active ? '600' : '400' }}>{label}</Text>
     </Pressable>
   );
 }
