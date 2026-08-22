@@ -155,24 +155,12 @@ function ProfileBody() {
             <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable onPress={openComposer} hitSlop={8} style={[styles.editIconBtn, { borderColor: tokens['border-strong'] }]}>
+            <Pressable onPress={openComposer} hitSlop={8} style={styles.editIconBtn}>
               <PlusIcon size={16} color={tokens.text} />
             </Pressable>
-            <Pressable onPress={() => setEditOpen(true)} hitSlop={8} style={[styles.editIconBtn, { borderColor: tokens['border-strong'] }]}>
+            <Pressable onPress={() => setEditOpen(true)} hitSlop={8} style={styles.editIconBtn}>
               <PencilIcon size={15} color={tokens.text} />
             </Pressable>
-          </View>
-        </View>
-
-        <View style={[styles.statsCard, { borderColor: tokens.border, backgroundColor: tokens['surface-2'] }]}>
-          <View style={styles.statBlock}>
-            <Text style={[styles.statValue, { color: tokens.text }]}>{(profile?.postKarma ?? 0).toLocaleString()}</Text>
-            <Text style={[styles.statLabel, { color: tokens.muted }]}>Post Karma</Text>
-          </View>
-          <View style={[styles.statDivider, { backgroundColor: tokens.border }]} />
-          <View style={styles.statBlock}>
-            <Text style={[styles.statValue, { color: tokens.text }]}>{(profile?.commentKarma ?? 0).toLocaleString()}</Text>
-            <Text style={[styles.statLabel, { color: tokens.muted }]}>Comment Karma</Text>
           </View>
         </View>
 
@@ -182,7 +170,19 @@ function ProfileBody() {
         {profile && <SocialLinks links={profile.socialLinks} />}
       </View>
 
-      <View style={{ marginTop: 14 }}>
+      <View style={[styles.karmaRow, { borderTopColor: tokens.border }]}>
+        <View style={styles.karmaBlock}>
+          <Text style={[styles.karmaValue, { color: tokens.text }]}>{(profile?.postKarma ?? 0).toLocaleString()}</Text>
+          <Text style={[styles.karmaLabel, { color: tokens.muted }]}>Post Karma</Text>
+        </View>
+        <View style={[styles.karmaDivider, { backgroundColor: tokens.border }]} />
+        <View style={styles.karmaBlock}>
+          <Text style={[styles.karmaValue, { color: tokens.text }]}>{(profile?.commentKarma ?? 0).toLocaleString()}</Text>
+          <Text style={[styles.karmaLabel, { color: tokens.muted }]}>Comment Karma</Text>
+        </View>
+      </View>
+
+      <View style={{ marginTop: 6 }}>
         <TabPills tabs={PROFILE_TABS} active={activeTab} onSelect={setActiveTab} />
       </View>
 
@@ -257,17 +257,19 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'flex-start' },
   name: { fontSize: 20, fontWeight: '800' },
   handle: { fontSize: 13, marginTop: 2 },
-  editIconBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  // Demoted below the identity line into its own bordered card — previously
-  // two bare stat blocks at nearly the same weight as the name above them.
-  statsCard: {
-    flexDirection: 'row', borderRadius: 12, borderWidth: 1, marginTop: 14, paddingVertical: 10,
-  },
-  statBlock: { flex: 1, alignItems: 'center' },
-  statDivider: { width: 1, alignSelf: 'stretch', marginVertical: 2 },
-  statValue: { fontSize: 15, fontWeight: '700' },
-  statLabel: { fontSize: 12, marginTop: 1 },
+  // No visible circle — just a same-sized invisible tap target around the icon.
+  editIconBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   bio: { fontSize: 13.5, lineHeight: 20, marginTop: 12 },
+  // Full-width stat row (below social links, above the tab pills) — a thin
+  // top border separates it from the content above, and a single vertical
+  // divider separates the two figures; no card/border/background/rounded
+  // corners around the row itself, matching the reference design exactly
+  // (a prior bordered-card treatment here was rejected as unsuitable).
+  karmaRow: { flexDirection: 'row', borderTopWidth: 1, marginTop: 16, paddingVertical: 12, paddingHorizontal: 16 },
+  karmaBlock: { flex: 1, alignItems: 'center' },
+  karmaDivider: { width: 1, alignSelf: 'stretch' },
+  karmaValue: { fontSize: 15, fontWeight: '800' },
+  karmaLabel: { fontSize: 12, marginTop: 2 },
   divider: { height: 1, marginTop: 10 },
   empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 24 },
   emptyTitle: { fontSize: 17, fontWeight: '800', marginTop: 16, textAlign: 'center' },
