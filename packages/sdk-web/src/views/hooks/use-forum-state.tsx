@@ -406,6 +406,16 @@ function nextVote(current: VoteDir, clicked: VoteDir): VoteDir {
   return current === clicked ? 0 : clicked;
 }
 
+// Adjusts up/down counts for a vote transition (old -> new) — the web
+// equivalent of packages/sdk-react-native/src/lib/vote.ts's applyVote, so
+// both platforms compute the same optimistic swing.
+function applyVoteDelta(vc: VoteCounts, oldDir: VoteDir, newDir: VoteDir): VoteCounts {
+  return {
+    up: vc.up - (oldDir === 1 ? 1 : 0) + (newDir === 1 ? 1 : 0),
+    down: vc.down - (oldDir === -1 ? 1 : 0) + (newDir === -1 ? 1 : 0),
+  };
+}
+
 function netVotes(v?: VoteCounts): number {
   return (v?.up ?? 0) - (v?.down ?? 0);
 }
@@ -1190,6 +1200,12 @@ function useForumStateInternal() {
     const previousVoteCounts = post.voteCounts ?? { up: 0, down: 0 };
     const previousMyVote = post.myVote ?? null;
     const newMyVote = nextVote(previousMyVote ?? 0, dir) || null;
+    dispatch({
+      type: 'SET_POST_VOTE',
+      postId,
+      voteCounts: applyVoteDelta(previousVoteCounts, previousMyVote ?? 0, newMyVote ?? 0),
+      myVote: newMyVote,
+    });
 
     try {
       const result = newMyVote === null
@@ -1218,6 +1234,12 @@ function useForumStateInternal() {
     const previousVoteCounts = comment.voteCounts ?? { up: 0, down: 0 };
     const previousMyVote = comment.myVote ?? null;
     const newMyVote = nextVote(previousMyVote ?? 0, dir) || null;
+    dispatch({
+      type: 'SET_COMMENT_VOTE',
+      commentId,
+      voteCounts: applyVoteDelta(previousVoteCounts, previousMyVote ?? 0, newMyVote ?? 0),
+      myVote: newMyVote,
+    });
 
     try {
       const result = newMyVote === null
