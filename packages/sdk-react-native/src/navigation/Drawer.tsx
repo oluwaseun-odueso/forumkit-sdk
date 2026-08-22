@@ -1,9 +1,6 @@
 import { View, Pressable, Text, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { GlassView } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { glassTint, glassPillTint, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 import Mascot from '../components/Mascot';
 import { HomeIcon, PopularIcon, NewsIcon } from '../components/icons';
 
@@ -15,11 +12,22 @@ export type DrawerRoute = 'home' | 'popular' | 'news';
 
 // Exported so Shell.tsx's push animation can't drift out of sync with the
 // panel's own width.
-export const DRAWER_WIDTH = 250;
+export const DRAWER_WIDTH = 300;
 
 // Hamburger drawer per README §5 — brand row (mascot + Michroma wordmark),
-// Home/Popular/News. Real Apple Liquid Glass on iOS 26+ (matching the bottom
-// bar), a frosted blur fallback everywhere else — see lib/glass.ts.
+// Home/Popular/News.
+//
+// This used to render as real Apple Liquid Glass / a frosted blur — Apple's
+// Liquid Glass material is inherently translucent/refractive by design, so
+// even a fully opaque tintColor is only a "tint hint" for a see-through
+// effect, not a guaranteed solid render; how dark it actually reads still
+// depends on what's visually behind it. That's an inherent platform trait,
+// not something further tint-tuning can reliably fix. A navigation panel
+// benefits from guaranteed-correct contrast more than it benefits from
+// glassiness, so this now uses the same plain, reliable per-theme surface
+// color every other screen in the app already uses — glass stays on the
+// hamburger button and bottom bar, where translucent-over-content still
+// makes sense for a small floating element.
 //
 // This is just the panel's content now — no Modal, no scrim, no open/close
 // state of its own. It's always mounted, absolutely positioned at the left
@@ -32,11 +40,16 @@ export default function Drawer({ activeRoute, onSelectRoute }: {
   activeRoute: DrawerRoute | null;
   onSelectRoute: (route: DrawerRoute) => void;
 }) {
-  const { tokens, mode } = useTheme();
+  const { tokens } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const panelContent = (
-    <>
+  return (
+    <View
+      style={[
+        styles.panel,
+        { backgroundColor: tokens.elev, borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA },
+      ]}
+    >
       <View style={styles.brandRow}>
         {Platform.OS === 'ios'
           ? <View style={{ flexShrink: 0, flexGrow: 0, overflow: 'visible' }}><Mascot size={24} /></View>
@@ -62,34 +75,7 @@ export default function Drawer({ activeRoute, onSelectRoute }: {
         icon={<NewsIcon size={20} color={tokens['text-2']} />}
         onPress={() => onSelectRoute('news')}
       />
-    </>
-  );
-
-  return LIQUID_GLASS_AVAILABLE ? (
-    <GlassView
-      style={[styles.panel, { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-      // 'clear' — more transparent, less blurry; see BottomBar.tsx.
-      glassEffectStyle="clear"
-      // Follows the app's own theme — see lib/glass.ts's glassTint doc
-      // comment for why this used to be hardcoded light and no longer is (a
-      // light drawer panel over a dark-mode app read as wrong on-device).
-      // colorScheme alone doesn't force the render to match — the explicit
-      // tintColor does.
-      colorScheme={mode}
-      tintColor={glassPillTint(mode)}
-    >
-      {panelContent}
-    </GlassView>
-  ) : (
-    <BlurView
-      intensity={GLASS_INTENSITY}
-      tint={glassTint(mode)}
-      // Android needs this opted in for real blur (see lib/glass.ts).
-      blurMethod="dimezisBlurView"
-      style={[styles.panel, glassFill(tokens.glass), { paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA }]}
-    >
-      {panelContent}
-    </BlurView>
+    </View>
   );
 }
 
@@ -115,6 +101,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: DRAWER_WIDTH,
+    borderRightWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 16,
   },
