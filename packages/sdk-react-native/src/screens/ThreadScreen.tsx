@@ -5,7 +5,7 @@ import {
   getThread, createReply, updateReply, deleteComment, acceptAnswer, unacceptAnswer,
   updateThread, deleteThread, reportThread, reportComment, shareThreadWithUsers,
   voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment,
-  saveComment, unsaveComment, commentsToCommentTree, filterComments, fmtRelativeTime,
+  saveComment, unsaveComment, saveThread, unsaveThread, commentsToCommentTree, filterComments, fmtRelativeTime,
   type CommentNode,
 } from '@forumkit/shared';
 import type { Thread, Comment, VoteDirection } from '@forumkit/types';
@@ -25,7 +25,7 @@ import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
 import { SelectPill } from '../components/SelectPill';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
-import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon, EllipsisIcon, PencilIcon, TrashIcon } from '../components/icons';
+import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon, EllipsisIcon, PencilIcon, TrashIcon, SaveIcon, ReportIcon } from '../components/icons';
 import AiRow from '../thread/AiRow';
 import CommentComposer from '../thread/CommentComposer';
 import CommentRow, { type CommentCtx } from '../thread/CommentRow';
@@ -199,6 +199,13 @@ export default function ThreadScreen() {
       .catch(() => setThread(t => (t ? { ...t, myVote: oldDir, voteCounts: prev } : t)));
   }
 
+  function savePost(save: boolean) {
+    if (!token) return;
+    setThread(t => (t ? { ...t, isSaved: save } : t));
+    const req = save ? saveThread(apiUrl, forumId, threadId, token) : unsaveThread(apiUrl, forumId, threadId, token);
+    req.catch(() => setThread(t => (t ? { ...t, isSaved: !save } : t)));
+  }
+
   const ctx: CommentCtx = {
     apiUrl, forumId, token, currentUserId, isModerator, canAcceptAnswer,
     onVote(commentId, dir) {
@@ -314,20 +321,23 @@ export default function ThreadScreen() {
               <CommentPill count={thread.commentCount ?? comments.length} />
               <View style={{ flex: 1 }} />
               <PostAction label="Share" onPress={() => setShareTarget({ kind: 'post', id: threadId })} />
-              {canModifyPost && (
-                <Pressable
-                  ref={postMenuRef}
-                  onPress={() => measurePostMenu(() => setPostMenuOpen(true))}
-                  hitSlop={6}
-                  style={[styles.ellipsisBtn, { backgroundColor: postMenuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
-                >
-                  <EllipsisIcon size={15} color={tokens['text-2']} />
-                </Pressable>
-              )}
+              <Pressable
+                ref={postMenuRef}
+                onPress={() => measurePostMenu(() => setPostMenuOpen(true))}
+                hitSlop={6}
+                style={[styles.ellipsisBtn, { backgroundColor: postMenuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
+              >
+                <EllipsisIcon size={15} color={tokens['text-2']} />
+              </Pressable>
             </View>
 
             <DropdownMenu visible={postMenuOpen} onClose={() => setPostMenuOpen(false)} anchor={postMenuAnchor} width={150} align="right">
-              {!postEditOpen && (
+              <DropdownMenuItem
+                icon={<SaveIcon size={16} color={tokens['text-2']} filled={!!thread.isSaved} />}
+                label={thread.isSaved ? 'Unsave' : 'Save'}
+                onPress={() => { setPostMenuOpen(false); savePost(!thread.isSaved); }}
+              />
+              {canModifyPost && !postEditOpen && (
                 <DropdownMenuItem
                   icon={<PencilIcon size={16} color={tokens['text-2']} />}
                   label="Edit"
@@ -340,10 +350,17 @@ export default function ThreadScreen() {
                 />
               )}
               <DropdownMenuItem
-                icon={<TrashIcon size={16} color={tokens['text-2']} />}
-                label="Delete"
-                onPress={() => { setPostMenuOpen(false); setPostDeleteOpen(true); }}
+                icon={<ReportIcon size={16} color={tokens['text-2']} />}
+                label="Report"
+                onPress={() => { setPostMenuOpen(false); setReportTarget({ kind: 'post', id: threadId }); }}
               />
+              {canModifyPost && (
+                <DropdownMenuItem
+                  icon={<TrashIcon size={16} color={tokens['text-2']} />}
+                  label="Delete"
+                  onPress={() => { setPostMenuOpen(false); setPostDeleteOpen(true); }}
+                />
+              )}
             </DropdownMenu>
 
             <AiRow />
