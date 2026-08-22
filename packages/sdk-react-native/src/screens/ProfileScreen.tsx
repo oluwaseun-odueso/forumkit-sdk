@@ -14,6 +14,7 @@ import { applyVote, nextVoteDir } from '../lib/vote';
 import { pickAndUploadImage } from '../lib/upload';
 import Shell, { useShell } from '../navigation/Shell';
 import Avatar from '../components/Avatar';
+import ImageLightbox from '../components/ImageLightbox';
 import TabPills from '../components/TabPills';
 import Mascot from '../components/Mascot';
 import PostRow from '../feed/PostRow';
@@ -46,6 +47,7 @@ function ProfileBody() {
   const [reportId, setReportId] = useState<string | null>(null);
   const [shareId, setShareId] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState<'avatar' | 'banner' | null>(null);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -128,8 +130,15 @@ function ProfileBody() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      {/* Banner + avatar */}
-      <View style={[styles.banner, { backgroundColor: tokens['surface-2'] }]}>
+      {/* Banner + avatar — each wrapped in its own Pressable that opens a
+          full-screen preview on tap; the camera-badge Pressables nest inside
+          unchanged, RN resolves a tap to whichever Pressable's own bounds it
+          landed in. */}
+      <Pressable
+        onPress={() => profile?.bannerUrl && setPreviewUri(profile.bannerUrl)}
+        disabled={!profile?.bannerUrl}
+        style={[styles.banner, { backgroundColor: tokens['surface-2'] }]}
+      >
         {profile?.bannerUrl != null && <Image source={{ uri: profile.bannerUrl }} style={StyleSheet.absoluteFill} />}
         <Pressable onPress={() => void editImage('banner')} disabled={imageUploading != null} style={[styles.bannerCam, { backgroundColor: tokens.elev }]}>
           {imageUploading === 'banner'
@@ -137,16 +146,20 @@ function ProfileBody() {
             : <CameraIcon size={14} color={tokens['text-2']} />}
         </Pressable>
         <View style={styles.avatarWrap}>
-          <View style={[styles.avatarRing, { borderColor: tokens.bg }]}>
+          <Pressable
+            onPress={() => profile?.avatarUrl && setPreviewUri(profile.avatarUrl)}
+            disabled={!profile?.avatarUrl}
+            style={[styles.avatarRing, { borderColor: tokens.bg }]}
+          >
             <Avatar authorId={profile?.id} author={name} avatarUrl={profile?.avatarUrl} size={72} />
-          </View>
+          </Pressable>
           <Pressable onPress={() => void editImage('avatar')} disabled={imageUploading != null} style={[styles.avatarCam, { backgroundColor: tokens.accent }]}>
             {imageUploading === 'avatar'
               ? <ActivityIndicator size="small" color={tokens['accent-fg']} />
               : <CameraIcon size={12} color={tokens['accent-fg']} />}
           </Pressable>
         </View>
-      </View>
+      </Pressable>
 
       <View style={{ paddingHorizontal: 16 }}>
         <View style={styles.nameRow}>
@@ -236,6 +249,7 @@ function ProfileBody() {
       )}
       {reportId && <ReportSheet target="post" onClose={() => setReportId(null)} onSubmit={reason => { if (token) void reportThread(apiUrl, forumId, reportId, reason, token).catch(() => {}); }} />}
       {shareId && <ShareSheet apiUrl={apiUrl} forumId={forumId} token={token} onClose={() => setShareId(null)} onShare={ids => { if (token && ids.length) void shareThreadWithUsers(apiUrl, forumId, shareId, ids, undefined, token).catch(() => {}); }} />}
+      {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
     </ScrollView>
   );
 }
