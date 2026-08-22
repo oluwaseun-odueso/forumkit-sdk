@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { View, StyleSheet, Platform, BackHandler, Pressable } from 'react-native';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { View, StyleSheet, Platform, BackHandler, PanResponder } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type NavigationProp } from '@react-navigation/native';
@@ -67,6 +67,38 @@ export default function Shell({ children }: { children: ReactNode }) {
     drawerX.value = withTiming(drawerOpen ? DRAWER_WIDTH : 0, { duration: 250, easing: Easing.out(Easing.cubic) });
   }, [drawerOpen, drawerX]);
   const drawerPushStyle = useAnimatedStyle(() => ({ transform: [{ translateX: drawerX.value }] }));
+
+  // Drag-to-close for the open drawer — bridges a plain PanResponder into
+  // the reanimated `drawerX` shared value (a direct `.value =` assignment
+  // from a JS callback is a supported, standard way to drive a shared value
+  // without adopting react-native-gesture-handler, matching ThreadScreen.tsx's
+  // existing PanResponder-based swipe for the same "avoid a new native
+  // dependency" reason). Also subsumes the old tap-to-close behavior — a
+  // near-zero-movement release still closes, so replacing the old Pressable
+  // with this doesn't lose that.
+  const closeDrawerResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_evt, gesture) => {
+        // Dragging left (dx < 0) pushes the content back toward closed;
+        // clamped so it can't overshoot past fully open/closed.
+        drawerX.value = Math.min(DRAWER_WIDTH, Math.max(0, DRAWER_WIDTH + gesture.dx));
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        const isTap = Math.abs(gesture.dx) < 10 && Math.abs(gesture.dy) < 10;
+        const shouldClose = isTap || gesture.dx < -DRAWER_WIDTH / 3 || gesture.vx < -0.5;
+        if (shouldClose) {
+          setDrawerOpen(false); // the effect above animates drawerX -> 0
+        } else {
+          drawerX.value = withTiming(DRAWER_WIDTH, { duration: 200, easing: Easing.out(Easing.cubic) });
+        }
+      },
+      onPanResponderTerminate: () => {
+        drawerX.value = withTiming(DRAWER_WIDTH, { duration: 200, easing: Easing.out(Easing.cubic) });
+      },
+    })
+  ).current;
 
   // Modal's onRequestClose used to handle the Android hardware back button
   // for free; now that the drawer isn't a Modal, it needs its own listener —
@@ -153,10 +185,11 @@ export default function Shell({ children }: { children: ReactNode }) {
           onNotifications={() => setNotifOpen(true)}
           onProfile={() => navigation.navigate('Profile')}
         />
-        {/* Tap-outside-to-close — conditionally mounted (not just visually
-            hidden) so it never intercepts touches while the drawer is
-            closed, matching how the overlay group below is gated. */}
-        {drawerOpen && <Pressable style={StyleSheet.absoluteFill} onPress={() => setDrawerOpen(false)} />}
+        {/* Tap-outside-to-close and drag-to-close — conditionally mounted
+            (not just visually hidden) so it never intercepts touches while
+            the drawer is closed, matching how the overlay group below is
+            gated. */}
+        {drawerOpen && <View style={StyleSheet.absoluteFill} {...closeDrawerResponder.panHandlers} />}
       </Animated.View>
 
       {composerOpen && (
