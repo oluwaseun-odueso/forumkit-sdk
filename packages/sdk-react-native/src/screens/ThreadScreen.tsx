@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions, Easing } from 'react-native';
+import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import {
   getThread, createReply, updateReply, deleteComment, acceptAnswer, unacceptAnswer,
   updateThread, deleteThread, reportThread, reportComment, shareThreadWithUsers,
@@ -58,7 +57,7 @@ function sortRoots(nodes: CommentNode[], sort: CommentSortOption): CommentNode[]
 export default function ThreadScreen() {
   const { tokens } = useTheme();
   const session = useSession();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Thread'>>();
   const threadId = route.params.threadId;
   const threadIds = route.params.threadIds;
@@ -96,11 +95,28 @@ export default function ThreadScreen() {
   // scrolling in the ScrollView below is unaffected.
   const translateX = useRef(new Animated.Value(0)).current;
   const screenWidth = Dimensions.get('window').width;
+  const scrollRef = useRef<ScrollView>(null);
   // PanResponder.create runs once; handlers close over whatever nextId/
   // prevId/threadIds were at creation time unless they read from a ref that
   // stays current across renders, hence swipeRef.
   const swipeRef = useRef({ nextId, prevId, threadIds });
   swipeRef.current = { nextId, prevId, threadIds };
+
+  // Swaps to a neighbouring thread on this SAME screen instance via
+  // setParams (which the fetch effect below already reacts to) rather than
+  // navigation.replace — replace unmounted/remounted the screen, which
+  // stacked native-stack's own push/pop transition on top of this gesture's
+  // own animation and, worse, the old completion callback reset translateX
+  // to 0 *before* navigating, snapping the old thread back into view for a
+  // beat. Jumping straight to the opposite off-screen edge (still fully
+  // outside the viewport either way) and animating in from there avoids
+  // both: no native transition plays (setParams doesn't touch the stack),
+  // and the old thread is never made visible again.
+  function swipeToThread(id: string, ids: string[] | undefined, entryX: number) {
+    translateX.setValue(entryX);
+    navigation.setParams({ threadId: id, threadIds: ids });
+    Animated.timing(translateX, { toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }
 
   const panResponder = useRef(
     PanResponder.create({
@@ -117,14 +133,16 @@ export default function ThreadScreen() {
         const SWIPE_THRESHOLD = 80;
         const { nextId: n, prevId: p, threadIds: ids } = swipeRef.current;
         if (gesture.dx <= -SWIPE_THRESHOLD && n) {
-          Animated.timing(translateX, { toValue: -screenWidth, duration: 180, useNativeDriver: true }).start(() => {
-            translateX.setValue(0);
-            navigation.replace('Thread', { threadId: n, threadIds: ids });
+          // Slide the current thread out, jump to the opposite (still fully
+          // off-screen) edge, then swap params on this same screen instance
+          // — see the comment above swipeToThread for why, vs. the old
+          // navigation.replace approach.
+          Animated.timing(translateX, { toValue: -screenWidth, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => {
+            swipeToThread(n, ids, screenWidth);
           });
         } else if (gesture.dx >= SWIPE_THRESHOLD && p) {
-          Animated.timing(translateX, { toValue: screenWidth, duration: 180, useNativeDriver: true }).start(() => {
-            translateX.setValue(0);
-            navigation.replace('Thread', { threadId: p, threadIds: ids });
+          Animated.timing(translateX, { toValue: screenWidth, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => {
+            swipeToThread(p, ids, -screenWidth);
           });
         } else {
           Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
@@ -141,6 +159,19 @@ export default function ThreadScreen() {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    // A thread swap now happens via setParams on this same screen instance
+    // (see swipeToThread above) rather than a fresh mount, so per-thread UI
+    // state that used to reset for free on remount needs an explicit reset
+    // here — otherwise e.g. an open post-edit box for the old thread would
+    // linger open over the new one's content. commentSort is a user
+    // preference, not thread-specific, so it's deliberately left alone.
+    setPostEditOpen(false);
+    setPostMenuOpen(false);
+    setPostDeleteOpen(false);
+    setSearch('');
+    setReportTarget(null);
+    setShareTarget(null);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
     getThread(apiUrl, forumId, threadId, token)
       .then(res => { if (!cancelled) { setThread(res.thread); setComments(res.comments); } })
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load thread'); })
@@ -250,7 +281,7 @@ export default function ThreadScreen() {
         <View style={styles.center}><Text style={{ color: tokens['text-2'] }}>{error}</Text></View>
       ) : thread ? (
         <Animated.View style={{ flex: 1, transform: [{ translateX }] }} {...panResponder.panHandlers}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <BackRow onPress={() => navigation.goBack()} />
 
             <View style={styles.head}>

@@ -52,7 +52,12 @@ export default function RootNavigator() {
           correct top inset to useSafeAreaInsets() on Android. */}
       <Stack.Navigator screenOptions={{ headerShown: false, statusBarTranslucent: true }}>
         <Stack.Screen name="Feed" component={FeedScreen} />
-        <Stack.Screen name="Thread" component={ThreadScreen} />
+        {/* Custom swipe-to-next/previous-thread (ThreadScreen.tsx) uses a
+            rightward drag for "previous" — the same gesture as iOS's native
+            edge-swipe-back, which otherwise wins the race against our JS
+            PanResponder. ThreadScreen has its own BackRow back button, so
+            losing the native edge-swipe here is the right trade. */}
+        <Stack.Screen name="Thread" component={ThreadScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
       </Stack.Navigator>
