@@ -167,7 +167,7 @@ function ProfileBody() {
         {profile?.bio != null && profile.bio.trim().length > 0 && (
           <Text style={[styles.bio, { color: tokens['text-2'] }]}>{profile.bio}</Text>
         )}
-        {profile && <SocialLinks links={profile.socialLinks} />}
+        {profile && <SocialLinks links={profile.socialLinks} onEditProfile={() => setEditOpen(true)} />}
       </View>
 
       <View style={[styles.karmaRow, { borderTopColor: tokens.border }]}>
