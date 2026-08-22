@@ -56,8 +56,13 @@ export default function RootNavigator() {
             rightward drag for "previous" — the same gesture as iOS's native
             edge-swipe-back, which otherwise wins the race against our JS
             PanResponder. ThreadScreen has its own BackRow back button, so
-            losing the native edge-swipe here is the right trade. */}
-        <Stack.Screen name="Thread" component={ThreadScreen} options={{ gestureEnabled: false }} />
+            losing the native edge-swipe here is the right trade.
+            animation: 'none' stops native-stack from playing its own
+            push/pop transition on top of the swipe's own JS slide-out
+            when it calls navigation.replace() into a neighbouring thread —
+            that stacked, direction-mismatched native transition was part
+            of what made swiping feel bumpy. */}
+        <Stack.Screen name="Thread" component={ThreadScreen} options={{ gestureEnabled: false, animation: 'none' }} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
       </Stack.Navigator>
