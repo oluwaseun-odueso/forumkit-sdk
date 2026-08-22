@@ -218,7 +218,6 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={[styles.mediaStrip, { borderColor: tokens['border-strong'] }]}
                 contentContainerStyle={styles.mediaRow}
               >
                 {attachments.map(a => (
@@ -295,9 +294,8 @@ const styles = StyleSheet.create({
     borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14,
   },
   dropzone: { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, minHeight: 160, alignItems: 'center', justifyContent: 'center' },
-  mediaStrip: { borderWidth: 1, borderRadius: 18 },
-  mediaRow: { flexDirection: 'row', gap: 6, padding: 10 },
-  mediaCell: { width: 110, height: 110, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  mediaRow: { flexDirection: 'row', gap: 10 },
+  mediaCell: { width: 240, height: 240, borderRadius: 14, overflow: 'hidden', position: 'relative' },
   mediaCellImg: { width: '100%', height: '100%' },
   mediaCellOverlay: {
     ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center',
