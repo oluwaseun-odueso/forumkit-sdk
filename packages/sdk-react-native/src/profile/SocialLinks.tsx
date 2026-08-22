@@ -22,7 +22,7 @@ export const SOCIAL_PLATFORM_ICON: Record<string, ComponentType<IconProps>> = {
 // A profile with many links wraps across several lines and looks messy —
 // cap what shows inline, with a trailing "View all" pill opening a sheet
 // that lists every link.
-const MAX_INLINE = 4;
+const MAX_INLINE = 3;
 
 // Social/professional links display — mirrors the web profile's links row,
 // using the same platform set (shared PLATFORM data) with platform icons.
