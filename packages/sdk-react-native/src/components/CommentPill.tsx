@@ -9,7 +9,7 @@ export default function CommentPill({ count }: { count: number }) {
   const { tokens } = useTheme();
   return (
     <View style={[styles.pill, { backgroundColor: tokens['surface-2'] }]}>
-      <CommentIcon size={15} color={tokens['text-2']} />
+      <CommentIcon size={17} color={tokens['text-2']} />
       <Text style={[styles.count, { color: tokens['text-2'] }]}>{count}</Text>
     </View>
   );
@@ -20,12 +20,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
   },
   count: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
   },
 });

@@ -18,11 +18,11 @@ export default function VotePill({ voteCounts, dir, onVote }: {
   return (
     <View style={[styles.pill, { backgroundColor: tokens['surface-2'] }]}>
       <Pressable onPress={() => onVote(1)} hitSlop={8} style={styles.unit}>
-        <UpvoteIcon size={15} color={dir === 1 ? tokens.up : tokens.muted} filled={dir === 1} />
+        <UpvoteIcon size={17} color={dir === 1 ? tokens.up : tokens.muted} filled={dir === 1} />
         <Text style={[styles.count, { color: dir === 1 ? tokens.up : tokens['text-2'] }]}>{voteCounts.up}</Text>
       </Pressable>
       <Pressable onPress={() => onVote(-1)} hitSlop={8} style={styles.unit}>
-        <DownvoteIcon size={15} color={dir === -1 ? tokens.down : tokens.muted} filled={dir === -1} />
+        <DownvoteIcon size={17} color={dir === -1 ? tokens.down : tokens.muted} filled={dir === -1} />
         <Text style={[styles.count, { color: dir === -1 ? tokens.down : tokens['text-2'] }]}>{voteCounts.down}</Text>
       </Pressable>
     </View>
@@ -34,10 +34,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    gap: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 12,
   },
-  unit: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  count: { fontSize: 12, fontWeight: '700', minWidth: 12, textAlign: 'center' },
+  unit: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  count: { fontSize: 14, fontWeight: '700', minWidth: 14, textAlign: 'center' },
 });
