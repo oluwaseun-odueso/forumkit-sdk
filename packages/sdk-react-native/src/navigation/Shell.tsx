@@ -181,6 +181,7 @@ export default function Shell({ children }: { children: ReactNode }) {
           key={loadedDraft?.id ?? 'new'}
           onClose={closeComposer}
           onOpenDrafts={() => setDraftsOpen(true)}
+          onPosted={threadId => { closeComposer(); navigation.navigate('Thread', { threadId }); }}
           initialDraft={loadedDraft ? { title: loadedDraft.title, content: loadedDraft.content } : undefined}
         />
       )}

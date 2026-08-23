@@ -26,9 +26,12 @@ const TABS: ReadonlyArray<{ id: ComposerTab; label: string }> = [
 // via the same presigned flow; Post sends attachmentIds. Cancelling or saving a
 // draft cleans up unposted attachments (matching web's orphan cleanup) — media
 // isn't persisted into drafts (banner note).
-export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }: {
+export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initialDraft }: {
   onClose: () => void;
   onOpenDrafts?: (() => void) | undefined;
+  // Called instead of onClose once a new thread has actually been created,
+  // so the caller can close the overlay AND take the user straight to it.
+  onPosted: (threadId: string) => void;
   initialDraft?: { title: string; content: DraftContent } | undefined;
 }) {
   const { tokens } = useTheme();
@@ -111,14 +114,14 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, initialDraft }:
     // touching the Text tab was hitting the 400 this avoids.
     const postBody = rawBody.trim().length > 0 ? rawBody : ' ';
     try {
-      await createThread(apiUrl, forumId, {
+      const thread = await createThread(apiUrl, forumId, {
         title: title.trim(),
         body: postBody,
         tagIds: [],
         tagNames: tagNames(),
         attachmentIds: attachments.filter(a => a.attachmentId).map(a => a.attachmentId as string),
       }, token);
-      onClose(); // attachments are now part of the thread — don't clean up
+      onPosted(thread.id); // attachments are now part of the thread — don't clean up
     } catch (e) {
       console.error('[composer] createThread failed:', e);
       setError(e instanceof Error ? e.message : 'Failed to post');
