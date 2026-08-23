@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { GradientBorderPill } from '../components/Pill';
@@ -10,10 +10,20 @@ import { SparkleIcon, CloseIcon } from '../components/icons';
 // One panel open at a time; re-tapping the same pill closes it.
 type Panel = 'summary' | 'reply' | null;
 
-export default function AiRow() {
+// Exposes an imperative "open the summary panel" escape hatch — ThreadScreen
+// registers this with Shell (see registerAskHandler in Shell.tsx) so the top
+// bar's Ask button (next to search, matching web's TopNav) can reach into
+// this row's own local panel state without lifting it out entirely.
+export type AiRowHandle = { openSummary: () => void };
+
+const AiRow = forwardRef<AiRowHandle>(function AiRow(_props, ref) {
   const { tokens } = useTheme();
   const [panel, setPanel] = useState<Panel>(null);
   const toggle = (p: 'summary' | 'reply') => setPanel(cur => (cur === p ? null : p));
+
+  useImperativeHandle(ref, () => ({
+    openSummary: () => setPanel('summary'),
+  }), []);
 
   return (
     <View style={{ marginBottom: 16 }}>
@@ -43,7 +53,9 @@ export default function AiRow() {
       )}
     </View>
   );
-}
+});
+
+export default AiRow;
 
 function AiButton({ label, onPress }: { label: string; onPress: () => void }) {
   const { tokens } = useTheme();

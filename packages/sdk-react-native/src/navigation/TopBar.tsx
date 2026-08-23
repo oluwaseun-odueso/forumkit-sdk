@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { GlassView } from 'expo-glass-effect';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
-import { HamburgerIcon, SearchIcon, CloseIcon, SunIcon, MoonIcon } from '../components/icons';
+import { HamburgerIcon, SearchIcon, CloseIcon, SunIcon, MoonIcon, SparkleIcon } from '../components/icons';
 import { GradientBorderPill } from '../components/Pill';
 import { glassTint, glassPillTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 
@@ -13,11 +13,18 @@ import { glassTint, glassPillTint, glassBorderColor, glassFill, GLASS_INTENSITY,
 // toggle. Collapsing/expanding search removes the icon button from the
 // tree entirely rather than hiding it, matching the spec's "removed from
 // the DOM entirely" behavior.
-export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }: {
+export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch, onAsk }: {
   onOpenDrawer: () => void;
   onOpenSearch?: (() => void) | undefined;
   onHome: () => void;
   onSearch?: ((query: string) => void) | undefined;
+  // Mirrors web's TopNav "Ask" pill (sparkle icon + label, inside the search
+  // bar) — mobile shows the icon only, given how little width the search
+  // pill has to spare. Only ever provided while a thread (the only place
+  // with anything to ask about) is on screen, via Shell's registerAskHandler
+  // — undefined everywhere else, so the button just doesn't render there,
+  // same as web disabling it outside the Thread route.
+  onAsk?: (() => void) | undefined;
 }) {
   const { tokens, mode, toggleTheme } = useTheme();
   // The expanded search pill (mascot + input) is the default look, matching
@@ -101,6 +108,14 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch }:
               placeholderTextColor={tokens.faint}
               style={{ flex: 1, minWidth: 0, fontSize: 13, color: tokens.text, padding: 0 }}
             />
+            {onAsk && (
+              <>
+                <View style={{ width: 1, height: 16, backgroundColor: tokens.border }} />
+                <Pressable onPress={onAsk} hitSlop={6}>
+                  <SparkleIcon size={16} />
+                </Pressable>
+              </>
+            )}
             <Pressable onPress={() => { setSearchOpen(false); setSearchText(''); setFocusOnOpen(false); }}>
               <CloseIcon size={16} color={tokens.muted} />
             </Pressable>

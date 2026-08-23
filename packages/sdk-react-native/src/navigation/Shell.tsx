@@ -21,7 +21,19 @@ const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
 // Lets any screen inside a Shell open the persistent overlays (e.g. the
 // profile's "Create Post" button opening the composer the FAB also opens).
-type ShellActions = { openDrawer: () => void; openComposer: () => void; openNotifications: () => void };
+// registerAskHandler runs the other direction — a screen (currently only
+// ThreadScreen, via its AiRow) hands Shell a callback for the top bar's Ask
+// button to invoke, and unregisters it on unmount. Whether that handler is
+// currently registered is also what makes the Ask button enabled/disabled,
+// so it's only ever tappable while a thread (the only place with anything
+// to ask about) is on screen — mirroring web's TopNav, whose own `onAsk`
+// prop is likewise only ever supplied on the Thread route.
+type ShellActions = {
+  openDrawer: () => void;
+  openComposer: () => void;
+  openNotifications: () => void;
+  registerAskHandler: (fn: (() => void) | null) => void;
+};
 const ShellContext = createContext<ShellActions | null>(null);
 
 export function useShell(): ShellActions {
@@ -55,6 +67,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
+  const [askHandler, setAskHandler] = useState<(() => void) | null>(null);
 
   // Drives the "push" drawer — the main content translates right to reveal
   // the drawer panel sitting behind it (see Drawer.tsx), rather than the
@@ -138,6 +151,9 @@ export default function Shell({ children }: { children: ReactNode }) {
     openDrawer: () => setDrawerOpen(true),
     openComposer: () => setComposerOpen(true),
     openNotifications: () => setNotifOpen(true),
+    // fn is a plain callback, not a state updater — wrap it so useState
+    // stores it as a value instead of calling it immediately.
+    registerAskHandler: fn => setAskHandler(() => fn),
   }), []);
 
   return (
@@ -153,6 +169,7 @@ export default function Shell({ children }: { children: ReactNode }) {
           onOpenDrawer={() => setDrawerOpen(true)}
           onHome={goHome}
           onSearch={q => navigation.navigate('Search', { query: q })}
+          onAsk={askHandler ?? undefined}
         />
         <ShellContext.Provider value={actions}>
           <View style={{ flex: 1 }}>{children}</View>

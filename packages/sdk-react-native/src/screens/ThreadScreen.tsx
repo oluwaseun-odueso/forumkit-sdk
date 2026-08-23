@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions, Easing } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,7 +13,7 @@ import type { Thread, Comment, VoteDirection } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
-import Shell from '../navigation/Shell';
+import Shell, { useShell } from '../navigation/Shell';
 import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
 import MediaGallery from '../components/MediaGallery';
@@ -27,7 +27,7 @@ import ShareSheet from '../components/ShareSheet';
 import { SelectPill } from '../components/SelectPill';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
 import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon, EllipsisIcon, PencilIcon, TrashIcon, SaveIcon, ReportIcon } from '../components/icons';
-import AiRow from '../thread/AiRow';
+import AiRow, { type AiRowHandle } from '../thread/AiRow';
 import CommentComposer from '../thread/CommentComposer';
 import CommentRow, { type CommentCtx } from '../thread/CommentRow';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -87,6 +87,7 @@ export default function ThreadScreen() {
   const [postEditBody, setPostEditBody] = useState('');
   const [postDeleteOpen, setPostDeleteOpen] = useState(false);
   const [postMenuOpen, setPostMenuOpen] = useState(false);
+  const aiRowRef = useRef<AiRowHandle>(null);
   const { ref: postMenuRef, anchor: postMenuAnchor, measure: measurePostMenu } = useAnchor();
 
   // Swipe to next/previous thread — plain PanResponder + core Animated
@@ -343,7 +344,8 @@ export default function ThreadScreen() {
               )}
             </DropdownMenu>
 
-            <AiRow />
+            <AiRow ref={aiRowRef} />
+            <AskAiRegistration aiRowRef={aiRowRef} />
 
             <CommentComposer apiUrl={apiUrl} forumId={forumId} token={token} onSubmit={submitTopLevel} />
 
@@ -386,6 +388,23 @@ export default function ThreadScreen() {
       )}
     </Shell>
   );
+}
+
+// Registers this thread's "open the AI summary" handler with Shell so the
+// top bar's Ask button (rendered well outside this subtree) can trigger it.
+// A separate component, not inline logic in ThreadScreen itself, because
+// useShell() needs to run inside Shell's own ShellContext.Provider —
+// ThreadScreen (unlike ProfileScreen) isn't split into an outer-Shell/
+// inner-body pair, so it can't call useShell() at its own top level; this
+// tiny renders-nothing component, placed inside the <Shell> tree below,
+// is the minimal way to reach the context without that larger restructure.
+function AskAiRegistration({ aiRowRef }: { aiRowRef: RefObject<AiRowHandle | null> }) {
+  const { registerAskHandler } = useShell();
+  useEffect(() => {
+    registerAskHandler(() => aiRowRef.current?.openSummary());
+    return () => registerAskHandler(null);
+  }, [registerAskHandler, aiRowRef]);
+  return null;
 }
 
 function PostAction({ label, onPress }: { label: string; onPress: () => void }) {
