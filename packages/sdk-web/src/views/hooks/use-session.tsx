@@ -19,6 +19,8 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
   useEffect(() => {
     let cancelled = false;
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const RETRY_DELAY_MS = 15000;
 
     // The session token (unlike the host JWT) is short-lived — SESSION_TTL_MINUTES,
     // 15 min by default — and nothing was ever renewing it, so every authenticated
@@ -41,6 +43,12 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
           if (cancelled) return;
           const message = err instanceof Error ? err.message : 'Failed to create session';
           setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, error: message, onLogout: config.onLogout, platform });
+          // A transient failure (network blip, momentary server error)
+          // shouldn't end the session for good — scheduleRefresh was only
+          // ever called from the success path, so without this a single
+          // failed refresh permanently stopped renewal for the rest of the
+          // page's lifetime. Keep trying instead.
+          retryTimer = setTimeout(() => { void refresh(); }, RETRY_DELAY_MS);
         });
     }
 
@@ -50,6 +58,7 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
     return () => {
       cancelled = true;
       if (refreshTimer) clearTimeout(refreshTimer);
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [config.forumId, config.token, apiUrl, config.onLogout, platform]);
 
