@@ -1,19 +1,12 @@
 import { useState } from 'react';
 import {
   View, Image, ScrollView, Pressable, StyleSheet, useWindowDimensions,
-  type NativeSyntheticEvent, type NativeScrollEvent, type StyleProp, type ViewStyle,
+  type NativeSyntheticEvent, type NativeScrollEvent,
 } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import type { AttachmentSummary } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import ImageLightbox from './ImageLightbox';
-
-// Inline video with native controls (play/pause, scrubber, duration, and on
-// iOS playback speed) — matches web's plain <video controls> element.
-function GalleryVideo({ uri, style }: { uri: string; style: StyleProp<ViewStyle> }) {
-  const player = useVideoPlayer(uri, p => { p.loop = false; });
-  return <VideoView player={player} style={style} nativeControls contentFit="contain" />;
-}
+import InlineVideoThumb from './InlineVideoThumb';
 
 // Every image/video attached to a post, swipeable when there's more than
 // one — mirrors sdk-web's Carousel (arrows/dots) + Lightbox (tap to view
@@ -58,7 +51,7 @@ export default function MediaGallery({ attachments, radius = 14, aspectRatio = 4
                 style={[styles.slide, { width: slideWidth, aspectRatio, backgroundColor: tokens['surface-2'] }]}
               >
                 {isVideo ? (
-                  <GalleryVideo uri={a.downloadUrl} style={styles.media} />
+                  <InlineVideoThumb uri={a.downloadUrl} style={styles.media} contentFit="contain" />
                 ) : (
                   <Image source={{ uri: a.downloadUrl }} style={styles.media} resizeMode="cover" />
                 )}

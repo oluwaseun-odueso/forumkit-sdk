@@ -1,25 +1,15 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import type { FeedRow } from '@forumkit/shared';
 import type { VoteDirection } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
 import Thumbnail from '../components/Thumbnail';
+import InlineVideoThumb from '../components/InlineVideoThumb';
 import VotePill from '../components/VotePill';
 import CommentPill from '../components/CommentPill';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
 import { ShareIcon, EllipsisIcon, SaveIcon, ReportIcon } from '../components/icons';
-
-// A post's video thumbnail — an actual inline player with native controls
-// (play/pause, scrubber, duration, and on iOS, playback speed), matching
-// web's post-card which renders a real <video controls> element rather than
-// a static poster frame. FlatList (see FeedScreen) only mounts rows near the
-// viewport, so this doesn't create a player per off-screen post.
-function FeedVideoThumb({ uri, style }: { uri: string; style: StyleProp<ViewStyle> }) {
-  const player = useVideoPlayer(uri, p => { p.loop = false; });
-  return <VideoView player={player} style={style} nativeControls contentFit="cover" />;
-}
 
 // Feed post row per design_handoff README §6. Mirrors sdk-web's post-card:
 // author header (communities are deferred, so the header shows the author, not
@@ -69,7 +59,7 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
             </View>
           ) : videoUrl != null ? (
             <View style={{ marginBottom: 10 }}>
-              <FeedVideoThumb uri={videoUrl} style={[styles.cardVideo, { backgroundColor: tokens['surface-2'] }]} />
+              <InlineVideoThumb uri={videoUrl} style={[styles.cardVideo, { backgroundColor: tokens['surface-2'] }]} />
               {extraMediaCount > 0 && (
                 <View style={[styles.moreBadge, { backgroundColor: 'rgba(0,0,0,0.65)' }]}>
                   <Text style={styles.moreBadgeText}>+{extraMediaCount}</Text>
@@ -92,7 +82,7 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
             </View>
           ) : videoUrl != null ? (
             <View>
-              <FeedVideoThumb uri={videoUrl} style={[styles.compactVideo, { backgroundColor: tokens['surface-2'] }]} />
+              <InlineVideoThumb uri={videoUrl} style={[styles.compactVideo, { backgroundColor: tokens['surface-2'] }]} />
               {extraMediaCount > 0 && (
                 <View style={[styles.moreBadge, styles.moreBadgeCompact, { backgroundColor: 'rgba(0,0,0,0.65)' }]}>
                   <Text style={styles.moreBadgeText}>+{extraMediaCount}</Text>
