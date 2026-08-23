@@ -3,7 +3,6 @@ import { View, StyleSheet, Platform, BackHandler, PanResponder } from 'react-nat
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type NavigationProp } from '@react-navigation/native';
-import { getMyProfile } from '@forumkit/shared';
 import type { Draft } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
@@ -56,7 +55,6 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
-  const [me, setMe] = useState<{ displayName: string; avatarUrl: string | null } | null>(null);
 
   // Drives the "push" drawer — the main content translates right to reveal
   // the drawer panel sitting behind it (see Drawer.tsx), rather than the
@@ -112,20 +110,6 @@ export default function Shell({ children }: { children: ReactNode }) {
     return () => sub.remove();
   }, [drawerOpen]);
 
-  // Just enough of the current user's profile for the bottom bar's Profile
-  // tab avatar — Shell remounts fresh on every screen navigation (see the
-  // useRoute comment above), so this naturally refetches and picks up a
-  // just-changed avatar the next time the user leaves the Profile screen,
-  // no cross-component sync needed.
-  useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    getMyProfile(apiUrl, forumId, token).then(profile => {
-      if (!cancelled && profile) setMe({ displayName: profile.displayName, avatarUrl: profile.avatarUrl });
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [apiUrl, forumId, token]);
-
   function closeComposer() {
     setComposerOpen(false);
     setLoadedDraft(null);
@@ -178,8 +162,8 @@ export default function Shell({ children }: { children: ReactNode }) {
           notificationsActive={notifOpen}
           profileActive={route.name === 'Profile'}
           authorId={session.status === 'ready' ? session.userId : undefined}
-          displayName={me?.displayName}
-          avatarUrl={me?.avatarUrl}
+          displayName={session.profile?.displayName}
+          avatarUrl={session.profile?.avatarUrl}
           onHome={goHome}
           onCreate={() => setComposerOpen(true)}
           onNotifications={() => setNotifOpen(true)}

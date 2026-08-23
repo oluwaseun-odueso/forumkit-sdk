@@ -244,7 +244,14 @@ function ProfileBody() {
           token={token}
           profile={profile}
           onClose={() => setEditOpen(false)}
-          onSaved={(updated: UserProfile) => setProfile(p => (p ? { ...p, ...updated } : p))}
+          onSaved={(updated: UserProfile) => {
+            setProfile(p => (p ? { ...p, ...updated } : p));
+            // Keep the bottom bar's cached avatar/name in sync — it's no
+            // longer refetched on every navigation (see SessionContext.tsx),
+            // so a save here wouldn't otherwise be picked up until the next
+            // full app reload.
+            session.setProfile({ displayName: updated.displayName, avatarUrl: updated.avatarUrl });
+          }}
         />
       )}
       {reportId && <ReportSheet target="post" onClose={() => setReportId(null)} onSubmit={reason => { if (token) void reportThread(apiUrl, forumId, reportId, reason, token).catch(() => {}); }} />}

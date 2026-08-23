@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { createSession } from '@forumkit/shared';
+import { createSession, getMyProfile } from '@forumkit/shared';
 import type { ForumKitConfig } from '@forumkit/types';
 
 // Ported from sdk-web's hooks/use-session.tsx — same short-lived session token
@@ -12,13 +12,26 @@ type SessionState =
   | { status: 'ready'; forumId: string; apiUrl: string; sessionToken: string; userId: string; role: string; error: null }
   | { status: 'error'; forumId: string; apiUrl: string; sessionToken: null; userId: null; role: null; error: string };
 
-const SessionContext = createContext<SessionState | null>(null);
+// Just enough of the signed-in user's own profile for chrome that shows it
+// everywhere (currently just the bottom bar's Profile tab avatar). Cached
+// here — not in Shell.tsx, which remounts fresh on every screen — so
+// navigating between screens never re-shows Avatar's fallback-letter
+// placeholder while a fresh copy re-fetches.
+type MyProfileSummary = { displayName: string; avatarUrl: string | null };
+
+type SessionContextValue = SessionState & {
+  profile: MyProfileSummary | null;
+  setProfile: (p: MyProfileSummary) => void;
+};
+
+const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ config, children }: { config: ForumKitConfig; children: ReactNode }) {
   const apiUrl = config.apiUrl ?? '';
   const [state, setState] = useState<SessionState>({
     status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, userId: null, role: null, error: null,
   });
+  const [profile, setProfile] = useState<MyProfileSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,10 +65,21 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
     };
   }, [config.forumId, config.token, apiUrl]);
 
-  return <SessionContext.Provider value={state}>{children}</SessionContext.Provider>;
+  const token = state.status === 'ready' ? state.sessionToken : undefined;
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    getMyProfile(apiUrl, config.forumId, token).then(p => {
+      if (!cancelled && p) setProfile({ displayName: p.displayName, avatarUrl: p.avatarUrl });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [apiUrl, config.forumId, token]);
+
+  return <SessionContext.Provider value={{ ...state, profile, setProfile }}>{children}</SessionContext.Provider>;
 }
 
-export function useSession(): SessionState {
+export function useSession(): SessionContextValue {
   const ctx = useContext(SessionContext);
   if (ctx === null) throw new Error('useSession must be used inside SessionProvider');
   return ctx;
