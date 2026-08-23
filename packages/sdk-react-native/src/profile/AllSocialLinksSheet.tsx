@@ -1,8 +1,8 @@
-import { Modal, View, Text, Pressable, ScrollView, Linking, StyleSheet, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Modal, View, Text, Pressable, ScrollView, Linking, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { CloseIcon, PencilIcon, LinkIcon } from '../components/icons';
 import { SOCIAL_PLATFORM_ICON } from './SocialLinks';
+import { useSheetLayout } from '../lib/sheet-layout';
 
 // "View all" social links sheet, opened from SocialLinks.tsx's "View all"
 // pill once a profile has more links than fit inline. Reuses
@@ -16,15 +16,13 @@ export default function AllSocialLinksSheet({ links, onClose, onEditProfile }: {
   onEditProfile: () => void;
 }) {
   const { tokens } = useTheme();
-  const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
-  const sheetMaxHeight = windowHeight - insets.top - 100;
+  const { maxHeight, paddingBottom } = useSheetLayout(24);
 
   return (
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose} />
       <View style={styles.sheetWrap} pointerEvents="box-none">
-        <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight: sheetMaxHeight }]}>
+        <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: tokens.text }]}>Social links</Text>
             <View style={styles.headerBtns}>
@@ -56,7 +54,7 @@ export default function AllSocialLinksSheet({ links, onClose, onEditProfile }: {
 const styles = StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, overflow: 'hidden' },
+  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   headerBtns: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   title: { fontSize: 16, fontWeight: '800' },

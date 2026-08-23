@@ -5,6 +5,7 @@ import type { Draft } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { CloseIcon } from '../components/icons';
 import Mascot from '../components/Mascot';
+import { useSheetLayout } from '../lib/sheet-layout';
 
 // Drafts list (bottom sheet) — mirrors sdk-web's drafts-list-modal. Opened from
 // the composer's "Drafts" link: tap a draft to load it into the composer, or
@@ -17,6 +18,7 @@ export default function DraftsSheet({ apiUrl, forumId, token, onClose, onOpen }:
   onOpen: (draft: Draft) => void;
 }) {
   const { tokens } = useTheme();
+  const { maxHeight, paddingBottom } = useSheetLayout(28);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +41,7 @@ export default function DraftsSheet({ apiUrl, forumId, token, onClose, onOpen }:
   return (
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]} onPress={() => {}}>
           <Text style={[styles.title, { color: tokens.text }]}>Drafts</Text>
           <Text style={[styles.note, { color: tokens.muted }]}>Media isn’t saved in drafts.</Text>
 
@@ -74,7 +76,7 @@ export default function DraftsSheet({ apiUrl, forumId, token, onClose, onOpen }:
 
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 },
+  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16 },
   title: { fontSize: 16, fontWeight: '800' },
   note: { fontSize: 12, marginTop: 4, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: 1 },

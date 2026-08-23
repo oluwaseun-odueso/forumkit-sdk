@@ -4,6 +4,7 @@ import { NOTIFICATION_PREF_ROWS, getMyProfile, updateNotificationPrefs } from '@
 import type { NotificationPrefs } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Toggle from '../components/Toggle';
+import { useSheetLayout } from '../lib/sheet-layout';
 
 // Notification settings (bottom sheet) — mirrors sdk-web's
 // notification-settings-modal: the four preference toggles (mod-only rows hidden
@@ -15,6 +16,7 @@ export default function NotificationSettingsSheet({ apiUrl, forumId, token, onCl
   onClose: () => void;
 }) {
   const { tokens } = useTheme();
+  const { maxHeight, paddingBottom } = useSheetLayout(28);
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [isMod, setIsMod] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,7 @@ export default function NotificationSettingsSheet({ apiUrl, forumId, token, onCl
   return (
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]} onPress={() => {}}>
           <Text style={[styles.title, { color: tokens.text }]}>Notification settings</Text>
           {loading || !prefs ? (
             <ActivityIndicator color={tokens.accent} style={{ padding: 16 }} />
@@ -64,7 +66,7 @@ export default function NotificationSettingsSheet({ apiUrl, forumId, token, onCl
 
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 },
+  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16 },
   title: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center' },
   label: { fontSize: 14.5, fontWeight: '600' },

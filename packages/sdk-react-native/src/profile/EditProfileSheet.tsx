@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Modal, View, Text, TextInput, Pressable, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   updateMyProfile, SOCIAL_PLATFORMS, socialToSuffix, socialToUrl, socialPlaceholder, socialPrefix,
   type SocialPlatform,
@@ -9,6 +8,7 @@ import type { UserProfile } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { CloseIcon, SunIcon, MoonIcon, ChevronDownIcon, LinkIcon } from '../components/icons';
 import { SOCIAL_PLATFORM_ICON } from './SocialLinks';
+import { useSheetLayout } from '../lib/sheet-layout';
 
 type DraftLink = { id: number; platform: SocialPlatform; suffix: string };
 let nextId = 0;
@@ -25,14 +25,13 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
   onSaved: (p: UserProfile) => void;
 }) {
   const { tokens, mode, toggleTheme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  // Hard ceiling so the sheet can never reach the very top of the screen —
-  // previously unbounded (only the inner ScrollView had a fixed 360pt cap,
-  // regardless of screen size), which crowded the status bar on shorter
-  // phones and especially with the keyboard open. Leaves a generous, fixed
-  // gap from the top rather than a tight one.
-  const sheetMaxHeight = windowHeight - insets.top - 100;
+  // maxHeight is a hard ceiling so the sheet can never reach the very top of
+  // the screen — previously unbounded (only the inner ScrollView had a fixed
+  // 360pt cap, regardless of screen size), which crowded the status bar on
+  // shorter phones and especially with the keyboard open. Leaves a generous,
+  // fixed gap from the top rather than a tight one.
+  const { maxHeight: sheetMaxHeight, paddingBottom } = useSheetLayout(24);
   const scrollMaxHeight = Math.min(300, windowHeight * 0.34);
   const [name, setName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? '');
@@ -87,7 +86,7 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
           scrim, closing the sheet mid-scroll. */}
       <Pressable style={styles.scrim} onPress={onClose} />
       <View style={styles.sheetWrap} pointerEvents="box-none">
-        <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight: sheetMaxHeight }]}>
+        <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight: sheetMaxHeight, paddingBottom }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: tokens.text }]}>Edit profile</Text>
             <Pressable onPress={onClose} hitSlop={8}><CloseIcon size={18} color={tokens.text} /></Pressable>
@@ -185,7 +184,7 @@ const styles = StyleSheet.create({
   // Positions the sheet at the bottom; box-none means it never itself
   // intercepts a touch, so a tap above the sheet reaches the scrim behind it.
   sheetWrap: { flex: 1, justifyContent: 'flex-end' },
-  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24, overflow: 'hidden' },
+  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   title: { fontSize: 16, fontWeight: '800' },
   label: { fontSize: 12.5, fontWeight: '600', marginTop: 12, marginBottom: 6 },

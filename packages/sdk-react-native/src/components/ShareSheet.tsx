@@ -4,6 +4,7 @@ import { searchUsers } from '@forumkit/shared';
 import type { UserSearchResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from './Avatar';
+import { useSheetLayout } from '../lib/sheet-layout';
 
 // In-app member share — the native platform's share target (per ForumKitConfig:
 // native share goes to in-app member sharing, not a copyable link). Mirrors
@@ -16,6 +17,7 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
   onShare: (recipientIds: string[]) => void;
 }) {
   const { tokens } = useTheme();
+  const { maxHeight, paddingBottom } = useSheetLayout(28);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +48,7 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
   return (
     <Modal transparent visible animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border }]} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]} onPress={() => {}}>
           <Text style={[styles.title, { color: tokens.text }]}>Share with a member</Text>
           <TextInput
             value={query}
@@ -92,7 +94,7 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
 
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 },
+  sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16 },
   title: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
   search: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
