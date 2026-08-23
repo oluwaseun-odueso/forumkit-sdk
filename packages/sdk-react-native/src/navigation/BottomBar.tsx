@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { GlassView, GlassContainer } from 'expo-glass-effect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
-import { glassTint, glassPillTint, glassBarTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
+import { glassTint, glassBarTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 import { HomeIcon, BellIcon } from '../components/icons';
 import Avatar from '../components/Avatar';
 
@@ -58,10 +58,6 @@ export default function BottomBar({
 
   if (LIQUID_GLASS_AVAILABLE) {
     return (
-      // spacing lets the active tab's own nested GlassView (below, in
-      // TabItem) visually merge with this background glass — the "liquid"
-      // part of Liquid Glass — rather than sitting as two flat unrelated
-      // layers.
       <GlassContainer spacing={14} style={[styles.bar, position, { borderColor: glassBorderColor(mode) }]}>
         {/* 'clear' — Apple's more-transparent, less-adaptive-blur style; a
             prior version used 'regular' to calm an earlier too-dark/muddy
@@ -89,43 +85,27 @@ export default function BottomBar({
   );
 }
 
-// One tab's icon+label. On iOS 26+, the active tab is its own small, plain
-// (no color tint) GlassView — isInteractive, merges with the bar's
-// background glass via the shared GlassContainer above, giving it the real
-// "selected glass capsule" look iOS tab bars use. No tintColor: the
-// reference is a neutral light highlight, not a colored pill. Elsewhere, the
-// active tab gets the subtler theme-aware hover-2 fill instead. `renderIcon`
-// takes the resolved color so the same icon is muted when inactive, accent
-// when active — that accent color lives on the icon/label text, not the
-// pill's own background.
+// One tab's icon+label. The active tab gets a flat, theme-aware hover-2
+// fill on every platform — this used to be a real, translucent Liquid Glass
+// pill on iOS 26+, but glass is inherently translucent/refractive by
+// design, so it can't guarantee reading well against whatever content sits
+// behind the bar (the same reasoning that already replaced the hamburger
+// drawer's glass background with a solid one). `renderIcon` takes the
+// resolved color so the same icon is muted when inactive, accent when
+// active — that accent color lives on the icon/label text, not the pill's
+// own background.
 function TabItem({ active, renderIcon, label, onPress }: {
   active: boolean;
   renderIcon: (color: string) => ReactNode;
   label: string;
   onPress: () => void;
 }) {
-  const { tokens, mode } = useTheme();
+  const { tokens } = useTheme();
   const color = active ? tokens.accent : tokens['text-2'];
-  const content = (
-    <>
-      {renderIcon(color)}
-      <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
-    </>
-  );
-
-  if (active && LIQUID_GLASS_AVAILABLE) {
-    return (
-      <Pressable onPress={onPress}>
-        <GlassView style={styles.item} glassEffectStyle="clear" colorScheme={mode} tintColor={glassPillTint(mode)} isInteractive>
-          {content}
-        </GlassView>
-      </Pressable>
-    );
-  }
-
   return (
     <Pressable onPress={onPress} style={[styles.item, active && { backgroundColor: tokens['hover-2'] }]}>
-      {content}
+      {renderIcon(color)}
+      <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
