@@ -20,13 +20,16 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch, o
   onSearch?: ((query: string) => void) | undefined;
   // Mirrors web's TopNav "Ask" pill (sparkle icon + label, inside the search
   // bar) — mobile shows the icon only, given how little width the search
-  // pill has to spare. Unlike web (which disables its Ask button outside the
-  // Thread route), this is always visible as a fixed part of the search bar
-  // on every screen; only its behavior differs — Shell's registerAskHandler
-  // supplies a real handler while a thread is on screen, undefined
-  // elsewhere, in which case tapping it is currently a no-op (the AI
-  // feature is a placeholder everywhere in this app right now, not just off
-  // the thread screen — see AiRow.tsx).
+  // pill has to spare. Lives inside the expanded search pill only (gone,
+  // not just hidden, when search is collapsed to its icon-only row — same
+  // "removed from the tree" treatment the rest of that collapsed state
+  // already uses). Unlike web (which disables its Ask button outside the
+  // Thread route), it's a fixed part of the search bar on every screen
+  // regardless of thread context — only its behavior differs: Shell's
+  // registerAskHandler supplies a real handler while a thread is on screen,
+  // undefined elsewhere, in which case tapping it is currently a no-op (the
+  // AI feature is a placeholder everywhere in this app right now, not just
+  // off the thread screen — see AiRow.tsx).
   onAsk?: (() => void) | undefined;
 }) {
   const { tokens, mode, toggleTheme } = useTheme();
@@ -82,9 +85,6 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch, o
             <Mascot size={24} />
           </Pressable>
           <View style={{ flex: 1 }} />
-          <Pressable onPress={() => onAsk?.()} style={styles.searchIconBtn} hitSlop={6}>
-            <SparkleIcon size={18} />
-          </Pressable>
           <Pressable onPress={() => { setSearchOpen(true); setFocusOnOpen(true); onOpenSearch?.(); }} style={styles.searchIconBtn}>
             <SearchIcon size={18} color={tokens['text-2']} />
           </Pressable>
