@@ -51,9 +51,18 @@ export default function FeedScreen() {
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
-  // Popular seeds the sort to Hot; the sort selector then controls it freely on
-  // every scope. News additionally filters to the "news" tag.
-  useEffect(() => { if (scope === 'popular') setSort('Hot'); }, [scope]);
+  // Each scope transition resets sort to its own default — Popular forces
+  // Hot, Home resets to Best, News leaves whatever was last picked alone
+  // (only its tag filter, applied directly in load() below, is special) —
+  // matching web's SET_FEED_SCOPE reducer arm exactly. The sort selector
+  // then controls it freely within a scope until the next transition; this
+  // used to only handle the 'popular' half, so a manually-picked (or
+  // Popular-seeded) sort silently leaked into Home on the next visit,
+  // making Home and Popular look identical.
+  useEffect(() => {
+    if (scope === 'popular') setSort('Hot');
+    else if (scope === 'home') setSort('Best');
+  }, [scope]);
 
   const load = useCallback(async (s: SortOption) => {
     if (!token) return;
