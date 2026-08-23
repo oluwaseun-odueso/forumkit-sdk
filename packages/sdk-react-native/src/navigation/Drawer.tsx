@@ -40,14 +40,21 @@ export default function Drawer({ activeRoute, onSelectRoute }: {
   activeRoute: DrawerRoute | null;
   onSelectRoute: (route: DrawerRoute) => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
   const insets = useSafeAreaInsets();
+  // Dark mode specifically wants this close to the feed's own background
+  // (tokens.bg) rather than the lighter surface-2 shade used everywhere
+  // else — tokens.nav is the next step up from bg in the dark palette,
+  // close enough to read as "the same background" while still being a
+  // distinct, defined panel (helped along by the right border below).
+  // Light mode is unaffected — surface-2 there wasn't reported as an issue.
+  const panelBg = mode === 'dark' ? tokens.nav : tokens['surface-2'];
 
   return (
     <View
       style={[
         styles.panel,
-        { backgroundColor: tokens['surface-2'], borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA },
+        { backgroundColor: panelBg, borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA },
       ]}
     >
       <View style={styles.brandRow}>
