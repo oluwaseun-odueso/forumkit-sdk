@@ -136,7 +136,13 @@ export type Reaction = {
 
 export type ModerationQueueItem = {
   id: string;
-  commentId: string;
+  // A row targets either a comment or a thread directly, never both (see
+  // migration 015_moderation_thread_reports) — commentId is null for a
+  // thread-level report.
+  commentId: string | null;
+  // Always resolvable: the row's own thread for a thread-level report, or
+  // the flagged comment's parent thread for a comment-level one.
+  threadId: string | null;
   reporterId: string | null;
   reason: string;
   aiScore: number;
@@ -145,6 +151,12 @@ export type ModerationQueueItem = {
   reviewerId: string | null;
   createdAt: Date;
   reviewedAt: Date | null;
+  // Content context so a moderator can see what's being reviewed without a
+  // second fetch. threadTitle is only null if the thread itself was since
+  // hard-deleted; commentBody is null when the item targets a thread
+  // directly, not a specific comment.
+  threadTitle: string | null;
+  commentBody: string | null;
 };
 
 // ── JWT payload (from host application) ───────────────────────────
