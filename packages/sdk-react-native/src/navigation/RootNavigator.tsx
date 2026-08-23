@@ -5,6 +5,7 @@ import FeedScreen from '../screens/FeedScreen';
 import ThreadScreen from '../screens/ThreadScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SearchScreen from '../screens/SearchScreen';
+import ModerationScreen from '../screens/ModerationScreen';
 
 export type FeedScope = 'home' | 'popular' | 'news';
 
@@ -24,6 +25,7 @@ export type RootStackParamList = {
   Thread: { threadId: string; threadIds?: string[] | undefined };
   Profile: { userId?: string } | undefined;
   Search: { query: string };
+  Moderation: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -65,6 +67,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Thread" component={ThreadScreen} options={{ gestureEnabled: false, animation: 'none' }} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="Moderation" component={ModerationScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

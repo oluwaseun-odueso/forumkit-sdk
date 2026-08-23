@@ -62,6 +62,9 @@ export default function Shell({ children }: { children: ReactNode }) {
   const session = useSession();
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
+  // Same inline two-role-OR check ThreadScreen.tsx already uses — no shared
+  // helper exists for this in either app yet.
+  const isModerator = session.status === 'ready' && (session.role === 'moderator' || session.role === 'admin');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -162,7 +165,11 @@ export default function Shell({ children }: { children: ReactNode }) {
           becomes visible once that content translates right. Rendered
           outside the padded/animated layer so its own top padding (see
           Drawer.tsx) doesn't double up with the padding below. */}
-      <Drawer activeRoute={feedScope} onSelectRoute={goTo} />
+      <Drawer
+        activeRoute={feedScope}
+        onSelectRoute={goTo}
+        onOpenModeration={isModerator ? () => { setDrawerOpen(false); navigation.navigate('Moderation'); } : undefined}
+      />
 
       <Animated.View style={[styles.pushed, drawerPushStyle, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
         <TopBar

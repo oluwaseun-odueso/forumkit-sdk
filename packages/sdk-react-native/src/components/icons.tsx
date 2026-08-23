@@ -224,6 +224,14 @@ export function ReportIcon({ size = 19, color = '#000' }: IconProps) {
   );
 }
 
+export function ShieldIcon({ size = 21, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+    </Svg>
+  );
+}
+
 export function TrashIcon({ size = 18, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>

@@ -2,7 +2,7 @@ import { View, Pressable, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
-import { HomeIcon, PopularIcon, NewsIcon } from '../components/icons';
+import { HomeIcon, PopularIcon, NewsIcon, ShieldIcon } from '../components/icons';
 
 // See navigation/Shell.tsx — Android's statusBarTranslucent inset still
 // lands tighter than iOS, so nudge it down a bit further.
@@ -34,11 +34,17 @@ export const DRAWER_WIDTH = 300;
 // edge of Shell's root view, and only becomes visible when Shell translates
 // the main content out of the way (a "push" drawer, not an overlay one).
 // Shell owns open/close state and the tap-outside-to-close affordance.
-export default function Drawer({ activeRoute, onSelectRoute }: {
+export default function Drawer({ activeRoute, onSelectRoute, onOpenModeration }: {
   // null when the current screen isn't the feed (Thread/Profile/Search) —
   // none of Home/Popular/News apply there, so no row shows active.
   activeRoute: DrawerRoute | null;
   onSelectRoute: (route: DrawerRoute) => void;
+  // Deliberately a separate prop rather than widening DrawerRoute/
+  // onSelectRoute, which are scoped specifically to feed-scope selection —
+  // Moderation is a real navigation target, not a feed scope. Only passed
+  // by Shell.tsx for moderator/admin sessions; the row itself is omitted
+  // (not just disabled) for everyone else.
+  onOpenModeration?: (() => void) | undefined;
 }) {
   const { tokens, mode } = useTheme();
   const insets = useSafeAreaInsets();
@@ -82,6 +88,14 @@ export default function Drawer({ activeRoute, onSelectRoute }: {
         icon={<NewsIcon size={20} color={tokens['text-2']} />}
         onPress={() => onSelectRoute('news')}
       />
+      {onOpenModeration && (
+        <DrawerRow
+          label="Moderation"
+          active={false}
+          icon={<ShieldIcon size={20} color={tokens['text-2']} />}
+          onPress={onOpenModeration}
+        />
+      )}
     </View>
   );
 }
