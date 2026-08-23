@@ -79,6 +79,11 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch, o
             <Mascot size={24} />
           </Pressable>
           <View style={{ flex: 1 }} />
+          {onAsk && (
+            <Pressable onPress={onAsk} style={styles.searchIconBtn} hitSlop={6}>
+              <SparkleIcon size={18} />
+            </Pressable>
+          )}
           <Pressable onPress={() => { setSearchOpen(true); setFocusOnOpen(true); onOpenSearch?.(); }} style={styles.searchIconBtn}>
             <SearchIcon size={18} color={tokens['text-2']} />
           </Pressable>
