@@ -38,7 +38,7 @@ import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search' | 'notifications';
+export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search' | 'notifications' | 'moderation';
 export type FeedView = 'card' | 'compact';
 export type FeedSort = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
 export type FeedScope = 'home' | 'popular' | 'news';

@@ -8,6 +8,7 @@ import { Profile } from './routes/Profile';
 import { Compose } from './routes/Compose';
 import { SearchResults } from './routes/SearchResults';
 import { Notifications } from './routes/Notifications';
+import { Moderation } from './routes/Moderation';
 import EditProfileModal from './components/profile/edit-profile-modal';
 import DraftsListModal from './components/composer/drafts-list-modal';
 import ShareModal from './components/shared/share-modal';
@@ -33,6 +34,7 @@ function Router() {
       {state.view === 'compose' && <Compose />}
       {state.view === 'search' && <SearchResults />}
       {state.view === 'notifications' && <Notifications />}
+      {state.view === 'moderation' && <Moderation />}
       {state.settings.open && (
         <EditProfileModal
           displayName={profile.displayName}
