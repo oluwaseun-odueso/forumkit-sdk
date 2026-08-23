@@ -6,6 +6,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttachment } from '../lib/upload';
 import { LinkIcon, ListIcon, ImageIcon, CloseIcon } from '../components/icons';
 import ImageLightbox from '../components/ImageLightbox';
+import InlineVideoThumb from '../components/InlineVideoThumb';
 
 // The mobile rich composer — the RN counterpart to sdk-web's comment-composer
 // (TipTap can't run in RN, so this is a TextInput + markdown-insertion toolbar).
@@ -126,12 +127,16 @@ export default function RichComposer({
             <View key={a.localId} style={styles.thumbWrap}>
               <Pressable
                 disabled={a.kind !== 'image'}
-                onPress={() => setPreviewUri(a.downloadUrl ?? a.localUri)}
+                onPress={() => setPreviewUri(a.localUri)}
               >
-                <Image
-                  source={{ uri: a.downloadUrl ?? a.localUri }}
-                  style={[styles.thumb, { backgroundColor: tokens['surface-2'] }, a.status === 'error' && { opacity: 0.4 }]}
-                />
+                {a.kind === 'video' ? (
+                  <InlineVideoThumb uri={a.localUri} style={[styles.thumb, { backgroundColor: tokens['surface-2'] }, a.status === 'error' && { opacity: 0.4 }]} />
+                ) : (
+                  <Image
+                    source={{ uri: a.localUri }}
+                    style={[styles.thumb, { backgroundColor: tokens['surface-2'] }, a.status === 'error' && { opacity: 0.4 }]}
+                  />
+                )}
                 {a.status === 'uploading' && (
                   <View style={styles.thumbOverlay}><ActivityIndicator size="small" color="#fff" /></View>
                 )}

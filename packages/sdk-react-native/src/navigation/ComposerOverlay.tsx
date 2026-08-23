@@ -11,6 +11,7 @@ import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
 import ImageLightbox from '../components/ImageLightbox';
+import InlineVideoThumb from '../components/InlineVideoThumb';
 
 const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
@@ -227,14 +228,18 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
                   <View key={a.localId} style={[styles.mediaCell, { backgroundColor: tokens['surface-2'] }]}>
                     <Pressable
                       disabled={a.kind !== 'image'}
-                      onPress={() => setPreviewUri(a.downloadUrl ?? a.localUri)}
+                      onPress={() => setPreviewUri(a.localUri)}
                       style={styles.mediaCellImg}
                     >
-                      <Image
-                        source={{ uri: a.downloadUrl ?? a.localUri }}
-                        style={[styles.mediaCellImg, a.status === 'error' && { opacity: 0.4 }]}
-                        resizeMode="cover"
-                      />
+                      {a.kind === 'video' ? (
+                        <InlineVideoThumb uri={a.localUri} style={[styles.mediaCellImg, a.status === 'error' && { opacity: 0.4 }]} />
+                      ) : (
+                        <Image
+                          source={{ uri: a.localUri }}
+                          style={[styles.mediaCellImg, a.status === 'error' && { opacity: 0.4 }]}
+                          resizeMode="cover"
+                        />
+                      )}
                       {a.status === 'uploading' && (
                         <View style={styles.mediaCellOverlay}><ActivityIndicator color="#fff" /></View>
                       )}
