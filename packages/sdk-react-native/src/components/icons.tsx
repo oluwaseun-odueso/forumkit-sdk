@@ -52,6 +52,16 @@ export function PlusIcon({ size = 20, color = '#fff' }: IconProps) {
   );
 }
 
+// Solid play triangle, used by InlineVideoThumb's tap-to-start overlay —
+// filled, no stroke, unlike the rest of this file's outline convention.
+export function PlayIcon({ size = 20, color = '#fff' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M8 5v14l11-7z" />
+    </Svg>
+  );
+}
+
 export function BellIcon({ size = 21, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color}>
