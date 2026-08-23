@@ -30,7 +30,7 @@ export default function VotePill({ voteCounts, dir, onVote, variant = 'pill', si
           onClick={() => onVote(1)}
           className={`fk-vote-btn fk-vote-btn--up${dir === 1 ? ' fk-vote-btn--active' : ''}`}
         >
-          <UpvoteIcon size={iconSize} />
+          <UpvoteIcon size={iconSize} filled={dir === 1} />
         </span>
         <span className={`fk-vote-count fk-vote-count--up${dir === 1 ? ' fk-vote-count--active' : ''}`}>{voteCounts.up}</span>
       </span>
@@ -42,7 +42,7 @@ export default function VotePill({ voteCounts, dir, onVote, variant = 'pill', si
           onClick={() => onVote(-1)}
           className={`fk-vote-btn fk-vote-btn--down${dir === -1 ? ' fk-vote-btn--active' : ''}`}
         >
-          <DownvoteIcon size={iconSize} />
+          <DownvoteIcon size={iconSize} filled={dir === -1} />
         </span>
         <span className={`fk-vote-count fk-vote-count--down${dir === -1 ? ' fk-vote-count--active' : ''}`}>{voteCounts.down}</span>
       </span>

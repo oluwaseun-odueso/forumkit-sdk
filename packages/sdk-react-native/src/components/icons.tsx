@@ -148,18 +148,18 @@ export function ChevronDownIcon({ size = 15, color = '#000' }: IconProps) {
   );
 }
 
-export function UpvoteIcon({ size = 19, color = '#000' }: IconProps) {
+export function UpvoteIcon({ size = 19, color = '#000', filled = false }: IconProps & { filled?: boolean }) {
   return (
-    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.9}>
-      <Path d="M12 5l7 8H5z" />
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.9} fill={filled ? color : 'none'}>
+      <Path d="M12 6l5.5 11H6.5z" />
     </Svg>
   );
 }
 
-export function DownvoteIcon({ size = 19, color = '#000' }: IconProps) {
+export function DownvoteIcon({ size = 19, color = '#000', filled = false }: IconProps & { filled?: boolean }) {
   return (
-    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.9}>
-      <Path d="M12 19l-7-8h14z" />
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.9} fill={filled ? color : 'none'}>
+      <Path d="M12 18l5.5-11H6.5z" />
     </Svg>
   );
 }

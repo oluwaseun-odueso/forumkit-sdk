@@ -94,18 +94,18 @@ export function ChevronRightIcon({ size = 18 }: IconProps) {
   );
 }
 
-export function UpvoteIcon({ size = 19 }: IconProps) {
+export function UpvoteIcon({ size = 19, filled = false }: IconProps & { filled?: boolean }) {
   return (
-    <svg width={size} height={size} {...base} strokeWidth={1.9}>
-      <path d="M12 5l7 8H5z" />
+    <svg width={size} height={size} {...base} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.9}>
+      <path d="M12 6l5.5 11H6.5z" />
     </svg>
   );
 }
 
-export function DownvoteIcon({ size = 19 }: IconProps) {
+export function DownvoteIcon({ size = 19, filled = false }: IconProps & { filled?: boolean }) {
   return (
-    <svg width={size} height={size} {...base} strokeWidth={1.9}>
-      <path d="M12 19l-7-8h14z" />
+    <svg width={size} height={size} {...base} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.9}>
+      <path d="M12 18l5.5-11H6.5z" />
     </svg>
   );
 }
