@@ -60,6 +60,8 @@ export {
   getDraft,
   updateDraft,
   deleteDraft,
+  getModerationQueue,
+  resolveModerationItem,
 } from './api';
 export type {
   CreateSessionResult,
@@ -73,4 +75,5 @@ export type {
   ProfileActivityResult,
   SearchOpts,
   UserSearchListResult,
+  ModerationQueueResult,
 } from './api';

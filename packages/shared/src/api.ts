@@ -4,7 +4,7 @@ import type {
   UserRole, ErrorResponse, UpdateThreadBody, UpdateProfileBody, SearchResponse,
   SearchResult, UserSearchResult, GifResult, Attachment, AttachmentPurpose,
   UploadUrlResponse, ProfileActivityScope, ProfileActivitySort,
-  ProfileActivityContentType, ProfileActivityItem,
+  ProfileActivityContentType, ProfileActivityItem, ModerationQueueItem,
 } from '@forumkit/types';
 
 // Platform-agnostic ForumKit API client — the single source of truth for the
@@ -593,4 +593,33 @@ export async function deleteDraft(apiUrl: string, forumId: string, draftId: stri
     headers: authHeaders(token),
   });
   return okVoid(res);
+}
+
+// ── Moderation (admin/moderator only; not forum-scoped in the URL — the
+// backend derives the forum from the authenticated session) ──────────
+
+export type ModerationQueueResult = { items: ModerationQueueItem[]; total: number; page: number; limit: number };
+
+export async function getModerationQueue(
+  apiUrl: string,
+  params?: { page?: number; limit?: number },
+  token?: string,
+): Promise<ModerationQueueResult> {
+  const suffix = buildQuery({ page: params?.page, limit: params?.limit });
+  const res = await fetch(`${apiUrl}/moderation/queue${suffix}`, { headers: authHeaders(token) });
+  return unwrapJson<ModerationQueueResult>(res);
+}
+
+export async function resolveModerationItem(
+  apiUrl: string,
+  itemId: string,
+  action: 'approved' | 'removed',
+  token?: string,
+): Promise<ModerationQueueItem> {
+  const res = await fetch(`${apiUrl}/moderation/queue/${itemId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ action }),
+  });
+  return unwrapJson<ModerationQueueItem>(res);
 }
