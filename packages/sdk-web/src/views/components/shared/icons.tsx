@@ -94,10 +94,14 @@ export function ChevronRightIcon({ size = 18 }: IconProps) {
   );
 }
 
+// An actual arrow (chevron head + stem, like ↑), not a triangle — rounded
+// corners baked into the path itself via quadratic curves through each
+// original vertex, not just a stroke's line-join (too thin to visibly round
+// a shape this small).
 export function UpvoteIcon({ size = 19, filled = false }: IconProps & { filled?: boolean }) {
   return (
     <svg width={size} height={size} {...base} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.9}>
-      <path d="M12 6l5.5 11H6.5z" />
+      <path d="M13.2 6.6L16.8 11.4Q18 13 16 13L15 13Q14 13 14 14L14 18Q14 19 13 19L11 19Q10 19 10 18L10 14Q10 13 9 13L8 13Q6 13 7.2 11.4L10.8 6.6Q12 5 13.2 6.6Z" />
     </svg>
   );
 }
@@ -105,7 +109,7 @@ export function UpvoteIcon({ size = 19, filled = false }: IconProps & { filled?:
 export function DownvoteIcon({ size = 19, filled = false }: IconProps & { filled?: boolean }) {
   return (
     <svg width={size} height={size} {...base} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.9}>
-      <path d="M12 18l5.5-11H6.5z" />
+      <path d="M13.2 17.4L16.8 12.6Q18 11 16 11L15 11Q14 11 14 10L14 6Q14 5 13 5L11 5Q10 5 10 6L10 10Q10 11 9 11L8 11Q6 11 7.2 12.6L10.8 17.4Q12 19 13.2 17.4Z" />
     </svg>
   );
 }
