@@ -307,7 +307,7 @@ export default function ThreadScreen() {
                 hitSlop={6}
                 style={[styles.ellipsisBtn, { backgroundColor: postMenuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
               >
-                <EllipsisIcon size={15} color={tokens['text-2']} />
+                <EllipsisIcon size={17} color={tokens['text-2']} />
               </Pressable>
             </View>
 

@@ -106,7 +106,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
           hitSlop={6}
           style={[styles.ellipsisBtn, { backgroundColor: menuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
         >
-          <EllipsisIcon size={14} color={tokens['text-2']} />
+          <EllipsisIcon size={17} color={tokens['text-2']} />
         </Pressable>
       </View>
 
@@ -203,5 +203,5 @@ const styles = StyleSheet.create({
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
   smallBtn: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 },
   actions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14, rowGap: 8, marginTop: 8, marginLeft: 32 },
-  ellipsisBtn: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' },
+  ellipsisBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' },
 });

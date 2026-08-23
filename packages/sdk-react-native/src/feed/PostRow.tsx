@@ -98,14 +98,14 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
         <CommentPill count={row.commentCount} />
         <View style={{ flex: 1 }} />
         <Pressable onPress={onShare} style={[styles.circle, { backgroundColor: tokens['surface-2'] }]}>
-          <ShareIcon size={15} color={tokens['text-2']} />
+          <ShareIcon size={17} color={tokens['text-2']} />
         </Pressable>
         <Pressable
           ref={ellipsisRef}
           onPress={() => measure(() => setMenuOpen(true))}
           style={[styles.circle, { backgroundColor: menuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
         >
-          <EllipsisIcon size={16} color={tokens['text-2']} />
+          <EllipsisIcon size={17} color={tokens['text-2']} />
         </Pressable>
       </View>
 
