@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { authenticate, requireRole } from '../middleware/auth';
+import { authenticate, optionalAuthenticate, requireRole } from '../middleware/auth';
 import * as threadService from '../services/thread';
 import * as voteService from '../services/vote';
 import * as saveService from '../services/save';
@@ -113,7 +113,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
    * Public — passes requesterId for personalised vote/save state when a
    * valid session token is present, otherwise serves anonymous results.
    */
-  app.get('/:forumId/threads', async (request, reply) => {
+  app.get('/:forumId/threads', { preHandler: optionalAuthenticate }, async (request, reply) => {
     const { forumId } = request.params as { forumId: string };
 
     const parsed = listQuerySchema.safeParse(request.query);
@@ -249,7 +249,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
    * Public — passes requesterId for personalised vote/save/accepted-answer
    * state when a valid session token is present.
    */
-  app.get('/:forumId/threads/:threadId', async (request, reply) => {
+  app.get('/:forumId/threads/:threadId', { preHandler: optionalAuthenticate }, async (request, reply) => {
     const { forumId, threadId } = request.params as { forumId: string; threadId: string };
 
     const userId = request.jwtPayload ? (await resolveUser(request, forumId))?.id : undefined;
