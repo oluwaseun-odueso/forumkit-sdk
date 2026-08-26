@@ -1,54 +1,129 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { GradientBorderPill } from '../components/Pill';
 import { SparkleIcon, CloseIcon } from '../components/icons';
+import { callSummarise, callSuggest } from './api-ai';
 
-// The Thread AI row — mirrors sdk-web thread-view.tsx's AI buttons + panel
-// (README §8) VISUALLY only. Per the standing decision (AI moving to its own
-// service), these are NOT wired to api/ai.ts: the panels show placeholder text.
-// One panel open at a time; re-tapping the same pill closes it.
-type Panel = 'summary' | 'reply' | null;
+type PanelState = 'idle' | 'loading' | 'done' | 'error';
 
-// Exposes an imperative "open the summary panel" escape hatch — ThreadScreen
-// registers this with Shell (see registerAskHandler in Shell.tsx) so the top
-// bar's Ask button (next to search, matching web's TopNav) can reach into
-// this row's own local panel state without lifting it out entirely.
 export type AiRowHandle = { openSummary: () => void };
 
-const AiRow = forwardRef<AiRowHandle>(function AiRow(_props, ref) {
+type AiRowProps = {
+  threadId: string;
+  apiUrl: string;
+  token: string | undefined;
+};
+
+const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, apiUrl, token }, ref) {
   const { tokens } = useTheme();
-  const [panel, setPanel] = useState<Panel>(null);
-  const toggle = (p: 'summary' | 'reply') => setPanel(cur => (cur === p ? null : p));
+
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryState, setSummaryState] = useState<PanelState>('idle');
+  const [summaryPoints, setSummaryPoints] = useState<string[]>([]);
+
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestState, setSuggestState] = useState<PanelState>('idle');
+  const [suggestText, setSuggestText] = useState<string>('');
+
+  const fetchSummary = async () => {
+    setSummaryState('loading');
+    const points = await callSummarise(apiUrl, threadId, token);
+    if (points) {
+      setSummaryPoints(points);
+      setSummaryState('done');
+    } else {
+      setSummaryState('error');
+    }
+  };
+
+  const fetchSuggest = async () => {
+    setSuggestState('loading');
+    const text = await callSuggest(apiUrl, threadId, token);
+    if (text) {
+      setSuggestText(text);
+      setSuggestState('done');
+    } else {
+      setSuggestState('error');
+    }
+  };
+
+  const toggleSummary = () => {
+    if (summaryOpen) {
+      setSummaryOpen(false);
+      return;
+    }
+    setSuggestOpen(false);
+    setSummaryOpen(true);
+    if (summaryState === 'idle') void fetchSummary();
+  };
+
+  const toggleSuggest = () => {
+    if (suggestOpen) {
+      setSuggestOpen(false);
+      return;
+    }
+    setSummaryOpen(false);
+    setSuggestOpen(true);
+    if (suggestState === 'idle' || suggestState === 'done') void fetchSuggest();
+  };
 
   useImperativeHandle(ref, () => ({
-    openSummary: () => setPanel('summary'),
-  }), []);
+    openSummary: () => {
+      setSuggestOpen(false);
+      setSummaryOpen(true);
+      if (summaryState === 'idle') void fetchSummary();
+    },
+  }), [summaryState]);
+
+  const panelOpen = summaryOpen || suggestOpen;
 
   return (
     <View style={{ marginBottom: 16 }}>
       <View style={styles.row}>
-        <AiButton label="Summarise thread" onPress={() => toggle('summary')} />
-        <AiButton label="Suggest reply" onPress={() => toggle('reply')} />
+        <AiButton label="Summarise thread" onPress={toggleSummary} />
+        <AiButton label="Suggest reply" onPress={toggleSuggest} />
       </View>
 
-      {panel && (
+      {panelOpen && (
         <View style={[styles.panel, { borderColor: tokens['border-strong'], backgroundColor: tokens['surface-2'] }]}>
           <View style={styles.panelHead}>
             <SparkleIcon size={16} />
             <Text style={[styles.panelTitle, { color: tokens.text }]}>
-              {panel === 'summary' ? 'Thread summary' : 'Suggested reply'}
+              {summaryOpen ? 'Thread summary' : 'Suggested reply'}
             </Text>
             <View style={{ flex: 1 }} />
-            <Pressable onPress={() => setPanel(null)} hitSlop={8}>
+            <Pressable onPress={() => { setSummaryOpen(false); setSuggestOpen(false); }} hitSlop={8}>
               <CloseIcon size={16} color={tokens.muted} />
             </Pressable>
           </View>
-          <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>
-            {panel === 'summary'
-              ? 'Thread summaries will appear here once the AI service is connected.'
-              : 'Suggested replies will appear here once the AI service is connected.'}
-          </Text>
+
+          {summaryOpen && (
+            summaryState === 'loading' ? (
+              <ActivityIndicator size="small" color={tokens.accent} style={{ marginTop: 4 }} />
+            ) : summaryState === 'error' ? (
+              <Text style={[styles.panelBody, { color: tokens.muted }]}>AI service unavailable</Text>
+            ) : (
+              <View style={{ gap: 6 }}>
+                {summaryPoints.map((pt, i) => (
+                  <View key={i} style={styles.bulletRow}>
+                    <Text style={[styles.bullet, { color: tokens['text-2'] }]}>•</Text>
+                    <Text style={[styles.panelBody, { color: tokens['text-2'], flex: 1 }]}>{pt}</Text>
+                  </View>
+                ))}
+              </View>
+            )
+          )}
+
+          {suggestOpen && (
+            suggestState === 'loading' ? (
+              <ActivityIndicator size="small" color={tokens.accent} style={{ marginTop: 4 }} />
+            ) : suggestState === 'error' ? (
+              <Text style={[styles.panelBody, { color: tokens.muted }]}>AI service unavailable</Text>
+            ) : (
+              <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>{suggestText}</Text>
+            )
+          )}
         </View>
       )}
     </View>
@@ -82,4 +157,6 @@ const styles = StyleSheet.create({
   panelHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   panelTitle: { fontSize: 14, fontWeight: '700' },
   panelBody: { fontSize: 13.5, lineHeight: 19 },
+  bulletRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  bullet: { fontSize: 13.5, lineHeight: 19 },
 });

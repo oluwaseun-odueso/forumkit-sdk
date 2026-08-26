@@ -375,7 +375,7 @@ export default function ThreadScreen() {
               )}
             </DropdownMenu>
 
-            <AiRow ref={aiRowRef} />
+            <AiRow ref={aiRowRef} threadId={threadId} apiUrl={apiUrl} token={token} />
             <AskAiRegistration aiRowRef={aiRowRef} />
             <ScrollCollapseRegistration handlerRef={scrollHandlerRef} />
 
