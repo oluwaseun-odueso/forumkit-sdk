@@ -59,9 +59,10 @@ export default function UserProfileSheet({ userId, onClose }: {
     Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Called when a responder claims the gesture — resets the Y baseline so
-  // the first move delta is zero regardless of when we took over.
+  // Called when a responder claims the gesture. Stop any running snap
+  // animation so it doesn't fight the finger, then record the Y baseline.
   const onPanGrant = (_evt: unknown, gesture: { moveY: number }) => {
+    translateY.stopAnimation();
     lastMoveY.current = gesture.moveY;
   };
 
@@ -106,6 +107,7 @@ export default function UserProfileSheet({ userId, onClose }: {
   const handlePan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false, // don't surrender to contentPan mid-drag
     onPanResponderGrant: onPanGrant,
     onPanResponderMove: onPanMove,
     onPanResponderRelease: onPanRelease,
@@ -113,17 +115,17 @@ export default function UserProfileSheet({ userId, onClose }: {
   })).current;
 
   // Content-area pan — applied to the ScrollView wrapper.
-  // At half height (scrollEnabled=false): claims all vertical drags so the
-  // user can swipe up from anywhere in the content to expand the sheet.
-  // At full height (scrollEnabled=true): only steals a downward drag when
-  // the scroll is already at the top, so the user can collapse/close.
+  // Only engages at full height when the scroll is at the top and the user
+  // swipes down, so they can collapse the sheet from the content area.
+  // At half height the handle is the only drag target — content-area swipes
+  // do not move the sheet (prevents accidental expansion while the user
+  // intends to touch content).
   const contentPan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
     onMoveShouldSetPanResponder: (_evt, gesture) => {
-      const isVertical = Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5;
-      if (!isVertical) return false;
-      if (!isAtFull.current) return true;
-      return scrollAtTop.current && gesture.dy > 10;
+      if (!isAtFull.current) return false;
+      const isDownward = gesture.dy > 10 && gesture.dy > Math.abs(gesture.dx) * 1.5;
+      return isDownward && scrollAtTop.current;
     },
     onPanResponderGrant: onPanGrant,
     onPanResponderMove: onPanMove,
