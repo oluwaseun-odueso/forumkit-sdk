@@ -16,6 +16,8 @@ import SocialLinks from './SocialLinks';
 import ProfileCommentCard from './ProfileCommentCard';
 
 const PUBLIC_TABS = ['Overview', 'Posts', 'Comments', 'Upvoted', 'Downvoted'] as const;
+// Height of the drag-handle strip that sits ABOVE the sheet body.
+const HANDLE_H = 32;
 
 type ActivityRow =
   | { kind: 'thread'; row: FeedRow }
@@ -31,25 +33,19 @@ export default function UserProfileSheet({ userId, onClose }: {
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
   const { height: windowHeight } = Dimensions.get('window');
-  const SNAP_HALF = windowHeight * 0.52;
-  const SNAP_FULL = 0;
+  const SNAP_HALF   = windowHeight * 0.52;
+  const SNAP_FULL   = 0;
   const SNAP_CLOSED = windowHeight;
 
-  // Animate `top` (layout position) rather than `transform`.
-  // transform-only shifts visual position while layout bounds stay at top:0,
-  // causing touch events to land in the wrong view.
+  // `top` style (layout-based) so hit-testing matches the visual position.
   const sheetTop = useRef(new Animated.Value(SNAP_CLOSED)).current;
 
-  const lastMoveY = useRef<number | null>(null);
+  const lastMoveY  = useRef<number | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    Animated.spring(sheetTop, {
-      toValue: SNAP_HALF,
-      useNativeDriver: false,
-      bounciness: 4,
-    }).start();
+    Animated.spring(sheetTop, { toValue: SNAP_HALF, useNativeDriver: false, bounciness: 4 }).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const snapTo = (target: number, done?: () => void) => {
@@ -62,12 +58,12 @@ export default function UserProfileSheet({ userId, onClose }: {
     }
   };
 
-  // PanResponder lives only on the drag-handle strip. ScrollView is never
-  // wrapped in a pan, so it handles its own touches freely.
+  // The pan responder lives on the handle overlay (a sibling of the sheet,
+  // NOT a child). This avoids the sheet's overflow:hidden + borderTopRadius
+  // clipping the touch area on iOS when the handle is inside the sheet.
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    // Refuse to hand the gesture back to anything else once we own it.
+    onMoveShouldSetPanResponder:  () => true,
     onPanResponderTerminationRequest: () => false,
 
     onPanResponderGrant: (_e, g) => {
@@ -101,17 +97,21 @@ export default function UserProfileSheet({ userId, onClose }: {
   })).current;
 
   const scrimOpacity = sheetTop.interpolate({
-    inputRange: [SNAP_FULL, SNAP_HALF, SNAP_CLOSED],
+    inputRange:  [SNAP_FULL, SNAP_HALF, SNAP_CLOSED],
     outputRange: [0.5, 0.4, 0],
     extrapolate: 'clamp',
   });
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('Overview');
-  const [activity, setActivity] = useState<ActivityRow[]>([]);
-  const [activityLoading, setActivityLoading] = useState(false);
-  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  function handleClose() {
+    snapTo(SNAP_CLOSED, onClose);
+  }
+
+  const [profile,        setProfile]        = useState<UserProfile | null>(null);
+  const [loading,        setLoading]        = useState(true);
+  const [activeTab,      setActiveTab]      = useState<string>('Overview');
+  const [activity,       setActivity]       = useState<ActivityRow[]>([]);
+  const [activityLoading,setActivityLoading]= useState(false);
+  const [previewUri,     setPreviewUri]     = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,36 +138,35 @@ export default function UserProfileSheet({ userId, onClose }: {
     return () => { cancelled = true; };
   }, [apiUrl, forumId, userId, token, activeTab]);
 
-  function handleClose() {
-    snapTo(SNAP_CLOSED, onClose);
-  }
-
   const name = profile?.displayName ?? '…';
   const copy = profileEmptyCopy(activeTab);
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={handleClose}>
-      {/* Scrim: visual only, no touch consumption */}
+      {/* Scrim: visual only */}
       <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]} pointerEvents="none" />
 
-      {/* Sheet: top-positioned so layout === visual position (no transform) */}
+      {/* Full-screen backdrop. Lowest z-order among touchable views — higher-z
+          views (handle, sheet) claim their touches first, so this only fires
+          when the user taps the exposed backdrop above the sheet. The pageY
+          check gates close so a touch that slips past the handle still doesn't
+          close if it's within the sheet region. */}
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={e => {
+          const sheetY = (sheetTop as unknown as { _value: number })._value;
+          if (e.nativeEvent.pageY < sheetY) handleClose();
+        }}
+      />
+
+      {/* Sheet body — rendered above the backdrop.
+          paddingTop leaves room for the handle overlay above. */}
       <Animated.View style={[styles.sheet, { backgroundColor: tokens.bg, top: sheetTop }]}>
-
-        {/* Drag handle — the only PanResponder in the tree */}
-        <View style={styles.handleWrap} {...pan.panHandlers}>
-          <View style={[styles.dragHandle, { backgroundColor: tokens['surface-2'] }]} />
-        </View>
-
         {loading ? (
           <View style={styles.center}><Mascot size={36} /></View>
         ) : (
-          // No pan wrapper around ScrollView — it handles its own touches.
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.content}
-            scrollEventThrottle={16}
-          >
-            {/* Banner — tappable for lightbox, no camera badge */}
+          <ScrollView contentContainerStyle={styles.content} scrollEventThrottle={16}>
+            {/* Banner: tappable for lightbox, no camera badge */}
             <Pressable
               onPress={() => profile?.bannerUrl && setPreviewUri(profile.bannerUrl)}
               disabled={!profile?.bannerUrl}
@@ -191,7 +190,7 @@ export default function UserProfileSheet({ userId, onClose }: {
               <View style={styles.nameRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.displayName, { color: tokens.text }]}>{name}</Text>
-                  <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
+                  <Text style={[styles.username, { color: tokens.muted }]}>/{name}</Text>
                 </View>
               </View>
               {profile?.bio != null && profile.bio.trim().length > 0 && (
@@ -258,6 +257,17 @@ export default function UserProfileSheet({ userId, onClose }: {
         )}
       </Animated.View>
 
+      {/* Handle overlay — sibling of the sheet, NOT inside it.
+          Positioned at the same top as the sheet so it sits flush above the
+          sheet body. Being outside the sheet means overflow:hidden and the
+          borderTopRadius clipping mask cannot affect its touch area. */}
+      <Animated.View
+        style={[styles.handleBar, { backgroundColor: tokens.bg, top: sheetTop }]}
+        {...pan.panHandlers}
+      >
+        <View style={[styles.pill, { backgroundColor: tokens['surface-2'] }]} />
+      </Animated.View>
+
       {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
     </Modal>
   );
@@ -268,13 +278,24 @@ const styles = StyleSheet.create({
   sheet: {
     position: 'absolute',
     left: 0, right: 0, bottom: 0,
+    // paddingTop reserves space so content starts below the handle overlay.
+    paddingTop: HANDLE_H,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
   },
-  handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 10 },
-  dragHandle: { width: 36, height: 4, borderRadius: 2 },
-  scroll: { flex: 1 },
+  // The drag-handle strip: lives outside the sheet so overflow:hidden cannot
+  // clip its touch area. Matches the sheet's background and top border radius.
+  handleBar: {
+    position: 'absolute',
+    left: 0, right: 0,
+    height: HANDLE_H,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pill: { width: 36, height: 4, borderRadius: 2 },
   center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   content: { paddingBottom: 110 },
   banner: { height: 120, marginBottom: 44, position: 'relative' },
@@ -282,7 +303,7 @@ const styles = StyleSheet.create({
   avatarRing: { borderRadius: 40, borderWidth: 3 },
   nameRow: { flexDirection: 'row', alignItems: 'flex-start' },
   displayName: { fontSize: 20, fontWeight: '800' },
-  handle: { fontSize: 13, marginTop: 2 },
+  username: { fontSize: 13, marginTop: 2 },
   bio: { fontSize: 13.5, lineHeight: 20, marginTop: 12 },
   karmaRow: { flexDirection: 'row', borderTopWidth: 1, marginTop: 16, paddingVertical: 12, paddingHorizontal: 16 },
   karmaBlock: { flex: 1, alignItems: 'center' },
