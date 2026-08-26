@@ -35,114 +35,101 @@ export default function UserProfileSheet({ userId, onClose }: {
   const FULL = 0;
   const CLOSED = windowHeight;
 
-  const translateY = useRef(new Animated.Value(CLOSED)).current;
+  // Drive the sheet's TOP (not transform) so layout position === visual position.
+  // transform-only moves the view visually while keeping layout bounds at y=0,
+  // which breaks hit-testing: touches on the handle and ScrollView land in the
+  // wrong layout region and don't reach the right views.
+  const sheetTop = useRef(new Animated.Value(CLOSED)).current;
 
-  // Refs readable inside PanResponder closures (created once on mount).
-  // isAtFull tracks whether the sheet is snapped to full height; when false,
-  // scroll is disabled so all drags in the content area move the sheet.
   const isAtFull = useRef(false);
   const scrollAtTop = useRef(true);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-
-  // scrollEnabled drives the ScrollView — false at half height so the
-  // content area doesn't compete with the sheet's pan responder.
-  const [scrollEnabled, setScrollEnabled] = useState(false);
-
-  // lastMoveY tracks the touch Y at the moment each responder last fired,
-  // so we can compute incremental deltas rather than using gesture.dy
-  // (which is cumulative from touch start — causes a jump when contentPan
-  // steals the gesture mid-drag from the ScrollView).
   const lastMoveY = useRef<number | null>(null);
 
+  const [scrollEnabled, setScrollEnabled] = useState(false);
+
   useEffect(() => {
-    Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
+    Animated.spring(sheetTop, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Called when a responder claims the gesture. Stop any running snap
-  // animation so it doesn't fight the finger, then record the Y baseline.
+  const snapTo = (target: number, cb?: () => void) => {
+    const toFull = target === FULL;
+    const toClosed = target === CLOSED;
+    isAtFull.current = toFull;
+    setScrollEnabled(toFull);
+    if (toClosed) {
+      Animated.timing(sheetTop, { toValue: CLOSED, duration: 220, useNativeDriver: false })
+        .start(cb);
+    } else {
+      Animated.spring(sheetTop, { toValue: target, useNativeDriver: false, bounciness: 4 })
+        .start(cb);
+    }
+  };
+
   const onPanGrant = (_evt: unknown, gesture: { moveY: number }) => {
-    translateY.stopAnimation();
+    sheetTop.stopAnimation();
     lastMoveY.current = gesture.moveY;
   };
 
-  // Shared move handler: uses incremental moveY delta, not cumulative dy,
-  // so stealing the gesture mid-drag produces no position jump.
   const onPanMove = (_evt: unknown, gesture: { moveY: number }) => {
-    const current = (translateY as unknown as { _value: number })._value;
+    const current = (sheetTop as unknown as { _value: number })._value;
     const delta = lastMoveY.current !== null ? gesture.moveY - lastMoveY.current : 0;
     lastMoveY.current = gesture.moveY;
-    translateY.setValue(Math.max(FULL, current + delta));
+    sheetTop.setValue(Math.max(FULL, current + delta));
   };
 
-  // Shared snap-on-release handler.
   const onPanRelease = (_evt: unknown, gesture: { vy: number }) => {
     lastMoveY.current = null;
-    const current = (translateY as unknown as { _value: number })._value;
+    const current = (sheetTop as unknown as { _value: number })._value;
     if (gesture.vy > 1.2 || current > windowHeight * 0.65) {
-      isAtFull.current = false;
-      setScrollEnabled(false);
-      Animated.timing(translateY, { toValue: CLOSED, duration: 220, useNativeDriver: false })
-        .start(() => onCloseRef.current());
+      snapTo(CLOSED, () => onCloseRef.current());
     } else if (current < windowHeight * 0.25 || gesture.vy < -0.8) {
-      isAtFull.current = true;
-      setScrollEnabled(true);
-      Animated.spring(translateY, { toValue: FULL, useNativeDriver: false, bounciness: 4 }).start();
+      snapTo(FULL);
     } else {
-      isAtFull.current = false;
-      setScrollEnabled(false);
-      Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
+      snapTo(HALF);
     }
   };
 
   const onPanTerminate = () => {
     lastMoveY.current = null;
-    isAtFull.current = false;
-    setScrollEnabled(false);
-    Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
+    snapTo(HALF);
   };
 
-  // Handle-area pan — always claims the gesture. Applied only to the
-  // drag-handle strip at the top so it never fights the ScrollView.
   const handlePan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
-    onPanResponderTerminationRequest: () => false, // don't surrender to contentPan mid-drag
+    onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: onPanGrant,
     onPanResponderMove: onPanMove,
     onPanResponderRelease: onPanRelease,
     onPanResponderTerminate: onPanTerminate,
   })).current;
 
-  // Content-area pan — applied to the ScrollView wrapper.
-  // Only engages at full height when the scroll is at the top and the user
-  // swipes down, so they can collapse the sheet from the content area.
-  // At half height the handle is the only drag target — content-area swipes
-  // do not move the sheet (prevents accidental expansion while the user
-  // intends to touch content).
-  const contentPan = useRef(PanResponder.create({
+  // Collapse gesture from within the content: only when at full height,
+  // scrolled to top, and dragging downward. The ScrollView keeps all other
+  // gestures (upward scroll, taps on items, etc.).
+  const scrollPan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_evt, gesture) => {
-      if (!isAtFull.current) return false;
-      const isDownward = gesture.dy > 10 && gesture.dy > Math.abs(gesture.dx) * 1.5;
-      return isDownward && scrollAtTop.current;
-    },
+    onMoveShouldSetPanResponder: (_evt, gesture) =>
+      isAtFull.current &&
+      scrollAtTop.current &&
+      gesture.dy > 12 &&
+      gesture.dy > Math.abs(gesture.dx) * 1.5,
     onPanResponderGrant: onPanGrant,
     onPanResponderMove: onPanMove,
     onPanResponderRelease: onPanRelease,
     onPanResponderTerminate: onPanTerminate,
   })).current;
 
-  const scrimOpacity = translateY.interpolate({
+  const scrimOpacity = sheetTop.interpolate({
     inputRange: [FULL, HALF, CLOSED],
     outputRange: [0.5, 0.4, 0],
     extrapolate: 'clamp',
   });
 
   function handleClose() {
-    isAtFull.current = false;
-    setScrollEnabled(false);
-    Animated.timing(translateY, { toValue: CLOSED, duration: 220, useNativeDriver: false }).start(onClose);
+    snapTo(CLOSED, onClose);
   }
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -182,17 +169,19 @@ export default function UserProfileSheet({ userId, onClose }: {
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={handleClose}>
+      {/* Scrim */}
       <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]} pointerEvents="none" />
-      {/* Tap-to-close only covers the exposed backdrop above the sheet, not the sheet itself.
-          Driving height from translateY keeps it perfectly in sync with the sheet's visual top,
-          so a touch on the sheet (or handle) never falls through to this Pressable. */}
-      <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: translateY }}>
+
+      {/* Tap backdrop above the sheet to close. Height tracks the sheet top so
+          this Pressable never overlaps with the sheet itself. */}
+      <Animated.View style={[styles.backdrop, { height: sheetTop }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
       </Animated.View>
 
-      <Animated.View style={[styles.sheet, { backgroundColor: tokens.bg, transform: [{ translateY }] }]}>
-        {/* Drag handle — the only area with panHandlers on the sheet.
-            Full-width so there's a generous grab target at the top. */}
+      {/* Sheet: positioned via `top` (layout), not `transform`.
+          This keeps hit-testing in sync with the visual position. */}
+      <Animated.View style={[styles.sheet, { backgroundColor: tokens.bg, top: sheetTop }]}>
+        {/* Drag handle — full-width grab zone at the top of the sheet */}
         <View style={styles.handleWrap} {...handlePan.panHandlers}>
           <View style={[styles.dragHandle, { backgroundColor: tokens['surface-2'] }]} />
         </View>
@@ -200,16 +189,14 @@ export default function UserProfileSheet({ userId, onClose }: {
         {loading ? (
           <View style={styles.center}><Mascot size={36} /></View>
         ) : (
-          // contentPan wrapper enables swipe-up from content to expand at half height,
-          // and swipe-down from scroll-top to collapse/close at full height.
-          <View style={{ flex: 1 }} {...contentPan.panHandlers}>
+          <View style={styles.body} {...scrollPan.panHandlers}>
             <ScrollView
               contentContainerStyle={styles.content}
               scrollEnabled={scrollEnabled}
               scrollEventThrottle={16}
               onScroll={e => { scrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
             >
-              {/* Banner — tappable for full-screen preview, no camera badge */}
+              {/* Banner — tappable for lightbox, no camera badge */}
               <Pressable
                 onPress={() => profile?.bannerUrl && setPreviewUri(profile.bannerUrl)}
                 disabled={!profile?.bannerUrl}
@@ -232,7 +219,7 @@ export default function UserProfileSheet({ userId, onClose }: {
               <View style={{ paddingHorizontal: 16 }}>
                 <View style={styles.nameRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.name, { color: tokens.text }]}>{name}</Text>
+                    <Text style={[styles.displayName, { color: tokens.text }]}>{name}</Text>
                     <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
                   </View>
                 </View>
@@ -308,22 +295,24 @@ export default function UserProfileSheet({ userId, onClose }: {
 
 const styles = StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,1)' },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0 },
   sheet: {
     position: 'absolute',
-    left: 0, right: 0, top: 0, bottom: 0,
+    left: 0, right: 0, bottom: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
   },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 10 },
   dragHandle: { width: 36, height: 4, borderRadius: 2 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  body: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   content: { paddingBottom: 110 },
   banner: { height: 120, marginBottom: 44, position: 'relative' },
   avatarWrap: { position: 'absolute', left: 16, bottom: -36 },
   avatarRing: { borderRadius: 40, borderWidth: 3 },
   nameRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  name: { fontSize: 20, fontWeight: '800' },
+  displayName: { fontSize: 20, fontWeight: '800' },
   handle: { fontSize: 13, marginTop: 2 },
   bio: { fontSize: 13.5, lineHeight: 20, marginTop: 12 },
   karmaRow: { flexDirection: 'row', borderTopWidth: 1, marginTop: 16, paddingVertical: 12, paddingHorizontal: 16 },
