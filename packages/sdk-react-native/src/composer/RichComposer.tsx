@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { View, Text, TextInput, Pressable, Image, ScrollView, ActivityIndicator, StyleSheet, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { MarkdownTextInput, type MarkdownStyle } from '@expensify/react-native-live-markdown';
 import { searchGifs, GifSearchNotConfiguredError, deleteAttachment } from '@forumkit/shared';
 import type { GifResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
@@ -7,6 +8,7 @@ import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttach
 import { LinkIcon, ListIcon, ImageIcon, CloseIcon } from '../components/icons';
 import ImageLightbox from '../components/ImageLightbox';
 import InlineVideoThumb from '../components/InlineVideoThumb';
+import { liveMarkdownParser } from './liveMarkdownParser';
 
 // The mobile rich composer — the RN counterpart to sdk-web's comment-composer
 // (TipTap can't run in RN, so this is a TextInput + markdown-insertion toolbar).
@@ -35,6 +37,28 @@ export default function RichComposer({
   onUploadingChange?: ((uploading: boolean) => void) | undefined;
 }) {
   const { tokens } = useTheme();
+  // Bold/italic/strikethrough have no style keys of their own — the native
+  // decorator renders them automatically from the range `type` alone (real
+  // font-weight/style/decoration, not a themeable color/size). Only code and
+  // link are actually configurable; code.fontSize must be set explicitly —
+  // the library's own default is 20, oversized against this composer's 14pt
+  // body text (styles.input below). Matches RenderedBody.tsx's inline code
+  // styling (Courier + surface-2 background) so the live preview and the
+  // final rendered comment/post look the same.
+  const markdownStyle = useMemo<MarkdownStyle>(() => ({
+    code: {
+      fontFamily: 'Courier',
+      fontSize: 14,
+      color: tokens.text,
+      backgroundColor: tokens['surface-2'],
+      borderWidth: 0,
+      borderRadius: 4,
+      padding: 0,
+    },
+    link: {
+      color: tokens.accent,
+    },
+  }), [tokens]);
   const selection = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const [gifOpen, setGifOpen] = useState(false);
   const [gifQuery, setGifQuery] = useState('');
@@ -111,7 +135,7 @@ export default function RichComposer({
         <TBtn onPress={() => setGifOpen(o => !o)}><Glyph weight="800" color={gifOpen ? tokens.accent : tokens['text-2']} small>GIF</Glyph></TBtn>
       </View>
 
-      <TextInput
+      <MarkdownTextInput
         value={value}
         onChangeText={onChangeText}
         onSelectionChange={onSelectionChange}
@@ -119,6 +143,8 @@ export default function RichComposer({
         placeholderTextColor={tokens.muted}
         multiline
         style={[styles.input, { color: tokens.text, minHeight }]}
+        parser={liveMarkdownParser}
+        markdownStyle={markdownStyle}
       />
 
       {allowMedia && attachments.length > 0 && (
