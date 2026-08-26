@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, startTransition, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { darkTokens, lightTokens, type TokenSet } from '@forumkit/shared';
@@ -63,8 +63,11 @@ export function ThemeProvider({ children, theme }: { children: ReactNode; theme?
   const value = useMemo<ThemeContextValue>(() => ({
     mode,
     tokens,
-    toggleTheme: () => setMode(m => (m === 'light' ? 'dark' : 'light')),
-    setTheme: setMode,
+    // startTransition schedules the mass re-render (all useTheme consumers) as
+    // a concurrent update so React can yield to user interactions mid-render,
+    // preventing the JS thread from blocking during a full-tree theme repaint.
+    toggleTheme: () => startTransition(() => setMode(m => (m === 'light' ? 'dark' : 'light'))),
+    setTheme: (m) => startTransition(() => setMode(m)),
   }), [mode, tokens]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

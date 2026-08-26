@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeContext';
@@ -33,7 +34,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootNavigator() {
   const { tokens, mode } = useTheme();
 
-  const navTheme: NavTheme = {
+  // Memoized so NavigationContainer receives a stable object reference on
+  // re-renders unrelated to the theme, avoiding a second context propagation
+  // wave through the navigation tree on every unrelated parent update.
+  const navTheme = useMemo<NavTheme>(() => ({
     ...(mode === 'dark' ? DarkTheme : DefaultTheme),
     colors: {
       ...(mode === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
@@ -43,7 +47,7 @@ export default function RootNavigator() {
       text: tokens.text,
       border: tokens.border,
     },
-  };
+  }), [mode, tokens]);
 
   return (
     <NavigationContainer theme={navTheme}>
@@ -54,17 +58,16 @@ export default function RootNavigator() {
           correct top inset to useSafeAreaInsets() on Android. */}
       <Stack.Navigator screenOptions={{ headerShown: false, statusBarTranslucent: true }}>
         <Stack.Screen name="Feed" component={FeedScreen} />
-        {/* Custom swipe-to-next/previous-thread (ThreadScreen.tsx) uses a
-            rightward drag for "previous" — the same gesture as iOS's native
-            edge-swipe-back, which otherwise wins the race against our JS
-            PanResponder. ThreadScreen has its own BackRow back button, so
-            losing the native edge-swipe here is the right trade.
-            animation: 'none' stops native-stack from playing its own
-            push/pop transition on top of the swipe's own JS slide-out
-            when it calls navigation.replace() into a neighbouring thread —
-            that stacked, direction-mismatched native transition was part
-            of what made swiping feel bumpy. */}
-        <Stack.Screen name="Thread" component={ThreadScreen} options={{ gestureEnabled: false, animation: 'none' }} />
+        {/* animation: 'none' stops native-stack from playing its own push/pop
+            transition on top of the swipe's own JS slide-out when it calls
+            navigation.replace() into a neighbouring thread — that stacked,
+            direction-mismatched native transition was part of what made
+            swiping feel bumpy.
+            gestureEnabled is left at the default (true) so the iOS native
+            edge-swipe-back works. ThreadScreen's PanResponder ignores touches
+            that start within the left-edge zone (first 30px), leaving those
+            for the native recogniser. */}
+        <Stack.Screen name="Thread" component={ThreadScreen} options={{ animation: 'none' }} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="Moderation" component={ModerationScreen} />

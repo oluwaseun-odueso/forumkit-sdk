@@ -109,13 +109,23 @@ export default function ThreadScreen() {
   // PanResponder.create runs once; handlers close over whatever nextId/
   // prevId/threadIds were at creation time unless they read from a ref that
   // stays current across renders, hence swipeRef.
-  const swipeRef = useRef({ nextId, prevId, threadIds });
-  swipeRef.current = { nextId, prevId, threadIds };
+  // startX: the pageX where the current touch began. Captured in
+  // onStartShouldSetPanResponder (which always returns false so it doesn't
+  // claim the touch) and read in onMoveShouldSetPanResponder to leave the
+  // first ~30px of the left edge free for the iOS native back-swipe gesture.
+  const swipeRef = useRef({ nextId, prevId, threadIds, startX: 0 });
+  swipeRef.current = { ...swipeRef.current, nextId, prevId, threadIds };
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: (e) => {
+        swipeRef.current.startX = e.nativeEvent.pageX;
+        return false;
+      },
       onMoveShouldSetPanResponder: (_evt, gesture) =>
-        Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+        swipeRef.current.startX >= 30 &&   // iOS edge zone: leave first 30px for native back
+        Math.abs(gesture.dx) > 12 &&
+        Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
       onPanResponderMove: (_evt, gesture) => {
         const draggingToNext = gesture.dx < 0;
         const available = draggingToNext ? swipeRef.current.nextId !== undefined : swipeRef.current.prevId !== undefined;
