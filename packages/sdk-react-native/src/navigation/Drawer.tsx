@@ -73,7 +73,7 @@ export default function Drawer({ activeRoute, onSelectRoute, onOpenModeration }:
       <DrawerRow
         label="Home"
         active={activeRoute === 'home'}
-        icon={<HomeIcon size={20} color={activeRoute === 'home' ? tokens.text : tokens['text-2']} />}
+        icon={<HomeIcon size={20} color={activeRoute === 'home' ? tokens.text : tokens['text-2']} active={activeRoute === 'home'} />}
         onPress={() => onSelectRoute('home')}
       />
       <DrawerRow

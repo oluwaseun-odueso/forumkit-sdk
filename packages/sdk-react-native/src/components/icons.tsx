@@ -105,10 +105,20 @@ export function HamburgerIcon({ size = 21, color = '#000' }: IconProps) {
   );
 }
 
-export function HomeIcon({ size = 21, color = '#000' }: IconProps) {
-  return (
+// A simple gabled-roof silhouette (roof point + rounded-bottom body, no
+// interior door cutout) — original design in the outline↔filled convention
+// modern bottom-nav icons (e.g. Instagram's) use for active state, not a
+// copy of any specific app's proprietary asset. `active` switches between
+// the two; both share the same path so they stay visually consistent.
+export function HomeIcon({ size = 21, color = '#000', active = false }: IconProps & { active?: boolean }) {
+  const d = 'M12 3 L20.5 10.2 L20.5 19 A1.5 1.5 0 0 1 19 20.5 L5 20.5 A1.5 1.5 0 0 1 3.5 19 L3.5 10.2 Z';
+  return active ? (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
-      <Path d="M11.3 3.3a1 1 0 011.4 0l8 7.4a1 1 0 01-.7 1.7H19V20a1 1 0 01-1 1h-4v-6h-4v6H6a1 1 0 01-1-1v-7.6H3.9a1 1 0 01-.7-1.7z" />
+      <Path d={d} />
+    </Svg>
+  ) : (
+    <Svg width={size} height={size} {...strokeBase} stroke={color}>
+      <Path d={d} />
     </Svg>
   );
 }

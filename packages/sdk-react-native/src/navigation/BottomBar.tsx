@@ -113,7 +113,7 @@ export default function BottomBar({
           with `collapsed` (not animated/delayed) so Create/Inbox/Profile are
           never tappable-but-invisible once the bar has visually shrunk. */}
       <Animated.View style={[styles.content, expandedContentStyle]} pointerEvents={collapsed ? 'none' : 'auto'}>
-        <TabItem active={homeActive} onPress={onHome} label="Home" renderIcon={color => <HomeIcon size={20} color={color} />} />
+        <TabItem active={homeActive} onPress={onHome} label="Home" renderIcon={color => <HomeIcon size={20} color={color} active={homeActive} />} />
         <Pressable onPress={onCreate} style={[styles.fab, { backgroundColor: tokens.accent }]}>
           <PlusIconGlyph />
         </Pressable>
@@ -131,7 +131,7 @@ export default function BottomBar({
           separate expand gesture. */}
       <Animated.View style={[styles.collapsedContent, collapsedContentStyle]} pointerEvents={collapsed ? 'auto' : 'none'}>
         <Pressable onPress={onHome} style={styles.collapsedHomeTarget}>
-          <HomeIcon size={26} color={homeActive ? tokens.accent : tokens['text-2']} />
+          <HomeIcon size={26} color={homeActive ? tokens.accent : tokens['text-2']} active={homeActive} />
         </Pressable>
       </Animated.View>
     </Animated.View>
