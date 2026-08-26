@@ -279,7 +279,7 @@ export async function getSimilarThreadsForRail(
 export async function createThread(
   db: DB,
   embedFn: EmbedFn,
-  llmFn: LLMFn,
+  llmFn: LLMFn | null,
   publicApiUrl: string,
   forumId: string,
   authorId: string,
@@ -319,7 +319,7 @@ export async function createThread(
 
   // Fire-and-forget async jobs — never block the response
   void embedThread(db, embedFn, thread.id, thread.title, thread.body);
-  void suggestAndApplyTags(db, llmFn, forumId, thread.id, body.title, body.body);
+  if (llmFn) void suggestAndApplyTags(db, llmFn, forumId, thread.id, body.title, body.body);
 
   const attachments = await attachmentRepo.listAttachmentsByThread(db, thread.id);
   return { ...thread, attachments: toAttachmentSummaries(publicApiUrl, forumId, attachments) };

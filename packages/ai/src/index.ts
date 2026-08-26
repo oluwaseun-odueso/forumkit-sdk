@@ -20,7 +20,7 @@ export type LLMFn = (systemPrompt: string, userPrompt: string) => Promise<string
 export type AIAdapters = {
   embed: EmbedFn;
   moderate: ModerateFn;
-  llm: LLMFn;
+  llm: LLMFn | null;
 };
 
 type AdapterConfig = {
@@ -29,6 +29,8 @@ type AdapterConfig = {
   moderationProvider: ModerationProvider;
   openaiApiKey: string | null;
   anthropicApiKey: string | null;
+  openrouterApiKey: string | null;
+  aiModel: string | null;
   perspectiveApiKey: string | null;
 };
 
@@ -62,17 +64,21 @@ async function buildModerationAdapter(config: AdapterConfig): Promise<ModerateFn
   return localModerate();
 }
 
-async function buildLLMAdapter(config: AdapterConfig): Promise<LLMFn> {
+async function buildLLMAdapter(config: AdapterConfig): Promise<LLMFn | null> {
+  const model = config.aiModel;
   if (config.aiProvider === 'anthropic' && config.anthropicApiKey) {
     const { anthropicLLM } = await import('./providers/anthropic.js');
-    return anthropicLLM(config.anthropicApiKey);
+    return anthropicLLM(config.anthropicApiKey, model ?? 'claude-sonnet-4-5');
   }
   if (config.aiProvider === 'openai' && config.openaiApiKey) {
     const { openaiLLM } = await import('./providers/openai-llm.js');
-    return openaiLLM(config.openaiApiKey);
+    return openaiLLM(config.openaiApiKey, model ?? 'gpt-4o-mini');
   }
-  // Stub: returns a placeholder when no LLM is configured
-  return async (_system, _user) => '[AI assistant is not configured for this deployment]';
+  if (config.aiProvider === 'openrouter' && config.openrouterApiKey) {
+    const { openrouterLLM } = await import('./providers/openrouter-llm.js');
+    return openrouterLLM(config.openrouterApiKey, model ?? 'anthropic/claude-sonnet-4-5');
+  }
+  return null;
 }
 
 export * from './adapters/embedding';

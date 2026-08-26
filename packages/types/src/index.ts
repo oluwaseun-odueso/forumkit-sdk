@@ -7,7 +7,7 @@ export type ModerationStatus = 'pending' | 'approved' | 'removed';
 export type ReactionType = 'like' | 'helpful' | 'insightful' | 'funny';
 export type EmbeddingProvider = 'local' | 'openai';
 export type ModerationProvider = 'local' | 'perspective';
-export type AIProvider = 'local' | 'openai' | 'anthropic';
+export type AIProvider = 'openai' | 'anthropic' | 'openrouter';
 export type AttachmentStatus = 'pending' | 'confirmed' | 'deleted';
 // Chooses which storage path an upload lands under (see buildStorageKey in
 // packages/api/src/services/storage.ts) — avatars, banners, and post/comment

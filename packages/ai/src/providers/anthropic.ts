@@ -1,6 +1,6 @@
 import type { LLMFn } from '../index';
 
-export function anthropicLLM(apiKey: string): LLMFn {
+export function anthropicLLM(apiKey: string, model: string): LLMFn {
   return async (systemPrompt: string, userPrompt: string): Promise<string> => {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -10,7 +10,7 @@ export function anthropicLLM(apiKey: string): LLMFn {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model,
         max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],

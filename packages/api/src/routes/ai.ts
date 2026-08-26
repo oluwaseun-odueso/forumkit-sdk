@@ -34,6 +34,15 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      const { llm } = request.server.ai;
+      if (!llm) {
+        return reply.status(503).send({
+          error: 'ai_not_configured',
+          message: 'No AI provider is configured for this deployment',
+          statusCode: 503,
+        });
+      }
+
       const reqBody = request.body as { title?: string; body?: string; existingTags?: string[] };
       const result = await aiService.suggestMetadata(
         {
@@ -41,7 +50,7 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
           body: reqBody.body ?? '',
           existingTagNames: Array.isArray(reqBody.existingTags) ? reqBody.existingTags : [],
         },
-        request.server.ai.llm,
+        llm,
       );
 
       return reply.status(200).send(result);
@@ -138,12 +147,21 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         return sendAIError('rate_limit_exceeded', reply);
       }
 
+      const { llm: summariseLlm } = request.server.ai;
+      if (!summariseLlm) {
+        return reply.status(503).send({
+          error: 'ai_not_configured',
+          message: 'No AI provider is configured for this deployment',
+          statusCode: 503,
+        });
+      }
+
       const result = await aiService.summarise(
         request.server.db,
         request.server.config.publicApiUrl,
         row.forum_id,
         threadId,
-        request.server.ai.llm,
+        summariseLlm,
       );
 
       if (!result.ok) {
@@ -181,12 +199,21 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         return sendAIError('rate_limit_exceeded', reply);
       }
 
+      const { llm: suggestLlm } = request.server.ai;
+      if (!suggestLlm) {
+        return reply.status(503).send({
+          error: 'ai_not_configured',
+          message: 'No AI provider is configured for this deployment',
+          statusCode: 503,
+        });
+      }
+
       const result = await aiService.suggest(
         request.server.db,
         request.server.config.publicApiUrl,
         row.forum_id,
         threadId,
-        request.server.ai.llm,
+        suggestLlm,
       );
 
       if (!result.ok) {
