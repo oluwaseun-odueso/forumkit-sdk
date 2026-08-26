@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, Modal, Pressable, ScrollView, StyleSheet, Animated, PanResponder, Dimensions } from 'react-native';
+import { View, Text, Image, Modal, Pressable, ScrollView, StyleSheet, Animated, Easing, PanResponder, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getUserProfile, getProfileActivityForUser, profileEmptyCopy, threadToFeedRow,
   type FeedRow,
@@ -32,9 +33,12 @@ export default function UserProfileSheet({ userId, onClose }: {
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
+  const insets = useSafeAreaInsets();
   const { height: windowHeight } = Dimensions.get('window');
   const SNAP_HALF   = windowHeight * 0.52;
-  const SNAP_FULL   = 0;
+  // SNAP_FULL = insets.top keeps the handle bar below the iOS status bar (44–59px
+  // on modern iPhones). SNAP_FULL = 0 put the handle at y=0–32, completely hidden.
+  const SNAP_FULL   = insets.top;
   const SNAP_CLOSED = windowHeight;
 
   // `top` style (layout-based) so hit-testing matches the visual position.
@@ -42,6 +46,11 @@ export default function UserProfileSheet({ userId, onClose }: {
 
   const lastMoveY   = useRef<number | null>(null);
   const isAtFullRef = useRef(false);   // ref so PanResponder callbacks read current value
+  // PanResponders are created once (useRef). Their callbacks close over SNAP_FULL,
+  // but insets.top is available synchronously on the first render via SafeAreaProvider.
+  // snapFullRef keeps the live value readable at call-time, not just at creation-time.
+  const snapFullRef = useRef(insets.top);
+  snapFullRef.current = insets.top;
   const onCloseRef  = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -49,12 +58,22 @@ export default function UserProfileSheet({ userId, onClose }: {
   // upward content swipes drive the sheet up instead of scrolling the list.
   const [scrollEnabled, setScrollEnabled] = useState(false);
 
+  // Defer the open animation one frame so the Modal is fully mounted before the
+  // spring begins. Use timing + easeOut (not spring) to avoid overshoot on iOS.
   useEffect(() => {
-    Animated.spring(sheetTop, { toValue: SNAP_HALF, useNativeDriver: false, bounciness: 4 }).start();
+    const id = requestAnimationFrame(() => {
+      Animated.timing(sheetTop, {
+        toValue: SNAP_HALF,
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    });
+    return () => cancelAnimationFrame(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const snapTo = (target: number, done?: () => void) => {
-    const goingFull = target === SNAP_FULL;
+    const goingFull = target === snapFullRef.current;
     isAtFullRef.current = goingFull;
     setScrollEnabled(goingFull);
     if (target === SNAP_CLOSED) {
@@ -92,7 +111,7 @@ export default function UserProfileSheet({ userId, onClose }: {
       if (g.vy > 1.2 || cur > windowHeight * 0.65) {
         snapTo(SNAP_CLOSED, () => onCloseRef.current());
       } else if (cur < windowHeight * 0.25 || g.vy < -0.8) {
-        snapTo(SNAP_FULL);
+        snapTo(snapFullRef.current);
       } else {
         snapTo(SNAP_HALF);
       }
@@ -109,7 +128,7 @@ export default function UserProfileSheet({ userId, onClose }: {
   // disabled at SNAP_HALF). Uses onMoveShouldSetPanResponder so taps still
   // reach the PostRow / ProfileCommentCard children underneath.
   const contentPan = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_e, g) => !isAtFullRef.current && g.dy < -5,
+    onMoveShouldSetPanResponder: (_e, g) => !isAtFullRef.current && Math.abs(g.dy) > 5,
     onPanResponderTerminationRequest: () => false,
 
     onPanResponderGrant: (_e, g) => {
@@ -130,7 +149,7 @@ export default function UserProfileSheet({ userId, onClose }: {
       if (g.vy > 1.2 || cur > windowHeight * 0.65) {
         snapTo(SNAP_CLOSED, () => onCloseRef.current());
       } else if (cur < windowHeight * 0.25 || g.vy < -0.8) {
-        snapTo(SNAP_FULL);
+        snapTo(snapFullRef.current);
       } else {
         snapTo(SNAP_HALF);
       }
@@ -143,7 +162,7 @@ export default function UserProfileSheet({ userId, onClose }: {
   })).current;
 
   const scrimOpacity = sheetTop.interpolate({
-    inputRange:  [SNAP_FULL, SNAP_HALF, SNAP_CLOSED],
+    inputRange:  [Math.max(0, insets.top), SNAP_HALF, SNAP_CLOSED],
     outputRange: [0.5, 0.4, 0],
     extrapolate: 'clamp',
   });
