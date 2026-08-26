@@ -42,6 +42,8 @@ export {
   updateMyProfile,
   updateNotificationPrefs,
   getProfileActivity,
+  getUserProfile,
+  getProfileActivityForUser,
   updateReply,
   deleteComment,
   acceptAnswer,

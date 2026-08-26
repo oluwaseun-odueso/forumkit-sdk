@@ -31,7 +31,7 @@ const MAX_INLINE = 3;
 // using the same platform set (shared PLATFORM data) with platform icons.
 export default function SocialLinks({ links, onEditProfile }: {
   links: Array<{ platform: string; url: string }>;
-  onEditProfile: () => void;
+  onEditProfile?: () => void;
 }) {
   const { tokens } = useTheme();
   const [viewAllOpen, setViewAllOpen] = useState(false);
@@ -85,7 +85,7 @@ export default function SocialLinks({ links, onEditProfile }: {
         <AllSocialLinksSheet
           links={links}
           onClose={() => setViewAllOpen(false)}
-          onEditProfile={() => { setViewAllOpen(false); onEditProfile(); }}
+          {...(onEditProfile ? { onEditProfile: () => { setViewAllOpen(false); onEditProfile(); } } : {})}
         />
       )}
     </>

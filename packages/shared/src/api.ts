@@ -397,6 +397,37 @@ export async function getProfileActivity(
   return okJson<ProfileActivityResult>(res);
 }
 
+export async function getUserProfile(
+  apiUrl: string,
+  forumId: string,
+  userId: string,
+  token?: string,
+): Promise<UserProfile | null> {
+  try {
+    const res = await fetch(`${apiUrl}/forums/${forumId}/users/${userId}`, { headers: authHeaders(token) });
+    if (!res.ok) return null;
+    return (await res.json()) as UserProfile;
+  } catch {
+    return null;
+  }
+}
+
+export async function getProfileActivityForUser(
+  apiUrl: string,
+  forumId: string,
+  userId: string,
+  scope: Exclude<ProfileActivityScope, 'saved'>,
+  page: number,
+  limit: number,
+  sort: ProfileActivitySort,
+  contentType: ProfileActivityContentType,
+  token?: string,
+): Promise<ProfileActivityResult> {
+  const suffix = buildQuery({ scope, page, limit, sort, contentType });
+  const res = await fetch(`${apiUrl}/forums/${forumId}/users/${userId}/activity${suffix}`, { headers: authHeaders(token) });
+  return okJson<ProfileActivityResult>(res);
+}
+
 // ── Comments (edit / delete / accept) ──────────────────────────────
 
 export async function updateReply(apiUrl: string, threadId: string, commentId: string, body: string, token?: string): Promise<Comment> {

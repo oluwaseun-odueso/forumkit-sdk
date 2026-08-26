@@ -13,7 +13,7 @@ import { useSheetLayout } from '../lib/sheet-layout';
 export default function AllSocialLinksSheet({ links, onClose, onEditProfile }: {
   links: Array<{ platform: string; url: string }>;
   onClose: () => void;
-  onEditProfile: () => void;
+  onEditProfile?: () => void;
 }) {
   const { tokens } = useTheme();
   const { maxHeight, paddingBottom } = useSheetLayout(24);
@@ -26,7 +26,7 @@ export default function AllSocialLinksSheet({ links, onClose, onEditProfile }: {
           <View style={styles.header}>
             <Text style={[styles.title, { color: tokens.text }]}>Social links</Text>
             <View style={styles.headerBtns}>
-              <Pressable onPress={onEditProfile} hitSlop={8}><PencilIcon size={16} color={tokens.text} /></Pressable>
+              {onEditProfile && <Pressable onPress={onEditProfile} hitSlop={8}><PencilIcon size={16} color={tokens.text} /></Pressable>}
               <Pressable onPress={onClose} hitSlop={8}><CloseIcon size={18} color={tokens.text} /></Pressable>
             </View>
           </View>
