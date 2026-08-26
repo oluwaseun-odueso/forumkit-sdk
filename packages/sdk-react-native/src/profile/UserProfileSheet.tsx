@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, Modal, Pressable, ScrollView, StyleSheet, Animated, PanResponder, Dimensions } from 'react-native';
 import {
   getUserProfile, getProfileActivityForUser, profileEmptyCopy, threadToFeedRow,
@@ -37,35 +37,80 @@ export default function UserProfileSheet({ userId, onClose }: {
 
   const translateY = useRef(new Animated.Value(CLOSED)).current;
 
+  // Refs readable inside PanResponder closures (created once on mount).
+  // isAtFull tracks whether the sheet is snapped to full height; when false,
+  // scroll is disabled so all drags in the content area move the sheet.
+  const isAtFull = useRef(false);
+  const scrollAtTop = useRef(true);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // scrollEnabled drives the ScrollView — false at half height so the
+  // content area doesn't compete with the sheet's pan responder.
+  const [scrollEnabled, setScrollEnabled] = useState(false);
+
   useEffect(() => {
     Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_evt, gesture) =>
-        Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5,
-      onPanResponderMove: (_evt, gesture) => {
-        const current = (translateY as unknown as { _value: number })._value;
-        const next = Math.max(FULL, current + gesture.dy);
-        translateY.setValue(next);
-      },
-      onPanResponderRelease: (_evt, gesture) => {
-        const current = (translateY as unknown as { _value: number })._value;
-        if (gesture.vy > 1.2 || current > windowHeight * 0.65) {
-          Animated.timing(translateY, { toValue: CLOSED, duration: 220, useNativeDriver: false }).start(onClose);
-        } else if (current < windowHeight * 0.25 || gesture.vy < -0.8) {
-          Animated.spring(translateY, { toValue: FULL, useNativeDriver: false, bounciness: 4 }).start();
-        } else {
-          Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
-      },
-    })
-  ).current;
+  // Shared move handler used by both pan responders.
+  const onPanMove = (_evt: unknown, gesture: { dy: number }) => {
+    const current = (translateY as unknown as { _value: number })._value;
+    translateY.setValue(Math.max(FULL, current + gesture.dy));
+  };
+
+  // Shared snap-on-release handler.
+  const onPanRelease = (_evt: unknown, gesture: { vy: number }) => {
+    const current = (translateY as unknown as { _value: number })._value;
+    if (gesture.vy > 1.2 || current > windowHeight * 0.65) {
+      isAtFull.current = false;
+      setScrollEnabled(false);
+      Animated.timing(translateY, { toValue: CLOSED, duration: 220, useNativeDriver: false })
+        .start(() => onCloseRef.current());
+    } else if (current < windowHeight * 0.25 || gesture.vy < -0.8) {
+      isAtFull.current = true;
+      setScrollEnabled(true);
+      Animated.spring(translateY, { toValue: FULL, useNativeDriver: false, bounciness: 4 }).start();
+    } else {
+      isAtFull.current = false;
+      setScrollEnabled(false);
+      Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
+    }
+  };
+
+  const onPanTerminate = () => {
+    isAtFull.current = false;
+    setScrollEnabled(false);
+    Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
+  };
+
+  // Handle-area pan — always claims the gesture. Applied only to the
+  // drag-handle strip at the top so it never fights the ScrollView.
+  const handlePan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderMove: onPanMove,
+    onPanResponderRelease: onPanRelease,
+    onPanResponderTerminate: onPanTerminate,
+  })).current;
+
+  // Content-area pan — applied to the ScrollView wrapper.
+  // At half height (scrollEnabled=false): claims all vertical drags so the
+  // user can swipe up from anywhere in the content to expand the sheet.
+  // At full height (scrollEnabled=true): only steals a downward drag when
+  // the scroll is already at the top, so the user can collapse/close.
+  const contentPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_evt, gesture) => {
+      const isVertical = Math.abs(gesture.dy) > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5;
+      if (!isVertical) return false;
+      if (!isAtFull.current) return true;
+      return scrollAtTop.current && gesture.dy > 10;
+    },
+    onPanResponderMove: onPanMove,
+    onPanResponderRelease: onPanRelease,
+    onPanResponderTerminate: onPanTerminate,
+  })).current;
 
   const scrimOpacity = translateY.interpolate({
     inputRange: [FULL, HALF, CLOSED],
@@ -74,6 +119,8 @@ export default function UserProfileSheet({ userId, onClose }: {
   });
 
   function handleClose() {
+    isAtFull.current = false;
+    setScrollEnabled(false);
     Animated.timing(translateY, { toValue: CLOSED, duration: 220, useNativeDriver: false }).start(onClose);
   }
 
@@ -96,8 +143,8 @@ export default function UserProfileSheet({ userId, onClose }: {
   useEffect(() => {
     let cancelled = false;
     setActivityLoading(true);
-    const scope = activeTab.toLowerCase() as Exclude<typeof PUBLIC_TABS[number], never>;
-    getProfileActivityForUser(apiUrl, forumId, userId, scope as 'overview' | 'posts' | 'comments' | 'upvoted' | 'downvoted', 1, 20, 'new', 'all', token)
+    const scope = activeTab.toLowerCase() as 'overview' | 'posts' | 'comments' | 'upvoted' | 'downvoted';
+    getProfileActivityForUser(apiUrl, forumId, userId, scope, 1, 20, 'new', 'all', token)
       .then(res => {
         if (cancelled) return;
         setActivity(res.items.map((it): ActivityRow => it.kind === 'thread'
@@ -117,110 +164,114 @@ export default function UserProfileSheet({ userId, onClose }: {
       <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]} pointerEvents="none" />
       <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
 
-      <Animated.View
-        style={[styles.sheet, { backgroundColor: tokens.bg, transform: [{ translateY }] }]}
-        {...panResponder.panHandlers}
-      >
-        {/* Drag handle */}
-        <View style={styles.handleWrap}>
+      <Animated.View style={[styles.sheet, { backgroundColor: tokens.bg, transform: [{ translateY }] }]}>
+        {/* Drag handle — the only area with panHandlers on the sheet.
+            Full-width so there's a generous grab target at the top. */}
+        <View style={styles.handleWrap} {...handlePan.panHandlers}>
           <View style={[styles.dragHandle, { backgroundColor: tokens['surface-2'] }]} />
         </View>
 
         {loading ? (
           <View style={styles.center}><Mascot size={36} /></View>
         ) : (
-          <ScrollView contentContainerStyle={styles.content} nestedScrollEnabled>
-            {/* Banner — tappable for full-screen preview, no camera badge */}
-            <Pressable
-              onPress={() => profile?.bannerUrl && setPreviewUri(profile.bannerUrl)}
-              disabled={!profile?.bannerUrl}
-              style={[styles.banner, { backgroundColor: tokens['surface-2'] }]}
+          // contentPan wrapper enables swipe-up from content to expand at half height,
+          // and swipe-down from scroll-top to collapse/close at full height.
+          <View style={{ flex: 1 }} {...contentPan.panHandlers}>
+            <ScrollView
+              contentContainerStyle={styles.content}
+              scrollEnabled={scrollEnabled}
+              scrollEventThrottle={16}
+              onScroll={e => { scrollAtTop.current = e.nativeEvent.contentOffset.y <= 0; }}
             >
-              {profile?.bannerUrl != null && (
-                <Image source={{ uri: profile.bannerUrl }} style={StyleSheet.absoluteFill} />
-              )}
-              {/* Avatar — overlapping the banner bottom, tappable for preview */}
-              <View style={styles.avatarWrap}>
-                <Pressable
-                  onPress={() => profile?.avatarUrl && setPreviewUri(profile.avatarUrl)}
-                  disabled={!profile?.avatarUrl}
-                  style={[styles.avatarRing, { borderColor: tokens.bg }]}
-                >
-                  <Avatar authorId={profile?.id} author={name} avatarUrl={profile?.avatarUrl} size={72} />
-                </Pressable>
-              </View>
-            </Pressable>
+              {/* Banner — tappable for full-screen preview, no camera badge */}
+              <Pressable
+                onPress={() => profile?.bannerUrl && setPreviewUri(profile.bannerUrl)}
+                disabled={!profile?.bannerUrl}
+                style={[styles.banner, { backgroundColor: tokens['surface-2'] }]}
+              >
+                {profile?.bannerUrl != null && (
+                  <Image source={{ uri: profile.bannerUrl }} style={StyleSheet.absoluteFill} />
+                )}
+                <View style={styles.avatarWrap}>
+                  <Pressable
+                    onPress={() => profile?.avatarUrl && setPreviewUri(profile.avatarUrl)}
+                    disabled={!profile?.avatarUrl}
+                    style={[styles.avatarRing, { borderColor: tokens.bg }]}
+                  >
+                    <Avatar authorId={profile?.id} author={name} avatarUrl={profile?.avatarUrl} size={72} />
+                  </Pressable>
+                </View>
+              </Pressable>
 
-            <View style={{ paddingHorizontal: 16 }}>
-              {/* nameRow — no edit/compose buttons on the right */}
-              <View style={styles.nameRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.name, { color: tokens.text }]}>{name}</Text>
-                  <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
+              <View style={{ paddingHorizontal: 16 }}>
+                <View style={styles.nameRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.name, { color: tokens.text }]}>{name}</Text>
+                    <Text style={[styles.handle, { color: tokens.muted }]}>/{name}</Text>
+                  </View>
+                </View>
+                {profile?.bio != null && profile.bio.trim().length > 0 && (
+                  <Text style={[styles.bio, { color: tokens['text-2'] }]}>{profile.bio}</Text>
+                )}
+                {profile && <SocialLinks links={profile.socialLinks} />}
+              </View>
+
+              <View style={[styles.karmaRow, { borderTopColor: tokens.border }]}>
+                <View style={styles.karmaBlock}>
+                  <Text style={[styles.karmaValue, { color: tokens.text }]}>
+                    {(profile?.postKarma ?? 0).toLocaleString()}
+                  </Text>
+                  <Text style={[styles.karmaLabel, { color: tokens.muted }]}>Post Karma</Text>
+                </View>
+                <View style={[styles.karmaDivider, { backgroundColor: tokens.border }]} />
+                <View style={styles.karmaBlock}>
+                  <Text style={[styles.karmaValue, { color: tokens.text }]}>
+                    {(profile?.commentKarma ?? 0).toLocaleString()}
+                  </Text>
+                  <Text style={[styles.karmaLabel, { color: tokens.muted }]}>Comment Karma</Text>
                 </View>
               </View>
 
-              {profile?.bio != null && profile.bio.trim().length > 0 && (
-                <Text style={[styles.bio, { color: tokens['text-2'] }]}>{profile.bio}</Text>
+              <View style={[styles.divider, { backgroundColor: tokens.border }]} />
+
+              <View style={{ marginTop: 6, marginBottom: 14 }}>
+                <TabPills tabs={PUBLIC_TABS} active={activeTab} onSelect={setActiveTab} />
+              </View>
+
+              {activityLoading ? (
+                <View style={{ alignItems: 'center', paddingVertical: 30 }}><Mascot size={36} /></View>
+              ) : activity.length === 0 ? (
+                <View style={styles.empty}>
+                  <Mascot size={88} animated={false} badge={false} />
+                  <Text style={[styles.emptyTitle, { color: tokens.text }]}>{copy.title}</Text>
+                  <Text style={[styles.emptyDesc, { color: tokens.muted }]}>{copy.description}</Text>
+                </View>
+              ) : (
+                <View style={{ paddingHorizontal: 16 }}>
+                  {activity.map((a, i) => a.kind === 'thread' ? (
+                    <PostRow
+                      key={`t-${a.row.id}-${i}`}
+                      row={a.row}
+                      view="card"
+                      onOpen={() => {}}
+                      onVote={() => {}}
+                      onSave={() => {}}
+                      onReport={() => {}}
+                      onShare={() => {}}
+                    />
+                  ) : (
+                    <ProfileCommentCard
+                      key={`c-${a.comment.id}-${i}`}
+                      comment={a.comment}
+                      threadTitle={a.threadTitle}
+                      replyingTo={a.replyingTo}
+                      onOpen={() => {}}
+                    />
+                  ))}
+                </View>
               )}
-              {profile && <SocialLinks links={profile.socialLinks} />}
-            </View>
-
-            <View style={[styles.karmaRow, { borderTopColor: tokens.border }]}>
-              <View style={styles.karmaBlock}>
-                <Text style={[styles.karmaValue, { color: tokens.text }]}>
-                  {(profile?.postKarma ?? 0).toLocaleString()}
-                </Text>
-                <Text style={[styles.karmaLabel, { color: tokens.muted }]}>Post Karma</Text>
-              </View>
-              <View style={[styles.karmaDivider, { backgroundColor: tokens.border }]} />
-              <View style={styles.karmaBlock}>
-                <Text style={[styles.karmaValue, { color: tokens.text }]}>
-                  {(profile?.commentKarma ?? 0).toLocaleString()}
-                </Text>
-                <Text style={[styles.karmaLabel, { color: tokens.muted }]}>Comment Karma</Text>
-              </View>
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: tokens.border }]} />
-
-            <View style={{ marginTop: 6, marginBottom: 14 }}>
-              <TabPills tabs={PUBLIC_TABS} active={activeTab} onSelect={setActiveTab} />
-            </View>
-
-            {activityLoading ? (
-              <View style={{ alignItems: 'center', paddingVertical: 30 }}><Mascot size={36} /></View>
-            ) : activity.length === 0 ? (
-              <View style={styles.empty}>
-                <Mascot size={88} animated={false} badge={false} />
-                <Text style={[styles.emptyTitle, { color: tokens.text }]}>{copy.title}</Text>
-                <Text style={[styles.emptyDesc, { color: tokens.muted }]}>{copy.description}</Text>
-              </View>
-            ) : (
-              <View style={{ paddingHorizontal: 16 }}>
-                {activity.map((a, i) => a.kind === 'thread' ? (
-                  <PostRow
-                    key={`t-${a.row.id}-${i}`}
-                    row={a.row}
-                    view="card"
-                    onOpen={() => {}}
-                    onVote={() => {}}
-                    onSave={() => {}}
-                    onReport={() => {}}
-                    onShare={() => {}}
-                  />
-                ) : (
-                  <ProfileCommentCard
-                    key={`c-${a.comment.id}-${i}`}
-                    comment={a.comment}
-                    threadTitle={a.threadTitle}
-                    replyingTo={a.replyingTo}
-                    onOpen={() => {}}
-                  />
-                ))}
-              </View>
-            )}
-          </ScrollView>
+            </ScrollView>
+          </View>
         )}
       </Animated.View>
 
@@ -229,8 +280,6 @@ export default function UserProfileSheet({ userId, onClose }: {
   );
 }
 
-// Styles mirror ProfileScreen exactly — same values, same names.
-// Only additions are the sheet-specific ones (scrim, sheet, handleWrap, handle).
 const styles = StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,1)' },
   sheet: {
@@ -240,7 +289,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     overflow: 'hidden',
   },
-  handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 4 },
+  handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 10 },
   dragHandle: { width: 36, height: 4, borderRadius: 2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 110 },
