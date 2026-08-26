@@ -1,5 +1,4 @@
 import type { AISuggestion, SimilarThread } from '@forumkit/types';
-import { SUMMARY_POINTS, SUGGESTED_REPLY } from '../data/fixtures';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -21,7 +20,7 @@ export async function callSummarise(threadId: string, token?: string): Promise<s
     if (Array.isArray(points) && points.length > 0) return points;
     throw new Error('empty response');
   } catch {
-    return SUMMARY_POINTS;
+    return [];
   }
 }
 
@@ -36,7 +35,7 @@ export async function callSuggest(threadId: string, token?: string): Promise<str
     if (data.suggestion?.suggestion) return data.suggestion.suggestion;
     throw new Error('empty response');
   } catch {
-    return SUGGESTED_REPLY;
+    return '';
   }
 }
 

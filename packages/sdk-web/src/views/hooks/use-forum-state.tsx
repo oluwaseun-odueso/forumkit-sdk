@@ -1715,7 +1715,9 @@ function useForumStateInternal() {
     if (state.asst.summarizing || state.thread.activePostId === null) return;
     dispatch({ type: 'ASST_SUMMARIZING' });
     const points = await callSummarise(state.thread.activePostId, sessionToken);
-    const note = `Synthesized from ${state.comments.length} comment${state.comments.length !== 1 ? 's' : ''}`;
+    const note = points.length > 0
+      ? `Synthesized from ${state.comments.length} comment${state.comments.length !== 1 ? 's' : ''}`
+      : 'AI service unavailable';
     dispatch({ type: 'ASST_SUMMARY', points, note });
   }, [state.asst.summarizing, state.thread.activePostId, state.comments.length, sessionToken]);
 
