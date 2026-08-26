@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createThread, createDraft, deleteAttachment } from '@forumkit/shared';
 import type { DraftContent } from '@forumkit/types';
@@ -165,6 +165,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
         </View>
       </View>
 
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={[styles.draftNote, { color: tokens.muted }]}>Media isn’t saved in drafts.</Text>
 
@@ -273,6 +274,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
       </View>
       {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
     </>

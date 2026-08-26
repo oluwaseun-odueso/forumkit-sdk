@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions, Easing } from 'react-native';
+import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions, Easing, Platform, KeyboardAvoidingView } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -269,6 +269,7 @@ export default function ThreadScreen() {
         <View style={styles.center}><Text style={{ color: tokens['text-2'] }}>{error}</Text></View>
       ) : thread ? (
         <Animated.View style={{ flex: 1, transform: [{ translateX }] }} {...panResponder.panHandlers}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <BackRow onPress={() => navigation.goBack()} />
 
@@ -366,6 +367,7 @@ export default function ThreadScreen() {
 
             {tree.map(node => <CommentRow key={node.id} node={node} ctx={ctx} />)}
           </ScrollView>
+          </KeyboardAvoidingView>
         </Animated.View>
       ) : null}
 
