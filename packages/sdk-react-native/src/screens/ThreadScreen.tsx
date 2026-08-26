@@ -31,6 +31,7 @@ import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon, EllipsisIc
 import AiRow, { type AiRowHandle } from '../thread/AiRow';
 import CommentComposer from '../thread/CommentComposer';
 import CommentRow, { type CommentCtx } from '../thread/CommentRow';
+import UserProfileSheet from '../profile/UserProfileSheet';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 // Thread detail — mirrors sdk-web thread-view.tsx (README §8), wired to the live
@@ -88,6 +89,7 @@ export default function ThreadScreen() {
   const [postEditBody, setPostEditBody] = useState('');
   const [postDeleteOpen, setPostDeleteOpen] = useState(false);
   const [postMenuOpen, setPostMenuOpen] = useState(false);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const aiRowRef = useRef<AiRowHandle>(null);
   // Bridged into the ScrollView's onScroll below via ScrollCollapseRegistration
   // — same "useShell() needs Shell's own context provider, which ThreadScreen's
@@ -237,6 +239,9 @@ export default function ThreadScreen() {
     },
     onReport(commentId) { setReportTarget({ kind: 'comment', id: commentId }); },
     onShare(commentId) { setShareTarget({ kind: 'comment', id: commentId }); },
+    onPressAuthor(userId) {
+      if (userId !== currentUserId) setViewingUserId(userId);
+    },
   };
 
   async function submitTopLevel(body: string, attachmentIds: string[]) {
@@ -285,11 +290,14 @@ export default function ThreadScreen() {
           >
             <BackRow onPress={() => navigation.goBack()} />
 
-            <View style={styles.head}>
+            <Pressable
+              style={styles.head}
+              onPress={() => { if (thread.authorId !== currentUserId) setViewingUserId(thread.authorId); }}
+            >
               <Avatar authorId={thread.authorId} author={thread.authorDisplayName ?? 'Member'} avatarUrl={thread.authorAvatarUrl} size={26} />
               <Text style={[styles.author, { color: tokens.text }]}>{thread.authorDisplayName ?? 'Member'}</Text>
               <Text style={[styles.time, { color: tokens.muted }]}>· {fmtRelativeTime(thread.createdAt)}</Text>
-            </View>
+            </Pressable>
 
             {postEditOpen ? (
               <View style={{ marginBottom: 12 }}>
@@ -400,6 +408,9 @@ export default function ThreadScreen() {
             if (token) void deleteThread(apiUrl, forumId, threadId, token).then(() => navigation.goBack()).catch(() => { /* best effort */ });
           }}
         />
+      )}
+      {viewingUserId && (
+        <UserProfileSheet userId={viewingUserId} onClose={() => setViewingUserId(null)} />
       )}
     </Shell>
   );

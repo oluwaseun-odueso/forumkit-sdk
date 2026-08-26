@@ -17,6 +17,7 @@ import { RocketIcon, FlameIcon, FreshIcon, TopIcon, RisingIcon } from '../compon
 import Mascot from '../components/Mascot';
 import ReportSheet from '../components/ReportSheet';
 import ShareSheet from '../components/ShareSheet';
+import UserProfileSheet from '../profile/UserProfileSheet';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 // Feed screen (README §6) wired to the live API: fetches the thread list with
@@ -49,6 +50,8 @@ function FeedBody() {
   const [error, setError] = useState<string | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
   const [shareId, setShareId] = useState<string | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const currentUserId = session.status === 'ready' ? session.userId : null;
 
   const route = useRoute<RouteProp<RootStackParamList, 'Feed'>>();
   const scope = route.params?.scope ?? 'home';
@@ -163,6 +166,7 @@ function FeedBody() {
               onSave={() => onSave(item)}
               onReport={() => setReportId(item.id)}
               onShare={() => setShareId(item.id)}
+              onPressAuthor={userId => { if (userId !== currentUserId) setViewingUserId(userId); }}
             />
           )}
           ListEmptyComponent={
@@ -179,6 +183,9 @@ function FeedBody() {
       )}
       {shareId && (
         <ShareSheet apiUrl={apiUrl} forumId={forumId} token={token} onClose={() => setShareId(null)} onShare={submitShare} />
+      )}
+      {viewingUserId && (
+        <UserProfileSheet userId={viewingUserId} onClose={() => setViewingUserId(null)} />
       )}
     </>
   );
