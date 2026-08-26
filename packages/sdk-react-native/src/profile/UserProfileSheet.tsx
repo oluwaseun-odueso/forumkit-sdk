@@ -40,15 +40,23 @@ export default function UserProfileSheet({ userId, onClose }: {
   // `top` style (layout-based) so hit-testing matches the visual position.
   const sheetTop = useRef(new Animated.Value(SNAP_CLOSED)).current;
 
-  const lastMoveY  = useRef<number | null>(null);
-  const onCloseRef = useRef(onClose);
+  const lastMoveY   = useRef<number | null>(null);
+  const isAtFullRef = useRef(false);   // ref so PanResponder callbacks read current value
+  const onCloseRef  = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // ScrollView is enabled only when the sheet is fully expanded. At SNAP_HALF
+  // upward content swipes drive the sheet up instead of scrolling the list.
+  const [scrollEnabled, setScrollEnabled] = useState(false);
 
   useEffect(() => {
     Animated.spring(sheetTop, { toValue: SNAP_HALF, useNativeDriver: false, bounciness: 4 }).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const snapTo = (target: number, done?: () => void) => {
+    const goingFull = target === SNAP_FULL;
+    isAtFullRef.current = goingFull;
+    setScrollEnabled(goingFull);
     if (target === SNAP_CLOSED) {
       Animated.timing(sheetTop, { toValue: SNAP_CLOSED, duration: 220, useNativeDriver: false })
         .start(done);
@@ -64,6 +72,44 @@ export default function UserProfileSheet({ userId, onClose }: {
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder:  () => true,
+    onPanResponderTerminationRequest: () => false,
+
+    onPanResponderGrant: (_e, g) => {
+      sheetTop.stopAnimation();
+      lastMoveY.current = g.moveY;
+    },
+
+    onPanResponderMove: (_e, g) => {
+      const cur = (sheetTop as unknown as { _value: number })._value;
+      const delta = lastMoveY.current !== null ? g.moveY - lastMoveY.current : 0;
+      lastMoveY.current = g.moveY;
+      sheetTop.setValue(Math.max(SNAP_FULL, cur + delta));
+    },
+
+    onPanResponderRelease: (_e, g) => {
+      lastMoveY.current = null;
+      const cur = (sheetTop as unknown as { _value: number })._value;
+      if (g.vy > 1.2 || cur > windowHeight * 0.65) {
+        snapTo(SNAP_CLOSED, () => onCloseRef.current());
+      } else if (cur < windowHeight * 0.25 || g.vy < -0.8) {
+        snapTo(SNAP_FULL);
+      } else {
+        snapTo(SNAP_HALF);
+      }
+    },
+
+    onPanResponderTerminate: () => {
+      lastMoveY.current = null;
+      snapTo(SNAP_HALF);
+    },
+  })).current;
+
+  // Content-area pan: claims upward swipes when the sheet is at SNAP_HALF so
+  // swiping up on the list expands the sheet rather than scrolling (scroll is
+  // disabled at SNAP_HALF). Uses onMoveShouldSetPanResponder so taps still
+  // reach the PostRow / ProfileCommentCard children underneath.
+  const contentPan = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_e, g) => !isAtFullRef.current && g.dy < -5,
     onPanResponderTerminationRequest: () => false,
 
     onPanResponderGrant: (_e, g) => {
@@ -166,7 +212,8 @@ export default function UserProfileSheet({ userId, onClose }: {
         {loading ? (
           <View style={styles.center}><Mascot size={36} /></View>
         ) : (
-          <ScrollView contentContainerStyle={styles.content} scrollEventThrottle={16}>
+          <View style={styles.scrollWrap} {...contentPan.panHandlers}>
+        <ScrollView scrollEnabled={scrollEnabled} contentContainerStyle={styles.content} scrollEventThrottle={16}>
             {/* Banner: tappable for lightbox, no camera badge */}
             <Pressable
               onPress={() => profile?.bannerUrl && setPreviewUri(profile.bannerUrl)}
@@ -255,6 +302,7 @@ export default function UserProfileSheet({ userId, onClose }: {
               </View>
             )}
           </ScrollView>
+        </View>
         )}
       </Animated.View>
 
@@ -299,6 +347,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pill: { width: 36, height: 4, borderRadius: 2 },
+  scrollWrap: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   content: { paddingBottom: 110 },
   banner: { height: 120, marginBottom: 44, position: 'relative' },
