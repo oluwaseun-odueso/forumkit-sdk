@@ -6,6 +6,7 @@ import type { ModerationQueueItem } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import Shell from '../navigation/Shell';
+import { useScrollCollapse } from '../lib/useScrollCollapse';
 import BackRow from '../components/BackRow';
 import Mascot from '../components/Mascot';
 import { ShieldIcon, ReportIcon, CheckIcon, CloseIcon } from '../components/icons';
@@ -24,10 +25,14 @@ function badgeFor(item: ModerationQueueItem): { label: string; Icon: typeof Shie
   return { label: `AI flagged ${Math.round(item.aiScore * 100)}%`, Icon: ShieldIcon, color: '#f59e0b' };
 }
 
-export default function ModerationScreen() {
+// Split from the default-exported ModerationScreen (below) so
+// useScrollCollapse's useShell() call is an actual descendant of Shell's
+// context provider — mirrors ProfileScreen's existing ProfileBody split.
+function ModerationBody() {
   const { tokens } = useTheme();
   const session = useSession();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const onScroll = useScrollCollapse();
   const { apiUrl } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
@@ -63,7 +68,6 @@ export default function ModerationScreen() {
   }
 
   return (
-    <Shell>
       <View style={styles.content}>
         <BackRow onPress={() => navigation.goBack()} />
         <Text style={[styles.heading, { color: tokens.text }]}>Moderation</Text>
@@ -78,6 +82,8 @@ export default function ModerationScreen() {
           <FlatList
             data={items}
             keyExtractor={i => i.id}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             renderItem={({ item, index }) => {
               const badge = badgeFor(item);
               const resolving = resolvingId === item.id;
@@ -124,8 +130,11 @@ export default function ModerationScreen() {
           />
         )}
       </View>
-    </Shell>
   );
+}
+
+export default function ModerationScreen() {
+  return <Shell><ModerationBody /></Shell>;
 }
 
 const styles = StyleSheet.create({

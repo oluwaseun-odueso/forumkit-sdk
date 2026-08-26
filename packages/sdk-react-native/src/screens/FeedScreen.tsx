@@ -10,6 +10,7 @@ import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
 import Shell from '../navigation/Shell';
+import { useScrollCollapse } from '../lib/useScrollCollapse';
 import PostRow from '../feed/PostRow';
 import { SelectPill } from '../components/SelectPill';
 import { RocketIcon, FlameIcon, FreshIcon, TopIcon, RisingIcon } from '../components/icons';
@@ -33,10 +34,14 @@ const SORT_ICON: Record<SortOption, React.ComponentType<{ size?: number; color?:
   Best: RocketIcon, Hot: FlameIcon, New: FreshIcon, Top: TopIcon, Rising: RisingIcon,
 };
 
-export default function FeedScreen() {
+// Split from the default-exported FeedScreen (below) so useScrollCollapse's
+// useShell() call is an actual descendant of Shell's context provider —
+// mirrors ProfileScreen's existing ProfileBody split.
+function FeedBody() {
   const { tokens } = useTheme();
   const session = useSession();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const onScroll = useScrollCollapse();
 
   const [sort, setSort] = useState<SortOption>('Best');
   const [rows, setRows] = useState<FeedRow[]>([]);
@@ -135,7 +140,7 @@ export default function FeedScreen() {
   );
 
   return (
-    <Shell>
+    <>
       {loading && rows.length === 0 ? (
         <View style={styles.center}><Mascot size={36} /></View>
       ) : error ? (
@@ -146,6 +151,8 @@ export default function FeedScreen() {
         <FlatList
           data={rows}
           keyExtractor={r => r.id}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           ListHeaderComponent={controls}
           renderItem={({ item }) => (
             <PostRow
@@ -173,8 +180,12 @@ export default function FeedScreen() {
       {shareId && (
         <ShareSheet apiUrl={apiUrl} forumId={forumId} token={token} onClose={() => setShareId(null)} onShare={submitShare} />
       )}
-    </Shell>
+    </>
   );
+}
+
+export default function FeedScreen() {
+  return <Shell><FeedBody /></Shell>;
 }
 
 const styles = StyleSheet.create({

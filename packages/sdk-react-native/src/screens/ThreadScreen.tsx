@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions, Easing, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Animated, PanResponder, Dimensions, Easing, Platform, KeyboardAvoidingView, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -14,6 +14,7 @@ import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
 import Shell, { useShell } from '../navigation/Shell';
+import { useScrollCollapse } from '../lib/useScrollCollapse';
 import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
 import MediaGallery from '../components/MediaGallery';
@@ -88,6 +89,12 @@ export default function ThreadScreen() {
   const [postDeleteOpen, setPostDeleteOpen] = useState(false);
   const [postMenuOpen, setPostMenuOpen] = useState(false);
   const aiRowRef = useRef<AiRowHandle>(null);
+  // Bridged into the ScrollView's onScroll below via ScrollCollapseRegistration
+  // — same "useShell() needs Shell's own context provider, which ThreadScreen's
+  // top level isn't inside" reason as aiRowRef/AskAiRegistration above, except
+  // this one needs the hook's *return value* (an onScroll handler), not just
+  // a fire-and-forget registration, hence the ref instead of a plain call.
+  const scrollHandlerRef = useRef<(e: NativeSyntheticEvent<NativeScrollEvent>) => void>(() => {});
   const { ref: postMenuRef, anchor: postMenuAnchor, measure: measurePostMenu } = useAnchor();
 
   // Swipe to next/previous thread — plain PanResponder + core Animated
@@ -270,7 +277,12 @@ export default function ThreadScreen() {
       ) : thread ? (
         <Animated.View style={{ flex: 1, transform: [{ translateX }] }} {...panResponder.panHandlers}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            onScroll={e => scrollHandlerRef.current(e)}
+            scrollEventThrottle={16}
+          >
             <BackRow onPress={() => navigation.goBack()} />
 
             <View style={styles.head}>
@@ -347,6 +359,7 @@ export default function ThreadScreen() {
 
             <AiRow ref={aiRowRef} />
             <AskAiRegistration aiRowRef={aiRowRef} />
+            <ScrollCollapseRegistration handlerRef={scrollHandlerRef} />
 
             <CommentComposer apiUrl={apiUrl} forumId={forumId} token={token} onSubmit={submitTopLevel} />
 
@@ -406,6 +419,16 @@ function AskAiRegistration({ aiRowRef }: { aiRowRef: RefObject<AiRowHandle | nul
     registerAskHandler(() => aiRowRef.current?.openSummary());
     return () => registerAskHandler(null);
   }, [registerAskHandler, aiRowRef]);
+  return null;
+}
+
+// Same bridge reasoning as AskAiRegistration above, but useScrollCollapse()
+// needs to hand its return value back up to ThreadScreen's ScrollView (a
+// registration alone isn't enough here) — assigning handlerRef.current
+// during this component's render is safe since it's only ever read later,
+// on an actual scroll event, never during the same render pass.
+function ScrollCollapseRegistration({ handlerRef }: { handlerRef: RefObject<(e: NativeSyntheticEvent<NativeScrollEvent>) => void> }) {
+  handlerRef.current = useScrollCollapse();
   return null;
 }
 

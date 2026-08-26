@@ -6,6 +6,7 @@ import type { SearchResult } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import Shell from '../navigation/Shell';
+import { useScrollCollapse } from '../lib/useScrollCollapse';
 import BackRow from '../components/BackRow';
 import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
@@ -14,8 +15,12 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 
 // Search results — mirrors sdk-web's SearchResults (threads section). Fed by the
 // top-bar search pill; tapping a result opens the thread.
-export default function SearchScreen() {
+// Split from the default-exported SearchScreen (below) so useScrollCollapse's
+// useShell() call is an actual descendant of Shell's context provider —
+// mirrors ProfileScreen's existing ProfileBody split.
+function SearchBody() {
   const { tokens } = useTheme();
+  const onScroll = useScrollCollapse();
   const session = useSession();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Search'>>();
@@ -38,8 +43,7 @@ export default function SearchScreen() {
   }, [apiUrl, forumId, query, token]);
 
   return (
-    <Shell>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={16}>
         <BackRow onPress={() => navigation.goBack()} />
         <Text style={[styles.heading, { color: tokens.text }]}>Results for “{query}”</Text>
 
@@ -73,8 +77,11 @@ export default function SearchScreen() {
           ))
         )}
       </ScrollView>
-    </Shell>
   );
+}
+
+export default function SearchScreen() {
+  return <Shell><SearchBody /></Shell>;
 }
 
 const styles = StyleSheet.create({

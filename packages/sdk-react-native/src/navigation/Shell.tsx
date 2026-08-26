@@ -33,6 +33,7 @@ type ShellActions = {
   openComposer: () => void;
   openNotifications: () => void;
   registerAskHandler: (fn: (() => void) | null) => void;
+  setBottomBarCollapsed: (collapsed: boolean) => void;
 };
 const ShellContext = createContext<ShellActions | null>(null);
 
@@ -71,6 +72,10 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
   const [askHandler, setAskHandler] = useState<(() => void) | null>(null);
+  // Reset to false on every mount for free — Shell is mounted fresh inside
+  // whichever screen is current (see the useRoute() comment above), so
+  // navigating away and back always starts expanded.
+  const [bottomBarCollapsed, setBottomBarCollapsed] = useState(false);
 
   // Drives the "push" drawer — the main content translates right to reveal
   // the drawer panel sitting behind it (see Drawer.tsx), rather than the
@@ -147,6 +152,10 @@ export default function Shell({ children }: { children: ReactNode }) {
     setDrawerOpen(false);
     closeComposer();
     setNotifOpen(false);
+    // Home is a same-route no-op when already on Feed (see comment above),
+    // so Shell doesn't remount and bottomBarCollapsed wouldn't otherwise
+    // reset — force it back open here too.
+    setBottomBarCollapsed(false);
     navigation.navigate('Feed');
   }
 
@@ -157,6 +166,7 @@ export default function Shell({ children }: { children: ReactNode }) {
     // fn is a plain callback, not a state updater — wrap it so useState
     // stores it as a value instead of calling it immediately.
     registerAskHandler: fn => setAskHandler(() => fn),
+    setBottomBarCollapsed,
   }), []);
 
   return (
@@ -182,6 +192,7 @@ export default function Shell({ children }: { children: ReactNode }) {
           <View style={{ flex: 1 }}>{children}</View>
         </ShellContext.Provider>
         <BottomBar
+          collapsed={bottomBarCollapsed}
           homeActive={isFeed}
           notificationsActive={notifOpen}
           profileActive={route.name === 'Profile'}
