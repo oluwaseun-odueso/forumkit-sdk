@@ -28,6 +28,7 @@ export type CommentCtx = {
   onAccept: (commentId: string, accepted: boolean) => void;
   onReport: (commentId: string) => void;
   onShare: (commentId: string) => void;
+  onPressAuthor?: (userId: string) => void;
 };
 
 // A single comment (recursive) — mirrors sdk-web's comment.tsx: markdown body,
@@ -58,7 +59,11 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
         },
       ]}
     >
-      <View style={styles.head}>
+      <Pressable
+        style={styles.head}
+        onPress={ctx.onPressAuthor && node.authorId ? () => ctx.onPressAuthor!(node.authorId!) : undefined}
+        disabled={!ctx.onPressAuthor || !node.authorId}
+      >
         <Avatar authorId={node.authorId} author={node.author} avatarUrl={node.authorAvatarUrl} size={24} />
         <Text style={[styles.author, { color: tokens.text }]}>{node.author}</Text>
         <Text style={[styles.time, { color: tokens.muted }]}>· {node.time}</Text>
@@ -68,7 +73,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
             <Text style={{ color: tokens.success, fontSize: 11, fontWeight: '700' }}>Answer</Text>
           </View>
         )}
-      </View>
+      </Pressable>
 
       {editOpen ? (
         <View style={{ marginTop: 8, marginLeft: 32 }}>

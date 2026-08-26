@@ -18,7 +18,7 @@ import { ShareIcon, EllipsisIcon, SaveIcon, ReportIcon } from '../components/ico
 // spacer / share / ellipsis). Tapping the row opens the thread; the action
 // controls are nested Pressables, so RN's responder system stops those taps
 // from also triggering the row press (no explicit stopPropagation needed).
-export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, onShare }: {
+export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, onShare, onPressAuthor }: {
   row: FeedRow;
   view: 'card' | 'compact';
   onOpen: () => void;
@@ -26,6 +26,7 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
   onSave: () => void;
   onReport: () => void;
   onShare: () => void;
+  onPressAuthor?: (userId: string) => void;
 }) {
   const { tokens } = useTheme();
   const { ref: ellipsisRef, anchor, measure } = useAnchor();
@@ -39,11 +40,15 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
 
   return (
     <Pressable onPress={onOpen} style={[styles.row, { borderBottomColor: tokens.border }]}>
-      <View style={styles.head}>
+      <Pressable
+        style={styles.head}
+        onPress={onPressAuthor ? () => onPressAuthor(row.authorId) : undefined}
+        disabled={!onPressAuthor}
+      >
         <Avatar authorId={row.authorId} author={row.author} avatarUrl={row.authorAvatarUrl} size={22} />
         <Text style={[styles.author, { color: tokens.text }]}>{row.author}</Text>
         <Text style={[styles.time, { color: tokens.muted }]}>· {row.time}</Text>
-      </View>
+      </Pressable>
 
       {view === 'card' ? (
         <>
