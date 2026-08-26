@@ -49,18 +49,34 @@ export default function UserProfileSheet({ userId, onClose }: {
   // content area doesn't compete with the sheet's pan responder.
   const [scrollEnabled, setScrollEnabled] = useState(false);
 
+  // lastMoveY tracks the touch Y at the moment each responder last fired,
+  // so we can compute incremental deltas rather than using gesture.dy
+  // (which is cumulative from touch start — causes a jump when contentPan
+  // steals the gesture mid-drag from the ScrollView).
+  const lastMoveY = useRef<number | null>(null);
+
   useEffect(() => {
     Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Shared move handler used by both pan responders.
-  const onPanMove = (_evt: unknown, gesture: { dy: number }) => {
+  // Called when a responder claims the gesture — resets the Y baseline so
+  // the first move delta is zero regardless of when we took over.
+  const onPanGrant = (_evt: unknown, gesture: { moveY: number }) => {
+    lastMoveY.current = gesture.moveY;
+  };
+
+  // Shared move handler: uses incremental moveY delta, not cumulative dy,
+  // so stealing the gesture mid-drag produces no position jump.
+  const onPanMove = (_evt: unknown, gesture: { moveY: number }) => {
     const current = (translateY as unknown as { _value: number })._value;
-    translateY.setValue(Math.max(FULL, current + gesture.dy));
+    const delta = lastMoveY.current !== null ? gesture.moveY - lastMoveY.current : 0;
+    lastMoveY.current = gesture.moveY;
+    translateY.setValue(Math.max(FULL, current + delta));
   };
 
   // Shared snap-on-release handler.
   const onPanRelease = (_evt: unknown, gesture: { vy: number }) => {
+    lastMoveY.current = null;
     const current = (translateY as unknown as { _value: number })._value;
     if (gesture.vy > 1.2 || current > windowHeight * 0.65) {
       isAtFull.current = false;
@@ -79,6 +95,7 @@ export default function UserProfileSheet({ userId, onClose }: {
   };
 
   const onPanTerminate = () => {
+    lastMoveY.current = null;
     isAtFull.current = false;
     setScrollEnabled(false);
     Animated.spring(translateY, { toValue: HALF, useNativeDriver: false, bounciness: 4 }).start();
@@ -89,6 +106,7 @@ export default function UserProfileSheet({ userId, onClose }: {
   const handlePan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: onPanGrant,
     onPanResponderMove: onPanMove,
     onPanResponderRelease: onPanRelease,
     onPanResponderTerminate: onPanTerminate,
@@ -107,6 +125,7 @@ export default function UserProfileSheet({ userId, onClose }: {
       if (!isAtFull.current) return true;
       return scrollAtTop.current && gesture.dy > 10;
     },
+    onPanResponderGrant: onPanGrant,
     onPanResponderMove: onPanMove,
     onPanResponderRelease: onPanRelease,
     onPanResponderTerminate: onPanTerminate,
