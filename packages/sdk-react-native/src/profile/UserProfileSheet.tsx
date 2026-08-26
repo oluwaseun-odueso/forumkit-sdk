@@ -181,7 +181,12 @@ export default function UserProfileSheet({ userId, onClose }: {
   return (
     <Modal transparent visible animationType="none" onRequestClose={handleClose}>
       <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]} pointerEvents="none" />
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+      {/* Tap-to-close only covers the exposed backdrop above the sheet, not the sheet itself.
+          Driving height from translateY keeps it perfectly in sync with the sheet's visual top,
+          so a touch on the sheet (or handle) never falls through to this Pressable. */}
+      <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: translateY }}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+      </Animated.View>
 
       <Animated.View style={[styles.sheet, { backgroundColor: tokens.bg, transform: [{ translateY }] }]}>
         {/* Drag handle — the only area with panHandlers on the sheet.
