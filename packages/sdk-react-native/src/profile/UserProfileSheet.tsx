@@ -146,17 +146,18 @@ export default function UserProfileSheet({ userId, onClose }: {
       {/* Scrim: visual only */}
       <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]} pointerEvents="none" />
 
-      {/* Full-screen backdrop. Lowest z-order among touchable views — higher-z
-          views (handle, sheet) claim their touches first, so this only fires
-          when the user taps the exposed backdrop above the sheet. The pageY
-          check gates close so a touch that slips past the handle still doesn't
-          close if it's within the sheet region. */}
-      <Pressable
+      {/* Full-screen backdrop — plain View (not Pressable) so it stays in the
+          JS responder system only. Pressable creates a native UIGestureRecognizer
+          on iOS that fires before the PanResponder on the handle even though the
+          handle has higher z-order. onStartShouldSetResponder returns true only
+          for touches above the sheet, so it can never compete with the handle. */}
+      <View
         style={StyleSheet.absoluteFill}
-        onPress={e => {
+        onStartShouldSetResponder={e => {
           const sheetY = (sheetTop as unknown as { _value: number })._value;
-          if (e.nativeEvent.pageY < sheetY) handleClose();
+          return e.nativeEvent.pageY < sheetY;
         }}
+        onResponderRelease={() => handleClose()}
       />
 
       {/* Sheet body — rendered above the backdrop.
@@ -260,12 +261,14 @@ export default function UserProfileSheet({ userId, onClose }: {
       {/* Handle overlay — sibling of the sheet, NOT inside it.
           Positioned at the same top as the sheet so it sits flush above the
           sheet body. Being outside the sheet means overflow:hidden and the
-          borderTopRadius clipping mask cannot affect its touch area. */}
+          borderTopRadius clipping mask cannot affect its touch area.
+          Pan handlers go on an inner plain View, not on Animated.View itself —
+          Animated.View intercepts event props differently on Fabric (RN 0.76+). */}
       <Animated.View
         style={[styles.handleBar, { backgroundColor: tokens.bg, top: sheetTop }]}
-        {...pan.panHandlers}
       >
         <View style={[styles.pill, { backgroundColor: tokens['surface-2'] }]} />
+        <View style={StyleSheet.absoluteFill} {...pan.panHandlers} />
       </Animated.View>
 
       {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
