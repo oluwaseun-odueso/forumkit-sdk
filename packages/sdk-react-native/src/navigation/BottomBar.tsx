@@ -11,10 +11,14 @@ import { HomeIcon, BellIcon } from '../components/icons';
 import Avatar from '../components/Avatar';
 
 const IS_IOS = Platform.OS === 'ios';
-// Also the collapsed state's circle diameter — borderRadius stays BAR_HEIGHT/2
-// throughout the width animation, which is simultaneously a valid capsule
-// radius at full pill width and a valid circle radius at width === BAR_HEIGHT.
 const BAR_HEIGHT = 66;
+// The collapsed circle is smaller than the expanded bar's height, not equal
+// to it — width, height, and borderRadius all animate together (radius always
+// tracks size/2, valid as a capsule at full width and a circle at any smaller
+// size), unlike the earlier version where only width animated and the circle
+// was pinned to BAR_HEIGHT. Kept ≥44pt so it stays a real iOS/Android tap
+// target despite being visually smaller than the expanded bar.
+const COLLAPSED_SIZE = 52;
 
 // Floating pill bottom bar per README §7 — Home / Create FAB / Notifications
 // bell / profile avatar, exactly four items. On iOS 26+ this is real Apple
@@ -60,8 +64,23 @@ export default function BottomBar({
     collapseProgress.value = withTiming(collapsed ? 1 : 0, { duration: 220, easing: Easing.out(Easing.cubic) });
   }, [collapsed, collapseProgress]);
 
-  const containerStyle = useAnimatedStyle(() => ({
-    width: expandedWidth + (BAR_HEIGHT - expandedWidth) * collapseProgress.value,
+  const containerStyle = useAnimatedStyle(() => {
+    const size = BAR_HEIGHT + (COLLAPSED_SIZE - BAR_HEIGHT) * collapseProgress.value;
+    return {
+      width: expandedWidth + (COLLAPSED_SIZE - expandedWidth) * collapseProgress.value,
+      height: size,
+      borderRadius: size / 2,
+    };
+  });
+  // Same radius as containerStyle, isolated onto its own wrapping Animated.View
+  // around the glass background below — GlassContainer/BlurView aren't
+  // Reanimated-aware, so they can't consume an animated style directly, and
+  // the background needs to track the *current* animated radius itself (not
+  // just be clipped by the outer view's overflow:hidden) since GlassView's
+  // native corner API doesn't clamp an oversized radius — see the `bar` style
+  // comment below for what happens when it doesn't match.
+  const backgroundRadiusStyle = useAnimatedStyle(() => ({
+    borderRadius: (BAR_HEIGHT + (COLLAPSED_SIZE - BAR_HEIGHT) * collapseProgress.value) / 2,
   }));
   const expandedContentStyle = useAnimatedStyle(() => ({ opacity: 1 - collapseProgress.value }));
   const collapsedContentStyle = useAnimatedStyle(() => ({ opacity: collapseProgress.value }));
@@ -86,7 +105,9 @@ export default function BottomBar({
 
   return (
     <Animated.View style={[styles.bar, { left: insets.left, bottom: insets.bottom, borderColor: glassBorderColor(mode) }, containerStyle]}>
-      {background}
+      <Animated.View style={[styles.backgroundClip, backgroundRadiusStyle]}>
+        {background}
+      </Animated.View>
 
       {/* Expanded: the original 4-item row. pointerEvents toggles in lockstep
           with `collapsed` (not animated/delayed) so Create/Inbox/Profile are
@@ -110,7 +131,7 @@ export default function BottomBar({
           separate expand gesture. */}
       <Animated.View style={[styles.collapsedContent, collapsedContentStyle]} pointerEvents={collapsed ? 'auto' : 'none'}>
         <Pressable onPress={onHome} style={styles.collapsedHomeTarget}>
-          <HomeIcon size={20} color={homeActive ? tokens.accent : tokens['text-2']} />
+          <HomeIcon size={26} color={homeActive ? tokens.accent : tokens['text-2']} />
         </Pressable>
       </Animated.View>
     </Animated.View>
@@ -159,27 +180,37 @@ const styles = StyleSheet.create({
   // shorthand) because GlassView's native corner API doesn't clamp an
   // oversized radius to half the shape's size the way CSS/plain RN Views do
   // — 999 on a real GlassView overshot the ~64px-tall bar and rendered as a
-  // pinched/concave corner instead of a clean capsule. radius = height/2,
-  // which stays valid across the whole collapse animation (see BAR_HEIGHT).
+  // pinched/concave corner instead of a clean capsule. height/borderRadius
+  // are set by containerStyle (animated) instead of here, since they now
+  // transition between the expanded bar's and collapsed circle's sizes —
+  // radius always tracks size/2 there too, same reasoning, just per-frame.
   bar: {
     position: 'absolute',
     // Higher than ComposerOverlay's bottomBackdrop (55) — that backdrop
     // fills the same reserved bottom strip to hide the feed behind the
     // composer, and the bar needs to stay visible/tappable on top of it.
     zIndex: 56,
-    height: BAR_HEIGHT,
-    borderRadius: BAR_HEIGHT / 2,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  // Background layer (GlassContainer or BlurView) — same explicit radius as
-  // `bar` for the native glass corner API reason above; overflow:hidden on
-  // `bar` already clips it, this radius is what makes the glass material's
-  // own edge rendering (not just RN's clipping) follow the rounded shape.
+  // Background layer (GlassContainer or BlurView) — just an edge-to-edge
+  // fill; radius + clipping come from the wrapping backgroundClip
+  // Animated.View below (it tracks the live collapse-animation radius, which
+  // this static stylesheet can't).
   glassFill: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: BAR_HEIGHT / 2,
+  },
+  // Wraps the glass background — its own radius must track the same
+  // animated value as `bar`'s (via backgroundRadiusStyle), not a fixed one:
+  // GlassView's native corner API doesn't clamp an oversized radius to half
+  // its own bounds (see the `bar` comment above), so a static radius here
+  // would render as a pinched/concave corner once the collapsed circle is a
+  // different size than the expanded bar's radius.
+  backgroundClip: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    overflow: 'hidden',
   },
   // Icon + label stacked; the active tab fills this with a fully-rounded
   // pill. Same explicit-radius reasoning as `bar` above.
@@ -217,9 +248,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Fills whatever size the (animated) collapsed circle actually is, rather
+  // than a fixed size, so the tap target always matches what's drawn.
   collapsedHomeTarget: {
-    width: BAR_HEIGHT,
-    height: BAR_HEIGHT,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
