@@ -549,7 +549,6 @@ export type ThemeTokens = {
   fontSize?: string;
   borderRadius?: string;
   spacing?: string;
-  shadowLevel?: 'none' | 'sm' | 'md' | 'lg';
 };
 
 // ── SDK init config ────────────────────────────────────────────────

@@ -98,7 +98,6 @@ export class ForumKitElement extends HTMLElement {
       fontSize:          '--fk-font-size-base',
       borderRadius:      '--fk-border-radius',
       spacing:           '--fk-spacing-base',
-      shadowLevel:       '--fk-shadow-level',
     };
 
     for (const [key, cssVar] of Object.entries(tokenMap)) {
