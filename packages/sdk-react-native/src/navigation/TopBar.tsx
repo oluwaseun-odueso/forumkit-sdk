@@ -97,6 +97,7 @@ const styles = StyleSheet.create({
   pillWrap: {
     flex: 1,
     minWidth: 0,
+    marginHorizontal: 6,
   },
   pillRow: {
     paddingLeft: 8,
