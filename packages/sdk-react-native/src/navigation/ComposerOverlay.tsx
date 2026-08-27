@@ -7,6 +7,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttachment } from '../lib/upload';
 import { CloseIcon, SparkleIcon, PlusIcon, PencilIcon } from '../components/icons';
+import { callSuggestMetadata } from '../thread/api-ai';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
@@ -52,11 +53,21 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
   const [error, setError] = useState<string | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const isUploading = attachments.some(a => a.status === 'uploading');
-  // "Suggest title & tags" mirrors sdk-web's composer-modal.tsx button, but per
-  // the standing decision to keep AI UI-only (see thread/AiRow.tsx), it isn't
-  // wired to a backend — it just reveals the same placeholder note that pattern
-  // uses elsewhere.
-  const [showAiNote, setShowAiNote] = useState(false);
+  type SuggestState = 'idle' | 'loading' | 'error';
+  const [suggestState, setSuggestState] = useState<SuggestState>('idle');
+
+  async function handleSuggestMeta() {
+    if (suggestState === 'loading' || !token) return;
+    setSuggestState('loading');
+    const result = await callSuggestMetadata(apiUrl, forumId, title.trim(), body.trim(), tagNames(), token);
+    if (result) {
+      if (result.title) setTitle(result.title);
+      if (result.tags.length > 0) setTags(result.tags.join(', '));
+      setSuggestState('idle');
+    } else {
+      setSuggestState('error');
+    }
+  }
 
   const hasTitle = title.trim().length > 0;
   const canPost = hasTitle && !submitting && !isUploading
@@ -174,14 +185,21 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
         <View style={{ marginTop: 14, gap: 12 }}>
           <Field value={title} onChangeText={setTitle} placeholder="Title" required />
 
-          <Pressable onPress={() => setShowAiNote(s => !s)} style={styles.suggestRow} hitSlop={6}>
-            <SparkleIcon size={14} />
-            <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: '600' }}>Suggest title & tags</Text>
-          </Pressable>
-          {showAiNote && (
-            <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>
-              Suggestions will appear here once the AI service is connected.
+          <Pressable
+            onPress={() => void handleSuggestMeta()}
+            style={styles.suggestRow}
+            hitSlop={6}
+            disabled={suggestState === 'loading'}
+          >
+            {suggestState === 'loading'
+              ? <ActivityIndicator size="small" color={tokens.accent} style={{ width: 14, height: 14 }} />
+              : <SparkleIcon size={14} />}
+            <Text style={{ color: tokens.accent, fontSize: 13, fontWeight: '600' }}>
+              {suggestState === 'loading' ? 'Suggesting…' : 'Suggest title & tags'}
             </Text>
+          </Pressable>
+          {suggestState === 'error' && (
+            <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>AI feature is not available</Text>
           )}
 
           <View style={[styles.tagsWrap, { backgroundColor: tokens['surface-2'] }]}>
