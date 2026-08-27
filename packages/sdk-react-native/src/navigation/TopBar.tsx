@@ -26,7 +26,7 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, query }: {
 
   return (
     <View style={[styles.bar, { borderBottomColor: tokens.border, backgroundColor: tokens.bg, borderBottomWidth: isSearch ? 0 : 1 }]}>
-      <Pressable onPress={onOpenDrawer}>
+      <Pressable onPress={onOpenDrawer} style={styles.hamburgerWrap}>
         {LIQUID_GLASS_AVAILABLE ? (
           <GlassView
             style={[styles.hamburgerBtn, { borderColor: glassBorderColor(mode) }]}
@@ -84,6 +84,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 14,
+  },
+  hamburgerWrap: {
+    marginBottom: 8,
   },
   hamburgerBtn: {
     width: 40,
