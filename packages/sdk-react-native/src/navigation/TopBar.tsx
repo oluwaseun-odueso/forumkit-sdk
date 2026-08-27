@@ -4,7 +4,7 @@ import { GlassView } from 'expo-glass-effect';
 import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
-import { HamburgerIcon, SparkleIcon, SunIcon, MoonIcon } from '../components/icons';
+import { HamburgerIcon, SunIcon, MoonIcon } from '../components/icons';
 import { GradientBorderPill } from '../components/Pill';
 import { glassTint, glassPillTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 
@@ -61,15 +61,9 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, query }: {
               value={query ?? ''}
               placeholder="Find anything"
               placeholderTextColor={tokens.faint}
-              style={[styles.pillInput, { color: tokens['text-2'] }]}
+              style={[styles.pillInput, { color: tokens.text }]}
               pointerEvents="none"
             />
-            {!query && (
-              <>
-                <View style={[styles.pillDivider, { backgroundColor: tokens.border }]} />
-                <SparkleIcon size={16} />
-              </>
-            )}
           </View>
         </GradientBorderPill>
       </Pressable>
@@ -129,11 +123,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 13,
     padding: 0,
-  },
-  pillDivider: {
-    width: 1,
-    height: 16,
-    marginHorizontal: 2,
   },
   themeToggle: {
     width: 26,
