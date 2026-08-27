@@ -113,6 +113,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 15,
     padding: 0,
+    textAlign: 'left',
   },
   pillDivider: {
     width: 1,
