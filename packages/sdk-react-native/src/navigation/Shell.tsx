@@ -119,12 +119,21 @@ export default function Shell({ children }: { children: ReactNode }) {
     })
   ).current;
 
-  // Edge-swipe-to-open — a 20px strip along the left edge captures rightward
-  // swipes when the drawer is closed, mirroring closeDrawerResponder's logic.
+  // Edge-swipe-to-open — attached to the pushed Animated.View itself rather
+  // than a separate overlay strip, so iOS native swipe-back and child
+  // PanResponders (e.g. ThreadScreen's swipe-between-threads) still get first
+  // refusal. The trick: onStartShouldSetPanResponder returns false (never
+  // eagerly claims the touch), while onMoveShouldSetPanResponder only claims
+  // when the touch started within 25px of the left edge and is moving right.
+  const touchStartX = useRef(0);
   const openDrawerResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: (evt) => {
+        touchStartX.current = evt.nativeEvent.pageX;
+        return false; // don't claim — let children and native gestures go first
+      },
       onMoveShouldSetPanResponder: (_evt, gesture) =>
-        gesture.dx > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        touchStartX.current < 25 && gesture.dx > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
       onPanResponderMove: (_evt, gesture) => {
         drawerX.value = Math.min(DRAWER_WIDTH, Math.max(0, gesture.dx));
       },
@@ -205,7 +214,7 @@ export default function Shell({ children }: { children: ReactNode }) {
         onOpenModeration={isModerator ? () => { setDrawerOpen(false); navigation.navigate('Moderation'); } : undefined}
       />
 
-      <Animated.View style={[styles.pushed, drawerPushStyle, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
+      <Animated.View style={[styles.pushed, drawerPushStyle, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]} {...(!drawerOpen ? openDrawerResponder.panHandlers : {})}>
         <TopBar
           onOpenDrawer={() => setDrawerOpen(true)}
           onHome={goHome}
@@ -233,9 +242,6 @@ export default function Shell({ children }: { children: ReactNode }) {
             the drawer is closed, matching how the overlay group below is
             gated. */}
         {drawerOpen && <View style={StyleSheet.absoluteFill} {...closeDrawerResponder.panHandlers} />}
-        {/* 20px left-edge strip — only mounted when closed so it never
-            fights with the full-screen close overlay above. */}
-        {!drawerOpen && <View style={styles.edgeZone} {...openDrawerResponder.panHandlers} />}
       </Animated.View>
 
       {composerOpen && (
@@ -267,12 +273,5 @@ const styles = StyleSheet.create({
   },
   pushed: {
     flex: 1,
-  },
-  edgeZone: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 20,
   },
 });
