@@ -3,7 +3,6 @@ import { BlurView } from 'expo-blur';
 import { GlassView } from 'expo-glass-effect';
 import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
-import Mascot from '../components/Mascot';
 import { HamburgerIcon, SparkleIcon, SunIcon, MoonIcon } from '../components/icons';
 import { GradientBorderPill } from '../components/Pill';
 import { glassTint, glassPillTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
@@ -53,9 +52,6 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, query }: {
       <Pressable style={styles.pillWrap} onPress={onOpenSearch}>
         <GradientBorderPill height={40}>
           <View style={styles.pillRow}>
-            {IOS
-              ? <View style={styles.mascotBox}><Mascot size={20} /></View>
-              : <Mascot size={20} />}
             <TextInput
               editable={false}
               value={query ?? ''}
@@ -109,15 +105,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 8,
-    overflow: 'visible',
-  },
-  mascotBox: {
-    width: 20,
-    height: 20,
-    flexShrink: 0,
-    flexGrow: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'visible',
   },
   pillInput: {
