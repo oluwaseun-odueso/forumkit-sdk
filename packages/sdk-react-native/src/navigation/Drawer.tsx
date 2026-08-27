@@ -125,11 +125,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     // iOS shadow — cast to the right to mimic the drawer lifting off the content
     shadowColor: '#000',
-    shadowOffset: { width: 8, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    shadowOffset: { width: 16, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 28,
     // Android elevation
-    elevation: 12,
+    elevation: 24,
   },
   brandRow: {
     flexDirection: 'row',
