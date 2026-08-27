@@ -7,7 +7,6 @@ import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import Shell from '../navigation/Shell';
 import { useScrollCollapse } from '../lib/useScrollCollapse';
-import BackRow from '../components/BackRow';
 import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
 import Thumbnail from '../components/Thumbnail';
@@ -153,7 +152,6 @@ function SearchBody() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={16}>
-      <BackRow onPress={() => navigation.goBack()} />
       <Text style={[styles.heading, { color: tokens.text }]}>Results for "{query}"</Text>
 
       <TabPills tabs={TABS} active={tab} onSelect={t => switchTab(t as Tab)} />
@@ -232,14 +230,14 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 12, paddingBottom: 110 },
-  heading: { fontSize: 17, fontWeight: '800', marginTop: 12, marginBottom: 12, paddingHorizontal: 16 },
+  content: { paddingTop: 16, paddingBottom: 110 },
+  heading: { fontSize: 20, fontWeight: '800', marginTop: 8, marginBottom: 16, paddingHorizontal: 16 },
   sectionHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, marginTop: 20, marginBottom: 4,
+    paddingHorizontal: 16, marginTop: 32, marginBottom: 8,
   },
-  sectionTitle: { fontSize: 14, fontWeight: '700' },
-  seeAll: { fontSize: 13 },
+  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  seeAll: { fontSize: 14 },
   empty: { marginTop: 16, paddingHorizontal: 16 },
   row: { paddingVertical: 12, borderBottomWidth: 1, paddingHorizontal: 16 },
   rowHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
