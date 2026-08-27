@@ -154,7 +154,6 @@ function SearchBody() {
   return (
     <ScrollView contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={16}>
       <TabPills tabs={TABS} active={tab} onSelect={t => switchTab(t as Tab)} />
-      <View style={[styles.divider, { backgroundColor: tokens.border }]} />
 
       {loading ? (
         <View style={{ alignItems: 'center', marginTop: 40 }}><Mascot size={32} /></View>
@@ -231,7 +230,6 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 110 },
-  divider: { height: StyleSheet.hairlineWidth, marginTop: 8 },
   sectionHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, marginTop: 32, marginBottom: 8,
