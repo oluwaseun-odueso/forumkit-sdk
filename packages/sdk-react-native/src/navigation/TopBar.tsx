@@ -101,9 +101,8 @@ const styles = StyleSheet.create({
   },
   pillRow: {
     paddingHorizontal: 12,
-    paddingTop: 8,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flex: 1,
     gap: 8,
     overflow: 'visible',
