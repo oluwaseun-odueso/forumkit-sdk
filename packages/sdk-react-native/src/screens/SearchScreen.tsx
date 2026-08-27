@@ -152,8 +152,6 @@ function SearchBody() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={16}>
-      <Text style={[styles.heading, { color: tokens.text }]}>Results for "{query}"</Text>
-
       <TabPills tabs={TABS} active={tab} onSelect={t => switchTab(t as Tab)} />
 
       {loading ? (
@@ -231,7 +229,6 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 110 },
-  heading: { fontSize: 20, fontWeight: '800', marginTop: 8, marginBottom: 16, paddingHorizontal: 16 },
   sectionHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, marginTop: 32, marginBottom: 8,

@@ -46,9 +46,8 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch, o
   function submitSearch() {
     const q = searchText.trim();
     if (q) onSearch?.(q);
-    setSearchOpen(false);
-    setSearchText('');
-    setFocusOnOpen(false);
+    // Keep the bar open and the query visible so the search pill shows
+    // what was searched while the results screen is active.
   }
 
   return (
