@@ -74,7 +74,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Thread" component={ThreadScreen} options={{ animation: 'none' }} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
-        <Stack.Screen name="SearchInput" component={SearchInputScreen} options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="SearchInput" component={SearchInputScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Moderation" component={ModerationScreen} />
       </Stack.Navigator>
     </NavigationContainer>

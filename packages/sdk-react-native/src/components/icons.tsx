@@ -496,6 +496,14 @@ export function ArrowRightIcon({ size = 20, color = '#000' }: IconProps) {
   );
 }
 
+export function ChubbyArrowIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={2.8}>
+      <Path d="M5 12h14M13 6l6 6-6 6" />
+    </Svg>
+  );
+}
+
 export function ClockIcon({ size = 16, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>

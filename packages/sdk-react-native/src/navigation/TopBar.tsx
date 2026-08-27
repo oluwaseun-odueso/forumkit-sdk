@@ -4,7 +4,7 @@ import { GlassView } from 'expo-glass-effect';
 import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
-import { HamburgerIcon, SearchIcon, SunIcon, MoonIcon } from '../components/icons';
+import { HamburgerIcon, SparkleIcon, SunIcon, MoonIcon } from '../components/icons';
 import { GradientBorderPill } from '../components/Pill';
 import { glassTint, glassPillTint, glassBorderColor, glassFill, GLASS_INTENSITY, LIQUID_GLASS_AVAILABLE } from '../lib/glass';
 
@@ -56,10 +56,15 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, query }: {
             {IOS
               ? <View style={styles.mascotBox}><Mascot size={20} /></View>
               : <Mascot size={20} />}
-            <SearchIcon size={14} color={tokens.faint} />
             <Text style={[styles.pillText, { color: query ? tokens['text-2'] : tokens.faint }]} numberOfLines={1}>
               {query ?? 'Find anything'}
             </Text>
+            {!query && (
+              <>
+                <View style={[styles.pillDivider, { backgroundColor: tokens.border }]} />
+                <SparkleIcon size={16} />
+              </>
+            )}
           </View>
         </GradientBorderPill>
       </Pressable>
@@ -118,6 +123,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     fontSize: 13,
+  },
+  pillDivider: {
+    width: 1,
+    height: 16,
+    marginHorizontal: 2,
   },
   themeToggle: {
     width: 26,

@@ -12,7 +12,7 @@ import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
-import { ChevronLeftIcon, MaterialBackIcon, ArrowRightIcon, ClockIcon, SparkleIcon } from '../components/icons';
+import { ChevronLeftIcon, MaterialBackIcon, ChubbyArrowIcon, ClockIcon, SparkleIcon } from '../components/icons';
 import { callGlobalAskHandler } from '../navigation/Shell';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -62,7 +62,6 @@ export default function SearchInputScreen() {
   const [liveComments, setLiveComments] = useState<CommentSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     void loadHistory().then(setHistory);
@@ -113,37 +112,50 @@ export default function SearchInputScreen() {
   }
 
   const isEmpty = !query.trim();
+  const canSubmit = !!query.trim();
 
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bg, paddingTop: insets.top + ANDROID_TOP_EXTRA }]}>
-      {/* Search input row */}
-      <View style={[styles.inputRow, { borderBottomColor: tokens.border }]}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <BackIcon size={20} color={tokens.text} />
-        </Pressable>
-        <View style={[styles.inputWrap, { backgroundColor: tokens['surface-2'], borderColor: tokens.border }]}>
+    <View style={[styles.root, { backgroundColor: tokens.bg }]}>
+      {/* Safe area spacer */}
+      <View style={{ height: insets.top + ANDROID_TOP_EXTRA }} />
+
+      {/* Tall multi-row search box */}
+      <View style={[styles.searchBox, { backgroundColor: tokens['surface-2'], borderColor: tokens.border }]}>
+        {/* Top row: back arrow + text input */}
+        <View style={styles.searchTop}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
+            <BackIcon size={20} color={tokens.text} />
+          </Pressable>
           <TextInput
-            ref={inputRef}
             value={query}
             onChangeText={handleQueryChange}
             onSubmitEditing={() => submit(query)}
             returnKeyType="search"
             autoFocus
-            placeholder="Find anything"
+            placeholder="Search"
             placeholderTextColor={tokens.faint}
-            style={[styles.input, { color: tokens.text }]}
+            style={[styles.searchInput, { color: tokens.text }]}
           />
-          <Pressable onPress={() => callGlobalAskHandler()} hitSlop={6} style={styles.askBtn}>
-            <SparkleIcon size={18} />
+        </View>
+
+        {/* Bottom row: Ask pill (left) + submit button (right) */}
+        <View style={styles.searchBottom}>
+          <Pressable
+            style={[styles.askPill, { borderColor: tokens.border }]}
+            onPress={() => callGlobalAskHandler()}
+            hitSlop={6}
+          >
+            <SparkleIcon size={14} />
+            <Text style={[styles.askLabel, { color: tokens['text-2'] }]}>Ask</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.submitBtn, { backgroundColor: tokens.accent, opacity: canSubmit ? 1 : 0.35 }]}
+            onPress={() => submit(query)}
+            hitSlop={6}
+          >
+            <ChubbyArrowIcon size={18} color="#fff" />
           </Pressable>
         </View>
-        <Pressable
-          onPress={() => submit(query)}
-          hitSlop={8}
-          style={[styles.goBtn, { backgroundColor: tokens.accent, opacity: query.trim() ? 1 : 0.4 }]}
-        >
-          <ArrowRightIcon size={18} color="#fff" />
-        </Pressable>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -187,7 +199,7 @@ export default function SearchInputScreen() {
             </>
           ) : (
             <>
-              {searching && liveThreads.length === 0 && liveComments.length === 0 ? null : (
+              {!(searching && liveThreads.length === 0 && liveComments.length === 0) && (
                 <>
                   {liveThreads.length > 0 && (
                     <>
@@ -263,46 +275,55 @@ function LiveCommentRow({ r, onPress }: { r: CommentSearchResult; onPress: () =>
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  inputRow: {
-    height: 60,
+
+  searchBox: {
+    marginHorizontal: 14,
+    marginTop: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
+  searchTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 14,
   },
-  backBtn: {
-    width: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inputWrap: {
+  searchInput: {
     flex: 1,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
+    fontSize: 17,
     padding: 0,
   },
-  askBtn: {
-    paddingLeft: 6,
-    opacity: 0.8,
+  searchBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  goBtn: {
+  askPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  askLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  submitBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   body: {
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 60,
   },
   sectionTitle: {
