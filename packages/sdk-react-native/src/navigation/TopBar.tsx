@@ -86,9 +86,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   hamburgerBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
     alignItems: 'center',
@@ -121,8 +121,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   themeToggle: {
-    width: 26,
-    height: 26,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
