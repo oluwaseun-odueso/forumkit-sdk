@@ -56,6 +56,15 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(200).send(result);
     },
   );
+
+  /**
+   * GET /forums/:forumId/ai/available
+   * Returns whether LLM-powered AI features are configured for this deployment.
+   * Authenticated; no DB queries, no rate limit — just checks the adapter.
+   */
+  app.get('/:forumId/ai/available', { preHandler: authenticate }, async (request, reply) => {
+    return reply.send({ available: request.server.ai.llm !== null });
+  });
 }
 
 function sendAIError(
