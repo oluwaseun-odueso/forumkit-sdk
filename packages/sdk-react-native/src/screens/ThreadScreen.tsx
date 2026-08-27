@@ -312,7 +312,7 @@ export default function ThreadScreen() {
 
             {postEditOpen ? (
               <View style={{ marginBottom: 12 }}>
-                <TextInput value={postEditTitle} onChangeText={setPostEditTitle} style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], fontWeight: '700' }]} />
+                <TextInput value={postEditTitle} onChangeText={setPostEditTitle} style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], fontWeight: '700', marginBottom: 12 }]} />
                 <RichComposer
                   apiUrl={apiUrl}
                   forumId={forumId}
