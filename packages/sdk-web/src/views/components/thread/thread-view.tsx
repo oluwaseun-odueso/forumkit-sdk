@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { filterComments } from '@forumkit/shared';
 import type { useForum } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
@@ -17,6 +17,8 @@ import CommentSort from './comment-sort';
 import Comment from './comment';
 import CommentComposer from './comment-composer';
 import './thread-view.css';
+
+const RichTextEditor = lazy(() => import('../composer/rich-text-editor'));
 
 type ThreadViewProps = {
   forum: ReturnType<typeof useForum>;
@@ -123,12 +125,9 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
             onChange={e => setPostEditTitle(e.target.value)}
             style={{ marginBottom: 8, fontWeight: 600 }}
           />
-          <textarea
-            className="fk-comment-edit-input"
-            value={postEditBody}
-            onChange={e => setPostEditBody(e.target.value)}
-            rows={5}
-          />
+          <Suspense fallback={<textarea className="fk-comment-edit-input" value={postEditBody} onChange={e => setPostEditBody(e.target.value)} rows={5} />}>
+            <RichTextEditor content={postEditBody} onChange={setPostEditBody} forumId={forumId} sessionToken={sessionToken} onInlineUpload={() => {}} />
+          </Suspense>
           {postEditError && <p className="fk-comment-error">{postEditError}</p>}
           <div className="fk-comment-edit-actions">
             <button type="button" className="fk-comment-action" onClick={handleSavePostEdit} disabled={postEditSubmitting}>

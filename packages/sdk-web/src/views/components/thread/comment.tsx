@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import type { CommentNodeData, VoteDir } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
@@ -15,6 +15,8 @@ import ConfirmDialog from '../shared/confirm-dialog';
 // rules just for comments.
 import '../feed/post-card.css';
 import './comment.css';
+
+const RichTextEditor = lazy(() => import('../composer/rich-text-editor'));
 
 type CommentProps = {
   comment: CommentNodeData;
@@ -123,12 +125,9 @@ export default function Comment({
 
           {editOpen ? (
             <div className="fk-comment-edit">
-              <textarea
-                className="fk-comment-edit-input"
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
-                rows={3}
-              />
+              <Suspense fallback={<textarea className="fk-comment-edit-input" value={editText} onChange={e => setEditText(e.target.value)} rows={3} />}>
+                <RichTextEditor content={editText} onChange={setEditText} forumId={forumId} sessionToken={sessionToken} onInlineUpload={() => {}} />
+              </Suspense>
               {editError && <p className="fk-comment-error">{editError}</p>}
               <div className="fk-comment-edit-actions">
                 <button type="button" className="fk-comment-action" onClick={handleSaveEdit} disabled={editSubmitting}>
