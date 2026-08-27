@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   pillDivider: {
     width: 1,
-    height: 17,
+    height: 24,
     marginHorizontal: 2,
     marginTop: 4,
   },
