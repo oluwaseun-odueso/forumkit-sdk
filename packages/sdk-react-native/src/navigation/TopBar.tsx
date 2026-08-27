@@ -68,8 +68,8 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, query }: {
 
       <Pressable onPress={toggleTheme} style={styles.themeToggle}>
         {mode === 'dark'
-          ? <SunIcon size={18} color={tokens['text-2']} />
-          : <MoonIcon size={18} color={tokens['text-2']} />}
+          ? <SunIcon size={22} color={tokens['text-2']} />
+          : <MoonIcon size={22} color={tokens['text-2']} />}
       </Pressable>
     </View>
   );
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 8,
     overflow: 'visible',
-    marginBottom: 6,
+    marginBottom: 10,
   },
   pillInput: {
     flex: 1,
@@ -119,9 +119,10 @@ const styles = StyleSheet.create({
   },
   pillDivider: {
     width: 1,
-    height: 24,
+    height: 25,
     marginHorizontal: 2,
     marginTop: 4,
+    marginBottom: 4,
   },
   themeToggle: {
     width: 40,
