@@ -233,7 +233,7 @@ export default function SearchInputScreen() {
 function LatestRow({ thread, onPress }: { thread: Thread; onPress: () => void }) {
   const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} style={[styles.row, { borderBottomColor: tokens.border }]}>
+    <Pressable onPress={onPress} style={styles.latestRow}>
       <View style={styles.rowHead}>
         <Avatar authorId={thread.authorId} author={thread.authorDisplayName ?? 'Unknown'} avatarUrl={thread.authorAvatarUrl ?? null} size={18} />
         <Text style={[styles.rowAuthor, { color: tokens['text-2'] }]}>{thread.authorDisplayName ?? 'Unknown'}</Text>
@@ -359,6 +359,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  latestRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   rowHead: {
     flexDirection: 'row',

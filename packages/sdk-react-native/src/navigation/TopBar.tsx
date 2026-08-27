@@ -1,4 +1,4 @@
-import { View, Pressable, Text, StyleSheet, Platform } from 'react-native';
+import { View, Pressable, TextInput, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView } from 'expo-glass-effect';
 import { useRoute } from '@react-navigation/native';
@@ -56,9 +56,14 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, query }: {
             {IOS
               ? <View style={styles.mascotBox}><Mascot size={20} /></View>
               : <Mascot size={20} />}
-            <Text style={[styles.pillText, { color: query ? tokens['text-2'] : tokens.faint }]} numberOfLines={1}>
-              {query ?? 'Find anything'}
-            </Text>
+            <TextInput
+              editable={false}
+              value={query ?? ''}
+              placeholder="Find anything"
+              placeholderTextColor={tokens.faint}
+              style={[styles.pillInput, { color: tokens['text-2'] }]}
+              pointerEvents="none"
+            />
             {!query && (
               <>
                 <View style={[styles.pillDivider, { backgroundColor: tokens.border }]} />
@@ -102,12 +107,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   pillRow: {
-    paddingLeft: 10,
-    paddingRight: 12,
+    paddingLeft: 8,
+    paddingRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 6,
+    gap: 8,
     overflow: 'visible',
   },
   mascotBox: {
@@ -119,10 +124,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'visible',
   },
-  pillText: {
+  pillInput: {
     flex: 1,
     minWidth: 0,
     fontSize: 13,
+    padding: 0,
   },
   pillDivider: {
     width: 1,
