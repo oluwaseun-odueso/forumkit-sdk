@@ -488,6 +488,23 @@ export function EyeIcon({ size = 16, color = '#000' }: IconProps) {
 }
 
 // The brand AI sparkle — two gradient-filled 4-point stars, path data + gradient
+export function ArrowRightIcon({ size = 20, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={2}>
+      <Path d="M5 12h14M13 6l6 6-6 6" />
+    </Svg>
+  );
+}
+
+export function ClockIcon({ size = 16, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Circle cx={12} cy={12} r={8.5} />
+      <Path d="M12 7.5V12l3 2" />
+    </Svg>
+  );
+}
+
 // stops copied verbatim from sdk-web's AiSparkleIcon (README §8's sparkle). Each
 // instance gets a unique gradient id (duplicate ids across the doc break fills).
 export function SparkleIcon({ size = 17 }: { size?: number }) {

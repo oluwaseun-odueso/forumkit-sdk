@@ -6,6 +6,7 @@ import FeedScreen from '../screens/FeedScreen';
 import ThreadScreen from '../screens/ThreadScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SearchScreen from '../screens/SearchScreen';
+import SearchInputScreen from '../screens/SearchInputScreen';
 import ModerationScreen from '../screens/ModerationScreen';
 
 export type FeedScope = 'home' | 'popular' | 'news';
@@ -26,6 +27,9 @@ export type RootStackParamList = {
   Thread: { threadId: string; threadIds?: string[] | undefined };
   Profile: { userId?: string } | undefined;
   Search: { query: string };
+  // Full-screen search entry modal — shown when the user taps the search pill.
+  // Handles text input, history, and live preview before submitting to Search.
+  SearchInput: undefined;
   Moderation: undefined;
 };
 
@@ -70,6 +74,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Thread" component={ThreadScreen} options={{ animation: 'none' }} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="SearchInput" component={SearchInputScreen} options={{ headerShown: false, presentation: 'fullScreenModal' }} />
         <Stack.Screen name="Moderation" component={ModerationScreen} />
       </Stack.Navigator>
     </NavigationContainer>

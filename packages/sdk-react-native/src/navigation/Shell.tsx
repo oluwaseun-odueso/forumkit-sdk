@@ -33,8 +33,17 @@ type ShellActions = {
   openComposer: () => void;
   openNotifications: () => void;
   registerAskHandler: (fn: (() => void) | null) => void;
+  // Module-level stable call — lets SearchInputScreen (which is a navigation
+  // modal, not a Shell child) invoke the current ask handler without needing
+  // to be inside a ShellContext tree. See callGlobalAskHandler() below.
+  callAsk: () => void;
   setBottomBarCollapsed: (collapsed: boolean) => void;
 };
+
+// Stable mutable ref so SearchInputScreen can call the current ask handler
+// without being inside a Shell. Updated in registerAskHandler.
+let _globalAskRef: (() => void) | null = null;
+export function callGlobalAskHandler() { _globalAskRef?.(); }
 const ShellContext = createContext<ShellActions | null>(null);
 
 export function useShell(): ShellActions {
@@ -71,7 +80,6 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
-  const [askHandler, setAskHandler] = useState<(() => void) | null>(null);
   // Reset to false on every mount for free — Shell is mounted fresh inside
   // whichever screen is current (see the useRoute() comment above), so
   // navigating away and back always starts expanded.
@@ -191,7 +199,8 @@ export default function Shell({ children }: { children: ReactNode }) {
     openNotifications: () => setNotifOpen(true),
     // fn is a plain callback, not a state updater — wrap it so useState
     // stores it as a value instead of calling it immediately.
-    registerAskHandler: fn => setAskHandler(() => fn),
+    registerAskHandler: fn => { _globalAskRef = fn; },
+    callAsk: () => _globalAskRef?.(),
     setBottomBarCollapsed,
   }), []);
 
@@ -211,8 +220,8 @@ export default function Shell({ children }: { children: ReactNode }) {
         <TopBar
           onOpenDrawer={() => setDrawerOpen(true)}
           onHome={goHome}
-          onSearch={q => navigation.navigate('Search', { query: q })}
-          onAsk={askHandler ?? undefined}
+          onOpenSearch={() => navigation.navigate('SearchInput')}
+          query={route.name === 'Search' ? (route.params as { query?: string })?.query : undefined}
         />
         <ShellContext.Provider value={actions}>
           <View style={{ flex: 1 }}>{children}</View>
