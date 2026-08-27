@@ -577,6 +577,15 @@ export function LinkIcon({ size = 18 }: IconProps) {
   );
 }
 
+export function ClockIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </svg>
+  );
+}
+
 export function AiSparkleIcon({ size = 17, gradId }: IconProps & { gradId: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">

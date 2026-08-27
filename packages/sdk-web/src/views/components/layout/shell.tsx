@@ -74,6 +74,9 @@ export default function Shell({
         onSubmitSearch={openSearchResults}
         theme={theme}
         onToggleTheme={() => void toggleTheme()}
+        latestPosts={state.rail.latest}
+        featuredPosts={state.rail.featured}
+        onOpenPost={openThread}
       />
       <div className="fk-shell-body">
         <Sidebar

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { SearchResult } from '@forumkit/types';
+import type { RailItem } from '../../hooks/use-forum-state';
 import MascotIcon from './mascot-icon';
 import AccountMenu from './account-menu';
-import SearchResultsDropdown from './search-results-dropdown';
+import SearchResultsDropdown, { saveSearchHistory, loadSearchHistory } from './search-results-dropdown';
 import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
 import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
@@ -31,20 +32,32 @@ type TopNavProps = {
   onSubmitSearch: (query: string) => void;
   theme: Theme;
   onToggleTheme: () => void;
+  // Latest and featured posts for the empty-query dropdown
+  latestPosts?: RailItem[] | undefined;
+  featuredPosts?: RailItem[] | undefined;
+  onOpenPost?: ((id: string) => void) | undefined;
 };
 
-/** The 56px top bar: mascot+wordmark, search/Ask pill, theme toggle, and account menu. Shared across every route. */
+/** The 56px top bar: mascot+wordmark, search pill (with AI ask icon inside), theme toggle, and account menu. Shared across every route. */
 export default function TopNav({
   onHome, onOpenComposer, onViewProfile, onOpenNotifications, unreadCount, onAsk, compact, scopeTag, avatarUrl, displayName,
   searchQuery, onSearchChange, searchOpen, searchLoading, searchResults,
   onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch, theme, onToggleTheme,
+  latestPosts, featuredPosts, onOpenPost,
 }: TopNavProps) {
   const { gradient, letter } = authorAvatar(displayName || undefined, displayName || 'You');
   const [menuOpen, setMenuOpen] = useState(false);
   const [tagActive, setTagActive] = useState(true);
+  const [history, setHistory] = useState<string[]>(() => loadSearchHistory());
 
   const showTag = !!(scopeTag && tagActive);
   const placeholder = showTag ? `Search in u/${scopeTag}` : 'Find anything';
+
+  function handleSubmit(query: string) {
+    saveSearchHistory(query);
+    setHistory(loadSearchHistory());
+    onSubmitSearch(query);
+  }
 
   return (
     <header className="fk-topnav">
@@ -74,7 +87,7 @@ export default function TopNav({
             placeholder={placeholder}
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && searchQuery.trim()) onSubmitSearch(searchQuery.trim()); }}
+            onKeyDown={e => { if (e.key === 'Enter' && searchQuery.trim()) handleSubmit(searchQuery.trim()); }}
           />
           {searchQuery && (
             <button
@@ -103,7 +116,13 @@ export default function TopNav({
             query={searchQuery}
             onClose={onCloseSearchDropdown}
             onSelectResult={onSelectSearchResult}
-            onSeeMore={() => onSubmitSearch(searchQuery.trim())}
+            onSeeMore={() => handleSubmit(searchQuery.trim())}
+            latestPosts={latestPosts}
+            featuredPosts={featuredPosts}
+            onOpenPost={onOpenPost}
+            history={history}
+            onHistoryChange={next => setHistory(next)}
+            onSelectHistory={q => { onSearchChange(q); handleSubmit(q); }}
           />
         )}
       </div>
