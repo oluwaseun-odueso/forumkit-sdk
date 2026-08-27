@@ -1,5 +1,5 @@
-import { useEffect, useState, type ComponentType } from 'react';
-import { Platform, View, Text, Image, Pressable, FlatList, Alert, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { Animated, Dimensions, Platform, PanResponder, View, Text, Image, Pressable, FlatList, Alert, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import {
@@ -95,8 +95,31 @@ export default function NotificationsOverlay({ onClose }: { onClose: () => void 
 
   const hasUnread = items.some(n => !n.readAt);
 
+  const SCREEN_WIDTH = Dimensions.get('window').width;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const swipePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) =>
+        gesture.dx > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderMove: (_evt, gesture) => {
+        if (gesture.dx > 0) translateX.setValue(gesture.dx);
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        const shouldClose = gesture.dx > SCREEN_WIDTH / 3 || gesture.vx > 0.5;
+        if (shouldClose) {
+          Animated.timing(translateX, { toValue: SCREEN_WIDTH, duration: 180, useNativeDriver: true }).start(() => onClose());
+        } else {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start();
+      },
+    })
+  ).current;
+
   return (
-    <View style={[styles.overlay, { backgroundColor: tokens.bg }]}>
+    <Animated.View style={[styles.overlay, { backgroundColor: tokens.bg, transform: [{ translateX }] }]} {...swipePan.panHandlers}>
       <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA, borderBottomWidth: 1, borderBottomColor: tokens.border }}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={8}>
@@ -155,7 +178,7 @@ export default function NotificationsOverlay({ onClose }: { onClose: () => void 
       {settingsOpen && (
         <NotificationSettingsSheet apiUrl={apiUrl} forumId={forumId} token={token} onClose={() => setSettingsOpen(false)} />
       )}
-    </View>
+    </Animated.View>
   );
 }
 
