@@ -92,6 +92,7 @@ export default function ThreadScreen() {
   const [postMenuOpen, setPostMenuOpen] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const aiRowRef = useRef<AiRowHandle>(null);
+  const scrollRef = useRef<ScrollView>(null);
   // Bridged into the ScrollView's onScroll below via ScrollCollapseRegistration
   // — same "useShell() needs Shell's own context provider, which ThreadScreen's
   // top level isn't inside" reason as aiRowRef/AskAiRegistration above, except
@@ -266,6 +267,7 @@ export default function ThreadScreen() {
     const updated = await updateThread(apiUrl, forumId, threadId, { title: postEditTitle.trim(), body: postEditBody.trim() }, token);
     setThread(updated);
     setPostEditOpen(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   }
 
   function submitReport(reason: string) {
@@ -294,6 +296,7 @@ export default function ThreadScreen() {
         <Animated.View style={{ flex: 1, transform: [{ translateX }] }} {...panResponder.panHandlers}>
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             onScroll={e => scrollHandlerRef.current(e)}
