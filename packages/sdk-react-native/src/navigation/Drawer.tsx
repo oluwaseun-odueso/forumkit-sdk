@@ -52,15 +52,14 @@ export default function Drawer({ activeRoute, onSelectRoute, onOpenModeration }:
   // (tokens.bg) rather than the lighter surface-2 shade used everywhere
   // else — tokens.nav is the next step up from bg in the dark palette,
   // close enough to read as "the same background" while still being a
-  // distinct, defined panel (helped along by the right border below).
-  // Light mode is unaffected — surface-2 there wasn't reported as an issue.
+  // distinct, defined panel. Light mode is unaffected.
   const panelBg = mode === 'dark' ? tokens.nav : tokens['surface-2'];
 
   return (
     <View
       style={[
         styles.panel,
-        { backgroundColor: panelBg, borderRightColor: tokens.border, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA },
+        { backgroundColor: panelBg, paddingTop: 16 + insets.top + ANDROID_TOP_EXTRA },
       ]}
     >
       <View style={styles.brandRow}>
@@ -122,9 +121,15 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: DRAWER_WIDTH,
-    borderRightWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 16,
+    // iOS shadow — cast to the right to mimic the drawer lifting off the content
+    shadowColor: '#000',
+    shadowOffset: { width: 8, height: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    // Android elevation
+    elevation: 12,
   },
   brandRow: {
     flexDirection: 'row',
