@@ -11,6 +11,7 @@ import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
 import Thumbnail from '../components/Thumbnail';
 import TabPills from '../components/TabPills';
+import { ChevronRightIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Tab = 'All' | 'Threads' | 'Comments' | 'Profiles' | 'Media';
@@ -77,7 +78,7 @@ function SectionHeader({ title, onSeeAll }: { title: string; onSeeAll: () => voi
     <View style={styles.sectionHead}>
       <Text style={[styles.sectionTitle, { color: tokens.text }]}>{title}</Text>
       <Pressable onPress={onSeeAll} hitSlop={8}>
-        <Text style={[styles.seeAll, { color: tokens.accent }]}>See all →</Text>
+        <ChevronRightIcon size={16} color={tokens.accent} />
       </Pressable>
     </View>
   );
@@ -153,6 +154,7 @@ function SearchBody() {
   return (
     <ScrollView contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={16}>
       <TabPills tabs={TABS} active={tab} onSelect={t => switchTab(t as Tab)} />
+      <View style={[styles.divider, { backgroundColor: tokens.border }]} />
 
       {loading ? (
         <View style={{ alignItems: 'center', marginTop: 40 }}><Mascot size={32} /></View>
@@ -229,12 +231,12 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingBottom: 110 },
+  divider: { height: StyleSheet.hairlineWidth, marginTop: 8 },
   sectionHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, marginTop: 32, marginBottom: 8,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
-  seeAll: { fontSize: 14 },
   empty: { marginTop: 16, paddingHorizontal: 16 },
   row: { paddingVertical: 12, borderBottomWidth: 1, paddingHorizontal: 16 },
   rowHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
