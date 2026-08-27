@@ -103,16 +103,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     flex: 1,
     gap: 8,
     overflow: 'visible',
   },
   pillInput: {
-    flexShrink: 1,
+    flex: 1,
     minWidth: 0,
     fontSize: 15,
     padding: 0,
+    textAlign: 'center',
   },
   pillDivider: {
     width: 1,
