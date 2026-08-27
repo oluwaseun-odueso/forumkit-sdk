@@ -109,6 +109,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 8,
     overflow: 'visible',
+    marginBottom: 6,
   },
   pillInput: {
     flex: 1,
