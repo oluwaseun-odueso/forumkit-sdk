@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   pillRow: {
-    paddingLeft: 8,
+    paddingLeft: 14,
     paddingRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
