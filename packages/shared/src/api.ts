@@ -2,7 +2,7 @@ import type {
   Thread, VoteCounts, VoteDirection, TopWindow, Comment, CreateThreadBody,
   NotificationListResponse, Draft, DraftContent, UserProfile, NotificationPrefs,
   UserRole, ErrorResponse, UpdateThreadBody, UpdateProfileBody, SearchResponse,
-  SearchResult, UserSearchResult, GifResult, Attachment, AttachmentPurpose,
+  SearchResult, UserSearchResult, CommentSearchResult, GifResult, Attachment, AttachmentPurpose,
   UploadUrlResponse, ProfileActivityScope, ProfileActivitySort,
   ProfileActivityContentType, ProfileActivityItem, ModerationQueueItem,
 } from '@forumkit/types';
@@ -577,6 +577,19 @@ export async function searchThreads(
 }
 
 export type UserSearchListResult = { results: UserSearchResult[]; total: number; page: number; limit: number };
+export type CommentSearchListResult = { results: CommentSearchResult[]; total: number; page: number; limit: number };
+
+export async function searchComments(
+  apiUrl: string,
+  forumId: string,
+  q: string,
+  opts?: SearchOpts,
+  token?: string,
+): Promise<CommentSearchListResult> {
+  const suffix = buildQuery({ q, page: opts?.page, limit: opts?.limit });
+  const res = await fetch(`${apiUrl}/forums/${forumId}/search/comments${suffix}`, { headers: authHeaders(token) });
+  return okJson<CommentSearchListResult>(res);
+}
 
 export async function searchUsers(
   apiUrl: string,
