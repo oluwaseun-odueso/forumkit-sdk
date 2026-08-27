@@ -57,6 +57,7 @@ export {
   GifSearchNotConfiguredError,
   searchGifs,
   searchThreads,
+  searchComments,
   searchUsers,
   listDrafts,
   getDraft,
