@@ -616,7 +616,8 @@ function reducer(state: State, action: Action): State {
         ...state,
         view: 'thread',
         accountMenu: { open: false },
-        thread: { ...state.thread, activePostId: action.postId },
+        thread: { ...state.thread, activePostId: action.postId, commentInput: '' },
+        asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
         history: state.view === 'thread' && state.thread.activePostId === action.postId
           ? state.history
           : [...state.history, buildNavEntry(state, action.fromScrollTop)],
