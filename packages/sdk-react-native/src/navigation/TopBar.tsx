@@ -100,20 +100,19 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   pillRow: {
-    paddingLeft: 14,
-    paddingRight: 10,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
     gap: 8,
     overflow: 'visible',
   },
   pillInput: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     fontSize: 15,
     padding: 0,
-    textAlign: 'left',
   },
   pillDivider: {
     width: 1,
