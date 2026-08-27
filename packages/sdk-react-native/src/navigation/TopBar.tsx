@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Pressable, TextInput, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GlassView } from 'expo-glass-effect';
+import { useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import Mascot from '../components/Mascot';
 import { HamburgerIcon, SearchIcon, CloseIcon, SunIcon, MoonIcon, SparkleIcon } from '../components/icons';
@@ -33,6 +34,8 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch, o
   onAsk?: (() => void) | undefined;
 }) {
   const { tokens, mode, toggleTheme } = useTheme();
+  const route = useRoute();
+  const isSearch = route.name === 'Search';
   // The expanded search pill (mascot + input) is the default look, matching
   // web's always-visible search bar — collapsing to the icon-only row is a
   // user action (the close button below), not the initial state.
@@ -51,7 +54,7 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, onSearch, o
   }
 
   return (
-    <View style={[styles.bar, { borderBottomColor: tokens.border, backgroundColor: tokens.bg }]}>
+    <View style={[styles.bar, { borderBottomColor: tokens.border, backgroundColor: tokens.bg, borderBottomWidth: isSearch ? 0 : 1 }]}>
       <Pressable onPress={onOpenDrawer}>
         {/* Same glass treatment as the bottom bar's active tab (see
             BottomBar.tsx) — real Liquid Glass on iOS 26+, frosted blur
@@ -142,7 +145,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 14,
-    borderBottomWidth: 1,
   },
   hamburgerBtn: {
     width: 32,
