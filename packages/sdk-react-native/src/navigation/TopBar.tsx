@@ -61,7 +61,7 @@ export default function TopBar({ onOpenDrawer, onOpenSearch, onHome, query }: {
               pointerEvents="none"
             />
             <View style={[styles.pillDivider, { backgroundColor: tokens.border }]} />
-            <SparkleIcon size={16} />
+            <SparkleIcon size={18} />
           </View>
         </GradientBorderPill>
       </Pressable>
@@ -110,12 +110,12 @@ const styles = StyleSheet.create({
   pillInput: {
     flex: 1,
     minWidth: 0,
-    fontSize: 13,
+    fontSize: 15,
     padding: 0,
   },
   pillDivider: {
     width: 1,
-    height: 14,
+    height: 17,
     marginHorizontal: 2,
     marginTop: 4,
   },
