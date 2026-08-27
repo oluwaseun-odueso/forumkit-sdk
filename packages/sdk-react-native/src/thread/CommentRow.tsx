@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import RichComposer from '../composer/RichComposer';
 import type { CommentNode } from '@forumkit/shared';
 import type { VoteDirection } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
@@ -77,11 +78,15 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
 
       {editOpen ? (
         <View style={{ marginTop: 8, marginLeft: 32 }}>
-          <TextInput
+          <RichComposer
+            apiUrl={ctx.apiUrl}
+            forumId={ctx.forumId}
+            token={ctx.token}
             value={editBody}
             onChangeText={setEditBody}
-            multiline
-            style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'] }]}
+            attachments={[]}
+            onAttachmentsChange={() => {}}
+            allowMedia={false}
           />
           <View style={styles.editActions}>
             <Pressable onPress={() => { setEditOpen(false); setEditBody(node.body); }} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}>

@@ -29,6 +29,7 @@ import { SelectPill } from '../components/SelectPill';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
 import { SearchIcon, RocketIcon, TopIcon, ControversialIcon, OldIcon, EllipsisIcon, PencilIcon, TrashIcon, SaveIcon, ReportIcon } from '../components/icons';
 import AiRow, { type AiRowHandle } from '../thread/AiRow';
+import RichComposer from '../composer/RichComposer';
 import CommentComposer from '../thread/CommentComposer';
 import CommentRow, { type CommentCtx } from '../thread/CommentRow';
 import UserProfileSheet from '../profile/UserProfileSheet';
@@ -312,7 +313,16 @@ export default function ThreadScreen() {
             {postEditOpen ? (
               <View style={{ marginBottom: 12 }}>
                 <TextInput value={postEditTitle} onChangeText={setPostEditTitle} style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], fontWeight: '700' }]} />
-                <TextInput value={postEditBody} onChangeText={setPostEditBody} multiline style={[styles.editInput, { color: tokens.text, borderColor: tokens['border-strong'], minHeight: 100, marginTop: 8 }]} />
+                <RichComposer
+                  apiUrl={apiUrl}
+                  forumId={forumId}
+                  token={token}
+                  value={postEditBody}
+                  onChangeText={setPostEditBody}
+                  attachments={[]}
+                  onAttachmentsChange={() => {}}
+                  allowMedia={false}
+                />
                 <View style={styles.editActions}>
                   <Pressable onPress={() => setPostEditOpen(false)} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}><Text style={{ color: tokens['text-2'], fontWeight: '700', fontSize: 13 }}>Cancel</Text></Pressable>
                   <Pressable onPress={savePostEdit} style={[styles.smallBtn, { backgroundColor: tokens.accent }]}><Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 13 }}>Save</Text></Pressable>
