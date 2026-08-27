@@ -105,12 +105,15 @@ const styles = StyleSheet.create({
   pillWrap: {
     flex: 1,
     minWidth: 0,
+    alignSelf: 'flex-end',
+    marginBottom: 6,
   },
   pillRow: {
     paddingLeft: 8,
     paddingRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
     gap: 8,
     overflow: 'visible',
@@ -125,7 +128,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   pillInput: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     fontSize: 13,
     padding: 0,
