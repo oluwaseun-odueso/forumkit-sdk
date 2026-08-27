@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   // The hairline border is the full-width rail; the active tab's underline
   // sits flush at bottom: 0 on top of it.
   container: { borderBottomWidth: StyleSheet.hairlineWidth },
-  row: { gap: 18, paddingHorizontal: 16 },
+  row: { gap: 28, paddingHorizontal: 16 },
   tab: { alignItems: 'center', paddingTop: 8, paddingBottom: 0 },
   underline: { height: 3, borderRadius: 2, alignSelf: 'stretch', marginTop: 6 },
 });
