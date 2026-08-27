@@ -83,7 +83,7 @@ export function ChevronLeftIcon({ size = 18, color = '#000' }: IconProps) {
 
 export function ChevronRightIcon({ size = 18, color = '#000' }: IconProps) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M9 6l6 6-6 6" />
     </Svg>
   );
