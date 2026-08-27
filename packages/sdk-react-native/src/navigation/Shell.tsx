@@ -119,6 +119,30 @@ export default function Shell({ children }: { children: ReactNode }) {
     })
   ).current;
 
+  // Edge-swipe-to-open — a 20px strip along the left edge captures rightward
+  // swipes when the drawer is closed, mirroring closeDrawerResponder's logic.
+  const openDrawerResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) =>
+        gesture.dx > 8 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderMove: (_evt, gesture) => {
+        drawerX.value = Math.min(DRAWER_WIDTH, Math.max(0, gesture.dx));
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        const shouldOpen = gesture.dx > DRAWER_WIDTH / 3 || gesture.vx > 0.5;
+        if (shouldOpen) {
+          setDrawerOpen(true);
+          drawerX.value = withTiming(DRAWER_WIDTH, { duration: 200, easing: Easing.out(Easing.cubic) });
+        } else {
+          drawerX.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });
+        }
+      },
+      onPanResponderTerminate: () => {
+        drawerX.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });
+      },
+    })
+  ).current;
+
   // Modal's onRequestClose used to handle the Android hardware back button
   // for free; now that the drawer isn't a Modal, it needs its own listener —
   // only active while open, so back-navigation behaves normally otherwise.
@@ -209,6 +233,9 @@ export default function Shell({ children }: { children: ReactNode }) {
             the drawer is closed, matching how the overlay group below is
             gated. */}
         {drawerOpen && <View style={StyleSheet.absoluteFill} {...closeDrawerResponder.panHandlers} />}
+        {/* 20px left-edge strip — only mounted when closed so it never
+            fights with the full-screen close overlay above. */}
+        {!drawerOpen && <View style={styles.edgeZone} {...openDrawerResponder.panHandlers} />}
       </Animated.View>
 
       {composerOpen && (
@@ -240,5 +267,12 @@ const styles = StyleSheet.create({
   },
   pushed: {
     flex: 1,
+  },
+  edgeZone: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 20,
   },
 });
