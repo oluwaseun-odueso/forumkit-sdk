@@ -1,4 +1,11 @@
 import { Suspense, lazy, useState } from 'react';
+
+function isValidUrl(s: string): boolean {
+  try {
+    const u = new URL(s);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch { return false; }
+}
 import type { ComposerTab } from '../../hooks/use-forum-state';
 import type { useForum } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
@@ -45,6 +52,8 @@ export default function ComposerModal({
 
   const hasTitle = composer.title.trim().length > 0;
   const hasUploadsInFlight = composer.attachments.some(a => a.uploadStatus === 'uploading');
+  const linkTrimmed = composer.linkUrl.trim();
+  const linkUrlValid = linkTrimmed.length === 0 || isValidUrl(linkTrimmed);
   // Mirrors the backend's actual draft requirement (title + body both
   // non-empty, matching thread creation) — not tab-specific, since body is a
   // single field that persists across tab switches.
@@ -54,7 +63,7 @@ export default function ComposerModal({
     !composer.submitting &&
     !hasUploadsInFlight &&
     (composer.activeTab !== 'images' || composer.attachments.length > 0) &&
-    (composer.activeTab !== 'link' || composer.linkUrl.trim().length > 0);
+    (composer.activeTab !== 'link' || isValidUrl(linkTrimmed));
 
   return (
     <div className="fk-composer-modal">
@@ -100,7 +109,7 @@ export default function ComposerModal({
           {composer.genTitle || composer.genTags ? 'Suggesting…' : 'Suggest title & tags'}
         </button>
         {suggestBodyHint && (
-          <span className="fk-composer-suggest-hint">Add some body text first — we need content to suggest from.</span>
+          <span className="fk-composer-suggest-hint">Add some body text first, we need content to suggest from.</span>
         )}
         <span className="fk-composer-counter">{composer.title.length}/300</span>
       </div>
@@ -139,18 +148,24 @@ export default function ComposerModal({
       )}
 
       {composer.activeTab === 'link' && (
-        <div className="fk-composer-title-wrap">
-          <input
-            id="composer-link"
-            className="fk-composer-title-input fk-composer-title-input--light"
-            placeholder=" "
-            value={composer.linkUrl}
-            onChange={e => onSetField('linkUrl', e.target.value)}
-          />
-          <label className="fk-composer-title-label" htmlFor="composer-link">
-            Link URL <span className="fk-composer-required-mark">*</span>
-          </label>
-        </div>
+        <>
+          <div className="fk-composer-title-wrap">
+            <input
+              id="composer-link"
+              className="fk-composer-title-input fk-composer-title-input--light"
+              placeholder=" "
+              type="url"
+              value={composer.linkUrl}
+              onChange={e => onSetField('linkUrl', e.target.value)}
+            />
+            <label className="fk-composer-title-label" htmlFor="composer-link">
+              Link URL <span className="fk-composer-required-mark">*</span>
+            </label>
+          </div>
+          {linkTrimmed.length > 0 && !linkUrlValid && (
+            <p className="fk-composer-link-hint">Enter a valid URL starting with http:// or https://</p>
+          )}
+        </>
       )}
 
       {composer.error && <p className="fk-composer-error">{composer.error}</p>}
