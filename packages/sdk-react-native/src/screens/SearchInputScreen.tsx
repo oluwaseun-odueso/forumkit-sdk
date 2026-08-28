@@ -322,15 +322,15 @@ function SearchBoxGlowBorder() {
             x={0.75} y={0.75}
             width={w - 1.5} height={BOX_H - 1.5}
             rx={BOX_RX} ry={BOX_RX}
-            fill="none" stroke={`url(#${gradId})`} strokeWidth={1}
-            opacity={0.18}
+            fill="none" stroke={`url(#${gradId})`} strokeWidth={1.5}
+            opacity={1}
           />
-          {/* Bright sweep segment */}
+          {/* White highlight sweep */}
           <AnimatedRect
             x={0.75} y={0.75}
             width={w - 1.5} height={BOX_H - 1.5}
             rx={BOX_RX} ry={BOX_RX}
-            fill="none" stroke={`url(#${gradId})`} strokeWidth={1.5}
+            fill="none" stroke="#ffffff" strokeWidth={2.5} opacity={0.55}
             strokeDasharray={`${segLen} ${perim - segLen}`}
             strokeDashoffset={dashOffset}
           />
