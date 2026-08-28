@@ -167,7 +167,7 @@ export default function SearchInputScreen() {
                 <>
                   <Text style={[styles.sectionTitle, { color: tokens['text-2'] }]}>Recent</Text>
                   {history.map(q => (
-                    <View key={q} style={[styles.historyRow, { borderBottomColor: tokens.border }]}>
+                    <View key={q} style={styles.historyRow}>
                       <Pressable style={styles.historyMain} onPress={() => handleHistoryTap(q)}>
                         <ClockIcon size={15} color={tokens.muted} />
                         <Text style={[styles.historyText, { color: tokens['text-2'] }]} numberOfLines={1}>{q}</Text>
@@ -339,7 +339,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   historyMain: {
     flex: 1,
