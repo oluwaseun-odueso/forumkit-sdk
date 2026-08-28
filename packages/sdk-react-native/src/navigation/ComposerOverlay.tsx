@@ -209,7 +209,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
             </Text>
           </Pressable>
           {suggestState === 'no-body' && (
-            <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>Add some body text first — we need content to suggest from.</Text>
+            <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>Add some body text first,  we need content to suggest from.</Text>
           )}
           {suggestState === 'error' && (
             <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>AI feature is not available</Text>
@@ -295,7 +295,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
             <>
               <Field value={linkUrl} onChangeText={setLinkUrl} placeholder="https://example.com" required keyboardType="url" autoCapitalize="none" autoCorrect={false} />
               {linkTrimmed.length > 0 && !linkUrlValid && (
-                <Text style={{ color: tokens.up, fontSize: 12, marginTop: 4, paddingHorizontal: 2 }}>Enter a valid URL starting with http:// or https://</Text>
+                <Text style={{ color: tokens.muted, fontSize: 12, marginTop: 4, paddingHorizontal: 2 }}>Enter a valid URL starting with http:// or https://</Text>
               )}
             </>
           )}
