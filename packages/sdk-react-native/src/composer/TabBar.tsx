@@ -27,7 +27,7 @@ export default function TabBar<T extends string>({ tabs, active, onSelect }: {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 18 },
+  row: { flexDirection: 'row', gap: 50 },
   tab: { alignItems: 'center', paddingVertical: 8 },
   underline: { height: 3, borderRadius: 2, alignSelf: 'stretch', marginTop: 6 },
 });

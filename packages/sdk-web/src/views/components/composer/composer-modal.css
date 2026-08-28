@@ -80,13 +80,13 @@
 
 .fk-composer-tabs {
   display: flex;
-  gap: 4px;
+  gap: 0;
   margin-bottom: 36px;
 }
 
 .fk-composer-tab {
   position: relative;
-  padding: 6px 14px;
+  padding: 6px 22px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
