@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated, View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
+  Animated, Easing, View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
   KeyboardAvoidingView,
 } from 'react-native';
 import Svg, { Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
+
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,27 +64,12 @@ export default function SearchInputScreen() {
   const [liveComments, setLiveComments] = useState<CommentSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     void loadHistory().then(setHistory);
     if (!token) return;
     void listThreads(apiUrl, forumId, token, { sort: 'new', limit: 8 }).then(r => setLatestPosts(r.threads)).catch(() => {});
   }, [apiUrl, forumId, token]);
-
-  useEffect(() => {
-    if (aiMode) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-          Animated.timing(glowAnim, { toValue: 0.3, duration: 900, useNativeDriver: true }),
-        ]),
-      ).start();
-    } else {
-      glowAnim.stopAnimation();
-      glowAnim.setValue(0);
-    }
-  }, [aiMode, glowAnim]);
 
   function handleAskPress() {
     if (!query.trim()) return;
@@ -152,7 +139,7 @@ export default function SearchInputScreen() {
 
       {/* Tall multi-row search box */}
       <View style={[styles.searchBox, { backgroundColor: mode === 'dark' ? tokens.surface : '#dde1e6' }]}>
-        {aiMode && <SearchBoxGlowBorder anim={glowAnim} />}
+        {aiMode && <SearchBoxGlowBorder />}
         {/* Top row: back arrow + text input + clear button */}
         <View style={styles.searchTop}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
@@ -293,17 +280,36 @@ export default function SearchInputScreen() {
 }
 
 let _glowBorderCtr = 0;
-function SearchBoxGlowBorder({ anim }: { anim: Animated.Value }) {
+const BOX_H = 110;
+const BOX_RX = 25.25; // borderRadius 26 - strokeWidth 1.5/2
+
+function SearchBoxGlowBorder() {
   const [w, setW] = useState(0);
+  const dashOffset = useRef(new Animated.Value(0)).current;
   const gradId = useRef(`fkSiGlow${++_glowBorderCtr}`).current;
+
+  useEffect(() => {
+    if (w === 0) return;
+    const perim = 2 * (w - 2 * BOX_RX) + 2 * (BOX_H - 2 * BOX_RX) + 2 * Math.PI * BOX_RX;
+    dashOffset.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(dashOffset, { toValue: -perim, duration: 2200, easing: Easing.linear, useNativeDriver: false }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [w, dashOffset]);
+
+  const perim = w > 0 ? 2 * (w - 2 * BOX_RX) + 2 * (BOX_H - 2 * BOX_RX) + 2 * Math.PI * BOX_RX : 0;
+  const segLen = perim * 0.22;
+
   return (
-    <Animated.View
-      style={[StyleSheet.absoluteFill, { opacity: anim, borderRadius: 26 }]}
+    <View
+      style={[StyleSheet.absoluteFill, { borderRadius: 26 }]}
       pointerEvents="none"
       onLayout={e => setW(e.nativeEvent.layout.width)}
     >
       {w > 0 && (
-        <Svg width={w} height={110} style={StyleSheet.absoluteFill}>
+        <Svg width={w} height={BOX_H} style={StyleSheet.absoluteFill}>
           <Defs>
             <LinearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
               <Stop offset="0" stopColor="#3f7ee2" />
@@ -311,15 +317,26 @@ function SearchBoxGlowBorder({ anim }: { anim: Animated.Value }) {
               <Stop offset="1" stopColor="#37e0e6" />
             </LinearGradient>
           </Defs>
+          {/* Dim base — shows the full border path while the light sweeps */}
           <Rect
             x={0.75} y={0.75}
-            width={w - 1.5} height={108.5}
-            rx={25.25} ry={25.25}
+            width={w - 1.5} height={BOX_H - 1.5}
+            rx={BOX_RX} ry={BOX_RX}
             fill="none" stroke={`url(#${gradId})`} strokeWidth={1.5}
+            opacity={0.25}
+          />
+          {/* Bright sweep segment */}
+          <AnimatedRect
+            x={0.75} y={0.75}
+            width={w - 1.5} height={BOX_H - 1.5}
+            rx={BOX_RX} ry={BOX_RX}
+            fill="none" stroke={`url(#${gradId})`} strokeWidth={2.5}
+            strokeDasharray={`${segLen} ${perim - segLen}`}
+            strokeDashoffset={dashOffset}
           />
         </Svg>
       )}
-    </Animated.View>
+    </View>
   );
 }
 
