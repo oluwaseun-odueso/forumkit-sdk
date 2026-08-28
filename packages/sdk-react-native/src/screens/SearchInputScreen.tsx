@@ -282,8 +282,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingTop: 18,
+    paddingBottom: 16,
   },
   searchTop: {
     flexDirection: 'row',
