@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { ComposerTab } from '../../hooks/use-forum-state';
 import type { useForum } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
@@ -35,6 +35,14 @@ export default function ComposerModal({
   composer, forumId, sessionToken, onClose, onSetTab, onSetField,
   onAddFiles, onRemoveFile, onUpdateMeta, onInlineUpload, onSuggestMeta, onSubmit, onSaveDraft, onOpenDraftsList,
 }: ComposerModalProps) {
+  const [suggestBodyHint, setSuggestBodyHint] = useState(false);
+
+  function handleSuggestMeta() {
+    if (!composer.body.trim()) { setSuggestBodyHint(true); return; }
+    setSuggestBodyHint(false);
+    onSuggestMeta();
+  }
+
   const hasTitle = composer.title.trim().length > 0;
   const hasUploadsInFlight = composer.attachments.some(a => a.uploadStatus === 'uploading');
   // Mirrors the backend's actual draft requirement (title + body both
@@ -87,10 +95,13 @@ export default function ComposerModal({
         </label>
       </div>
       <div className="fk-composer-title-row">
-        <button type="button" className="fk-composer-suggest" onClick={onSuggestMeta} disabled={composer.genTitle || composer.genTags}>
+        <button type="button" className="fk-composer-suggest" onClick={handleSuggestMeta} disabled={composer.genTitle || composer.genTags}>
           <SparkleIcon size={14} />
           {composer.genTitle || composer.genTags ? 'Suggesting…' : 'Suggest title & tags'}
         </button>
+        {suggestBodyHint && (
+          <span className="fk-composer-suggest-hint">Add some body text first — we need content to suggest from.</span>
+        )}
         <span className="fk-composer-counter">{composer.title.length}/300</span>
       </div>
 

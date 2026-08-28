@@ -60,11 +60,12 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
   const [error, setError] = useState<string | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const isUploading = attachments.some(a => a.status === 'uploading');
-  type SuggestState = 'idle' | 'loading' | 'error';
+  type SuggestState = 'idle' | 'loading' | 'error' | 'no-body';
   const [suggestState, setSuggestState] = useState<SuggestState>('idle');
 
   async function handleSuggestMeta() {
     if (suggestState === 'loading' || !token) return;
+    if (!body.trim()) { setSuggestState('no-body'); return; }
     setSuggestState('loading');
     const result = await callSuggestMetadata(apiUrl, forumId, title.trim(), body.trim(), tagNames(), token);
     if (result) {
@@ -207,6 +208,9 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
               {suggestState === 'loading' ? 'Suggesting…' : 'Suggest title & tags'}
             </Text>
           </Pressable>
+          {suggestState === 'no-body' && (
+            <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>Add some body text first — we need content to suggest from.</Text>
+          )}
           {suggestState === 'error' && (
             <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>AI feature is not available</Text>
           )}
