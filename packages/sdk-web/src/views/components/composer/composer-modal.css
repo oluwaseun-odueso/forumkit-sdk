@@ -188,7 +188,7 @@
 
 .fk-composer-suggest-hint {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--up);
 }
 
 .fk-composer-counter {

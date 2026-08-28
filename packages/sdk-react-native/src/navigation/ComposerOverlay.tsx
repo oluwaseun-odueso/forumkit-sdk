@@ -209,7 +209,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
             </Text>
           </Pressable>
           {suggestState === 'no-body' && (
-            <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>Add some body text first — we need content to suggest from.</Text>
+            <Text style={{ color: tokens.up, fontSize: 12, marginTop: -6 }}>Add some body text first, we need content to suggest from.</Text>
           )}
           {suggestState === 'error' && (
             <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>AI feature is not available</Text>
