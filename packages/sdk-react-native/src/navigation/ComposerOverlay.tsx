@@ -16,6 +16,13 @@ import InlineVideoThumb from '../components/InlineVideoThumb';
 
 const ANDROID_TOP_EXTRA = Platform.OS === 'android' ? 12 : 0;
 
+function isValidUrl(s: string): boolean {
+  try {
+    const u = new URL(s);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch { return false; }
+}
+
 type ComposerTab = 'text' | 'images' | 'link';
 const TABS: ReadonlyArray<{ id: ComposerTab; label: string }> = [
   { id: 'text', label: 'Text' },
@@ -70,8 +77,10 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
   }
 
   const hasTitle = title.trim().length > 0;
+  const linkTrimmed = linkUrl.trim();
+  const linkUrlValid = linkTrimmed.length === 0 || isValidUrl(linkTrimmed);
   const canPost = hasTitle && !submitting && !isUploading
-    && (tab === 'link' ? linkUrl.trim().length > 0 : tab === 'images' ? attachments.some(a => a.status === 'uploaded') : true);
+    && (tab === 'link' ? isValidUrl(linkTrimmed) : tab === 'images' ? attachments.some(a => a.status === 'uploaded') : true);
   const canSaveDraft = hasTitle && body.trim().length > 0 && !savingDraft;
 
   function tagNames(): string[] {
@@ -278,7 +287,14 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
               </ScrollView>
             )
           )}
-          {tab === 'link' && <Field value={linkUrl} onChangeText={setLinkUrl} placeholder="Link URL" required />}
+          {tab === 'link' && (
+            <>
+              <Field value={linkUrl} onChangeText={setLinkUrl} placeholder="https://example.com" required keyboardType="url" autoCapitalize="none" autoCorrect={false} />
+              {linkTrimmed.length > 0 && !linkUrlValid && (
+                <Text style={{ color: tokens.up, fontSize: 12, marginTop: 4, paddingHorizontal: 2 }}>Enter a valid URL starting with http:// or https://</Text>
+              )}
+            </>
+          )}
 
           {error && <Text style={{ color: tokens.up, fontSize: 13 }}>{error}</Text>}
 
