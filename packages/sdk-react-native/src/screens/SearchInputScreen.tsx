@@ -293,14 +293,14 @@ function SearchBoxGlowBorder() {
     const perim = 2 * (w - 2 * BOX_RX) + 2 * (BOX_H - 2 * BOX_RX) + 2 * Math.PI * BOX_RX;
     dashOffset.setValue(0);
     const loop = Animated.loop(
-      Animated.timing(dashOffset, { toValue: -perim, duration: 2200, easing: Easing.linear, useNativeDriver: false }),
+      Animated.timing(dashOffset, { toValue: -perim, duration: 3200, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     return () => loop.stop();
   }, [w, dashOffset]);
 
   const perim = w > 0 ? 2 * (w - 2 * BOX_RX) + 2 * (BOX_H - 2 * BOX_RX) + 2 * Math.PI * BOX_RX : 0;
-  const segLen = perim * 0.22;
+  const segLen = perim * 0.16;
 
   return (
     <View
@@ -322,15 +322,15 @@ function SearchBoxGlowBorder() {
             x={0.75} y={0.75}
             width={w - 1.5} height={BOX_H - 1.5}
             rx={BOX_RX} ry={BOX_RX}
-            fill="none" stroke={`url(#${gradId})`} strokeWidth={1.5}
-            opacity={0.25}
+            fill="none" stroke={`url(#${gradId})`} strokeWidth={1}
+            opacity={0.18}
           />
           {/* Bright sweep segment */}
           <AnimatedRect
             x={0.75} y={0.75}
             width={w - 1.5} height={BOX_H - 1.5}
             rx={BOX_RX} ry={BOX_RX}
-            fill="none" stroke={`url(#${gradId})`} strokeWidth={2.5}
+            fill="none" stroke={`url(#${gradId})`} strokeWidth={1.5}
             strokeDasharray={`${segLen} ${perim - segLen}`}
             strokeDashoffset={dashOffset}
           />
