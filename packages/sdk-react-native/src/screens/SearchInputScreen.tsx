@@ -184,7 +184,7 @@ export default function SearchInputScreen() {
                 <Rect
                   x={0.75} y={0.75}
                   width={askPillSize.w - 1.5} height={askPillSize.h - 1.5}
-                  rx={17.25} ry={17.25}
+                  rx={askPillSize.h / 2 - 0.75} ry={askPillSize.h / 2 - 0.75}
                   fill="none" stroke="url(#fkAskPillGrad)" strokeWidth={1.5}
                 />
               </Svg>
