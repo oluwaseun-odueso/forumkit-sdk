@@ -293,7 +293,7 @@ function SearchBoxGlowBorder() {
     const perim = 2 * (w - 2 * BOX_RX) + 2 * (BOX_H - 2 * BOX_RX) + 2 * Math.PI * BOX_RX;
     dashOffset.setValue(0);
     const loop = Animated.loop(
-      Animated.timing(dashOffset, { toValue: -perim, duration: 3200, easing: Easing.linear, useNativeDriver: false }),
+      Animated.timing(dashOffset, { toValue: -perim, duration: 1600, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     return () => loop.stop();
