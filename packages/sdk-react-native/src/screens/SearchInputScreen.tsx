@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
+  Animated, View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
   KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,8 +12,7 @@ import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
 import Mascot from '../components/Mascot';
-import { ChevronLeftIcon, MaterialBackIcon, ChubbyArrowIcon, ClockIcon, SparkleIcon } from '../components/icons';
-import { callGlobalAskHandler } from '../navigation/Shell';
+import { ArrowRightIcon, ChevronRightIcon, ClockIcon, SparkleIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 const HISTORY_KEY = 'fk_search_history';
@@ -46,28 +45,47 @@ async function removeFromHistory(query: string): Promise<string[]> {
 }
 
 export default function SearchInputScreen() {
-  const { tokens } = useTheme();
+  const { tokens, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const session = useSession();
   const { apiUrl, forumId } = session;
   const token = session.status === 'ready' ? session.sessionToken : undefined;
 
-  const BackIcon = Platform.OS === 'ios' ? ChevronLeftIcon : MaterialBackIcon;
-
   const [query, setQuery] = useState('');
+  const [aiMode, setAiMode] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [latestPosts, setLatestPosts] = useState<Thread[]>([]);
   const [liveThreads, setLiveThreads] = useState<SearchResult[]>([]);
   const [liveComments, setLiveComments] = useState<CommentSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     void loadHistory().then(setHistory);
     if (!token) return;
     void listThreads(apiUrl, forumId, token, { sort: 'new', limit: 8 }).then(r => setLatestPosts(r.threads)).catch(() => {});
   }, [apiUrl, forumId, token]);
+
+  useEffect(() => {
+    if (aiMode) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0.3, duration: 900, useNativeDriver: false }),
+        ]),
+      ).start();
+    } else {
+      glowAnim.stopAnimation();
+      glowAnim.setValue(0);
+    }
+  }, [aiMode, glowAnim]);
+
+  function handleAskPress() {
+    if (!query.trim()) return;
+    setAiMode(prev => !prev);
+  }
 
   const runLiveSearch = useCallback((q: string) => {
     if (!token || !q.trim()) { setLiveThreads([]); setLiveComments([]); return; }
@@ -85,13 +103,24 @@ export default function SearchInputScreen() {
   function handleQueryChange(text: string) {
     setQuery(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!text.trim()) { setLiveThreads([]); setLiveComments([]); return; }
+    if (!text.trim()) { setLiveThreads([]); setLiveComments([]); setAiMode(false); return; }
     debounceRef.current = setTimeout(() => runLiveSearch(text), DEBOUNCE_MS);
+  }
+
+  function clearQuery() {
+    setQuery('');
+    setAiMode(false);
+    setLiveThreads([]);
+    setLiveComments([]);
   }
 
   function submit(q: string) {
     const trimmed = q.trim();
     if (!trimmed) return;
+    if (aiMode) {
+      navigation.navigate('AskResult', { query: trimmed });
+      return;
+    }
     void saveHistory(trimmed);
     navigation.navigate('Search', { query: trimmed });
   }
@@ -120,11 +149,22 @@ export default function SearchInputScreen() {
       <View style={{ height: insets.top + ANDROID_TOP_EXTRA }} />
 
       {/* Tall multi-row search box */}
-      <View style={[styles.searchBox, { backgroundColor: tokens['surface-2'], borderColor: tokens.border }]}>
-        {/* Top row: back arrow + text input */}
+      <Animated.View style={[styles.searchBox, {
+        backgroundColor: mode === 'dark' ? tokens.surface : '#dde1e6',
+        borderWidth: aiMode ? 1.5 : 0,
+        borderColor: tokens.accent,
+        shadowColor: tokens.accent,
+        shadowOffset: { width: 0, height: 0 },
+        shadowRadius: 10,
+        shadowOpacity: aiMode ? glowAnim : 0,
+        elevation: aiMode ? 8 : 0,
+      }]}>
+        {/* Top row: back arrow + text input + clear button */}
         <View style={styles.searchTop}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-            <BackIcon size={20} color={tokens.text} />
+            <View style={{ transform: [{ scaleX: -1 }] }}>
+              <ArrowRightIcon size={20} color={tokens.text} />
+            </View>
           </Pressable>
           <TextInput
             value={query}
@@ -136,27 +176,41 @@ export default function SearchInputScreen() {
             placeholderTextColor={tokens.faint}
             style={[styles.searchInput, { color: tokens.text }]}
           />
+          {query.length > 0 && (
+            <Pressable onPress={clearQuery} hitSlop={8}>
+              <Text style={[styles.clearBtn, { color: tokens.muted }]}>✕</Text>
+            </Pressable>
+          )}
         </View>
 
-        {/* Bottom row: Ask pill (left) + submit button (right) */}
+        {/* Bottom row: Ask pill + optional hint + submit button */}
         <View style={styles.searchBottom}>
           <Pressable
-            style={[styles.askPill, { borderColor: tokens.border }]}
-            onPress={() => callGlobalAskHandler()}
+            style={[styles.askPill, {
+              backgroundColor: aiMode ? tokens.accent + '22' : tokens['surface-2'],
+              borderWidth: aiMode ? 1.5 : 0,
+              borderColor: aiMode ? tokens.accent : 'transparent',
+            }]}
+            onPress={handleAskPress}
             hitSlop={6}
           >
             <SparkleIcon size={14} />
-            <Text style={[styles.askLabel, { color: tokens['text-2'] }]}>Ask</Text>
+            <Text style={[styles.askLabel, { color: aiMode ? tokens.accent : tokens['text-2'] }]}>Ask</Text>
           </Pressable>
+          {aiMode && (
+            <Text style={[styles.askHint, { color: tokens.muted }]} numberOfLines={1}>
+              summarise the top conversations
+            </Text>
+          )}
           <Pressable
             style={[styles.submitBtn, { backgroundColor: tokens.accent, opacity: canSubmit ? 1 : 0.35 }]}
             onPress={() => submit(query)}
             hitSlop={6}
           >
-            <ChubbyArrowIcon size={18} color="#fff" />
+            <ChevronRightIcon size={18} color="#fff" />
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
@@ -280,10 +334,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginTop: 10,
     borderRadius: 26,
-    borderWidth: 1,
     paddingHorizontal: 14,
     paddingTop: 18,
     paddingBottom: 16,
+    height: 110,
+    justifyContent: 'space-between',
   },
   searchTop: {
     flexDirection: 'row',
@@ -308,16 +363,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 18,
-    borderWidth: 1,
   },
   askLabel: {
     fontSize: 13,
     fontWeight: '600',
   },
+  askHint: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    marginHorizontal: 8,
+  },
+  clearBtn: {
+    fontSize: 14,
+    paddingHorizontal: 2,
+  },
   submitBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
