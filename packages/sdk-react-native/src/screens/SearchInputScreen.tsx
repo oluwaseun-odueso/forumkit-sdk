@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   searchBox: {
     marginHorizontal: 14,
     marginTop: 10,
-    borderRadius: 18,
+    borderRadius: 26,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingTop: 18,
