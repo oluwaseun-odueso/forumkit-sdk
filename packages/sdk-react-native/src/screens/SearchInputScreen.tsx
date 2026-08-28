@@ -152,8 +152,8 @@ export default function SearchInputScreen() {
       <Animated.View style={[styles.searchBox, {
         backgroundColor: mode === 'dark' ? tokens.surface : '#dde1e6',
         borderWidth: aiMode ? 1.5 : 0,
-        borderColor: tokens.accent,
-        shadowColor: tokens.accent,
+        borderColor: '#7b5cff',
+        shadowColor: '#7b5cff',
         shadowOffset: { width: 0, height: 0 },
         shadowRadius: 10,
         shadowOpacity: aiMode ? glowAnim : 0,
@@ -187,15 +187,15 @@ export default function SearchInputScreen() {
         <View style={styles.searchBottom}>
           <Pressable
             style={[styles.askPill, {
-              backgroundColor: aiMode ? tokens.accent + '22' : tokens['surface-2'],
+              backgroundColor: aiMode ? '#7b5cff22' : tokens['surface-2'],
               borderWidth: aiMode ? 1.5 : 0,
-              borderColor: aiMode ? tokens.accent : 'transparent',
+              borderColor: aiMode ? '#7b5cff' : 'transparent',
             }]}
             onPress={handleAskPress}
             hitSlop={6}
           >
             <SparkleIcon size={14} />
-            <Text style={[styles.askLabel, { color: aiMode ? tokens.accent : tokens['text-2'] }]}>Ask</Text>
+            <Text style={[styles.askLabel, { color: aiMode ? '#7b5cff' : tokens['text-2'] }]}>Ask</Text>
           </Pressable>
           {aiMode && (
             <Text style={[styles.askHint, { color: tokens.muted }]} numberOfLines={1}>

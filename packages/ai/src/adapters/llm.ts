@@ -12,9 +12,49 @@ async function safeLLMCall(
   llmFn: LLMFn,
 ): Promise<string | null> {
   try {
-    return await llmFn(systemPrompt, userPrompt);
+    const raw = await llmFn(systemPrompt, userPrompt);
+    return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
   } catch (err) {
     console.error('[ai/llm] LLM call failed:', err);
+    return null;
+  }
+}
+
+export type AskBullet   = { fact: string; quote: string; sourceIndex: number };
+export type AskCategory = { title: string; bullets: AskBullet[] };
+export type AskAnswer   = { intro: string; categories: AskCategory[] };
+
+/**
+ * Summarises search results into categorised bullet points, each attributed
+ * to a specific source thread by 0-based index. Returns null on LLM failure.
+ */
+export async function askSearchQuestion(
+  question: string,
+  context: Array<{ title: string; bodySnippet: string }>,
+  llmFn: LLMFn,
+): Promise<AskAnswer | null> {
+  const systemPrompt = [
+    'You are a helpful assistant that summarises forum discussions.',
+    'Return ONLY valid JSON matching this exact schema:',
+    '{"intro":string,"categories":[{"title":string,"bullets":[{"fact":string,"quote":string,"sourceIndex":number}]}]}.',
+    '"intro" is a one-sentence general summary.',
+    '"categories" are 2-4 thematic groupings you derive from the content',
+    '(e.g. "What people say about X today", "Why users think Y", "Signs that Z").',
+    '"fact" is the key insight for that bullet (1 sentence).',
+    '"quote" is a short direct quote or paraphrase from that thread.',
+    '"sourceIndex" is the 0-based index of the thread the bullet came from.',
+    'Each category should have 1-3 bullets. No markdown outside the JSON.',
+  ].join(' ');
+  const contextText = context
+    .map((c, i) => `[${i}] "${c.title}": ${c.bodySnippet}`)
+    .join('\n\n');
+  const userPrompt = `Search query: "${question}"\n\nThreads (0-indexed):\n${contextText}`;
+  const raw = await safeLLMCall(systemPrompt, userPrompt, llmFn);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AskAnswer;
+  } catch {
+    console.error('[ai/llm] Failed to parse askSearchQuestion JSON:', raw);
     return null;
   }
 }
