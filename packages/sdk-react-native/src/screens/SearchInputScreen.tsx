@@ -3,6 +3,7 @@ import {
   Animated, View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import Svg, { Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -54,6 +55,7 @@ export default function SearchInputScreen() {
 
   const [query, setQuery] = useState('');
   const [aiMode, setAiMode] = useState(false);
+  const [askPillSize, setAskPillSize] = useState({ w: 0, h: 0 });
   const [history, setHistory] = useState<string[]>([]);
   const [latestPosts, setLatestPosts] = useState<Thread[]>([]);
   const [liveThreads, setLiveThreads] = useState<SearchResult[]>([]);
@@ -72,8 +74,8 @@ export default function SearchInputScreen() {
     if (aiMode) {
       Animated.loop(
         Animated.sequence([
-          Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: false }),
-          Animated.timing(glowAnim, { toValue: 0.3, duration: 900, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(glowAnim, { toValue: 0.3, duration: 900, useNativeDriver: true }),
         ]),
       ).start();
     } else {
@@ -149,16 +151,8 @@ export default function SearchInputScreen() {
       <View style={{ height: insets.top + ANDROID_TOP_EXTRA }} />
 
       {/* Tall multi-row search box */}
-      <Animated.View style={[styles.searchBox, {
-        backgroundColor: mode === 'dark' ? tokens.surface : '#dde1e6',
-        borderWidth: aiMode ? 1.5 : 0,
-        borderColor: '#7b5cff',
-        shadowColor: '#7b5cff',
-        shadowOffset: { width: 0, height: 0 },
-        shadowRadius: 10,
-        shadowOpacity: aiMode ? glowAnim : 0,
-        elevation: aiMode ? 8 : 0,
-      }]}>
+      <View style={[styles.searchBox, { backgroundColor: mode === 'dark' ? tokens.surface : '#dde1e6' }]}>
+        {aiMode && <SearchBoxGlowBorder anim={glowAnim} />}
         {/* Top row: back arrow + text input + clear button */}
         <View style={styles.searchTop}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
@@ -186,14 +180,28 @@ export default function SearchInputScreen() {
         {/* Bottom row: Ask pill + optional hint + submit button */}
         <View style={styles.searchBottom}>
           <Pressable
-            style={[styles.askPill, {
-              backgroundColor: aiMode ? '#7b5cff22' : tokens['surface-2'],
-              borderWidth: aiMode ? 1.5 : 0,
-              borderColor: aiMode ? '#7b5cff' : 'transparent',
-            }]}
+            style={[styles.askPill, { backgroundColor: aiMode ? '#7b5cff11' : tokens['surface-2'] }]}
             onPress={handleAskPress}
             hitSlop={6}
+            onLayout={e => setAskPillSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
           >
+            {aiMode && askPillSize.w > 0 && (
+              <Svg width={askPillSize.w} height={askPillSize.h} style={StyleSheet.absoluteFill}>
+                <Defs>
+                  <LinearGradient id="fkAskPillGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <Stop offset="0" stopColor="#3f7ee2" />
+                    <Stop offset="0.55" stopColor="#7b5cff" />
+                    <Stop offset="1" stopColor="#37e0e6" />
+                  </LinearGradient>
+                </Defs>
+                <Rect
+                  x={0.75} y={0.75}
+                  width={askPillSize.w - 1.5} height={askPillSize.h - 1.5}
+                  rx={17.25} ry={17.25}
+                  fill="none" stroke="url(#fkAskPillGrad)" strokeWidth={1.5}
+                />
+              </Svg>
+            )}
             <SparkleIcon size={14} />
             <Text style={[styles.askLabel, { color: aiMode ? '#7b5cff' : tokens['text-2'] }]}>Ask</Text>
           </Pressable>
@@ -210,7 +218,7 @@ export default function SearchInputScreen() {
             <ChevronRightIcon size={18} color="#fff" />
           </Pressable>
         </View>
-      </Animated.View>
+      </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
@@ -281,6 +289,37 @@ export default function SearchInputScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
+  );
+}
+
+let _glowBorderCtr = 0;
+function SearchBoxGlowBorder({ anim }: { anim: Animated.Value }) {
+  const [w, setW] = useState(0);
+  const gradId = useRef(`fkSiGlow${++_glowBorderCtr}`).current;
+  return (
+    <Animated.View
+      style={[StyleSheet.absoluteFill, { opacity: anim, borderRadius: 26 }]}
+      pointerEvents="none"
+      onLayout={e => setW(e.nativeEvent.layout.width)}
+    >
+      {w > 0 && (
+        <Svg width={w} height={110} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <LinearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+              <Stop offset="0" stopColor="#3f7ee2" />
+              <Stop offset="0.55" stopColor="#7b5cff" />
+              <Stop offset="1" stopColor="#37e0e6" />
+            </LinearGradient>
+          </Defs>
+          <Rect
+            x={0.75} y={0.75}
+            width={w - 1.5} height={108.5}
+            rx={25.25} ry={25.25}
+            fill="none" stroke={`url(#${gradId})`} strokeWidth={1.5}
+          />
+        </Svg>
+      )}
+    </Animated.View>
   );
 }
 
