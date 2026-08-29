@@ -2,20 +2,20 @@
 
 An open-source, self-hostable, embeddable discussion system with AI-augmented content intelligence.
 
-ForumKit is a **library**, not a platform. Drop it into any existing web or mobile application via a single SDK initialisation. It inherits your application's user authentication, adapts to your visual design, and provides four AI-powered features out of the box.
+ForumKit is a **library**, not a platform. Drop it into any existing web or mobile application via a single SDK initialisation. It inherits your application's user authentication, adapts to your visual design, and provides four AI-powered features — moderation and search need a cloud API key to actually do anything; see [AI Configuration](#ai-configuration).
 
 ---
 
 ## Features
 
 - **Embeddable** — Web Component + React/Vue wrappers. Integrates in minutes.
-- **Self-hostable** — Single Docker Compose command. No cloud account required.
+- **Self-hostable** — Single Docker Compose command for the core forum (posts, threads, auth). No cloud account required for that — AI features are the exception, see below.
 - **Identity-delegating** — Trusts your app's JWT. No separate login for users.
 - **White-label** — CSS design-token theming. Matches any brand.
-- **AI moderation** — Content scored for toxicity before publishing.
-- **Semantic search** — Natural language search via text embeddings.
-- **Duplicate detection** — Surfaces similar threads as users type.
-- **AI assistant** — `@ai summarise` and `@ai suggest` in-thread commands.
+- **AI moderation** — Content scored for toxicity before publishing via Google's Perspective API. Without `PERSPECTIVE_API_KEY` configured, every post publishes unscored rather than being blocked — there's currently no local/offline model behind this.
+- **Semantic search** — Natural language search via OpenAI text embeddings. Without `OPENAI_API_KEY` configured, search silently falls back to keyword-only matching — same caveat, no local/offline model currently.
+- **Duplicate detection** — On a thread's own page: a passive "similar threads" rail, plus an on-demand "surface related threads" action in the AI assistant panel. Not live suggestions while composing a new post.
+- **AI assistant** — Streaming **Summarise**/**Suggest reply** buttons in-thread, and a separate **Ask AI** mode (web search bar / mobile search screen) that answers questions from across the forum's content — streamed, with cited source threads, related media, follow-up questions, and suggested next questions. Needs one LLM key: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY`.
 
 ---
 
@@ -40,6 +40,33 @@ npm run db:seed
 ```
 
 The API is now running at `http://localhost:3000`.
+
+---
+
+## AI Configuration
+
+All four AI features are optional — the core forum runs fully without any of these keys, with every AI feature simply no-opping rather than erroring. But unlike the LLM-backed features, moderation and search currently have **no local/offline fallback model** — without a key, they silently degrade (see the Features list above) rather than actually running locally, despite `.env.example`'s `local` option still being present for forward-compatibility.
+
+```bash
+# LLM — only Summarise/Suggest/Ask AI need this; moderation and search
+# are configured separately below. Pick one key:
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+OPENROUTER_API_KEY=
+AI_PROVIDER=openrouter       # openai | anthropic | openrouter — which key above is used
+AI_MODEL=                    # Summarise/Suggest model; provider-specific default if unset
+AI_ASK_MODEL=                # a cheaper/faster model just for Ask AI; defaults to a smaller
+                              # model than AI_MODEL if unset
+
+# Moderation — omit to publish everything unscored, not blocked
+MODERATION_PROVIDER=perspective
+PERSPECTIVE_API_KEY=
+
+# Semantic search — omit to fall back to keyword-only search
+EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=              # reused from above if already set for the LLM
+EMBEDDING_DIMENSION=1536
+```
 
 ---
 
