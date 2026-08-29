@@ -228,7 +228,7 @@ function AiButton({ label, onPress, active }: { label: string; onPress: () => vo
     <GradientBorderPill height={34} borderWidth={1.3} style={{ flex: 1 }}>
       <Pressable
         onPress={onPress}
-        style={[styles.aiBtn, { borderRadius: 17, overflow: 'hidden' }, active && { backgroundColor: tokens['surface-2'] }]}
+        style={[styles.aiBtn, { borderRadius: 17, overflow: 'hidden', backgroundColor: active ? tokens['hover-2'] : tokens['surface-2'] }]}
       >
         <SparkleIcon size={14} />
         <Text style={[styles.aiBtnLabel, { color: tokens.text }]}>{label}</Text>
