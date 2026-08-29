@@ -708,6 +708,66 @@ export async function askQuestionStreaming(
   }
 }
 
+// ── Thread AI (summarise + suggest reply streaming) ────────────────────────
+
+export type SummariseStreamEvent =
+  | { type: 'keyPoint'; text: string }
+  | { type: 'conclusion'; text: string }
+  | { type: 'openQuestion'; text: string }
+  | { type: 'error'; message: string };
+
+export type SuggestStreamEvent =
+  | { type: 'chunk'; text: string }
+  | { type: 'meta'; confidence: string; caveats: string[] }
+  | { type: 'error'; message: string };
+
+async function readSSEStream<T>(res: Response, onEvent: (event: T) => void): Promise<void> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') return;
+      try { onEvent(JSON.parse(data) as T); } catch { /* malformed line */ }
+    }
+  }
+}
+
+export async function summariseStreaming(
+  apiUrl: string,
+  threadId: string,
+  token: string | undefined,
+  onEvent: (event: SummariseStreamEvent) => void,
+): Promise<void> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/ai/summarise/stream`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await readSSEStream(res, onEvent);
+}
+
+export async function suggestStreaming(
+  apiUrl: string,
+  threadId: string,
+  token: string | undefined,
+  onEvent: (event: SuggestStreamEvent) => void,
+): Promise<void> {
+  const res = await fetch(`${apiUrl}/threads/${threadId}/ai/suggest/stream`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  await readSSEStream(res, onEvent);
+}
+
 // ── Moderation (admin/moderator only; not forum-scoped in the URL — the
 // backend derives the forum from the authenticated session) ──────────
 

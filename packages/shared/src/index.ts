@@ -67,6 +67,8 @@ export {
   resolveModerationItem,
   askQuestion,
   askQuestionStreaming,
+  summariseStreaming,
+  suggestStreaming,
 } from './api';
 export type {
   CreateSessionResult,
@@ -86,4 +88,6 @@ export type {
   AskAnswer,
   AskQuestionResult,
   AskStreamEvent,
+  SummariseStreamEvent,
+  SuggestStreamEvent,
 } from './api';
