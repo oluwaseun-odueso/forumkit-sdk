@@ -22,11 +22,12 @@ async function safeLLMCall(
 
 export type AskBullet   = { fact: string; quote: string; sourceIndex: number };
 export type AskCategory = { title: string; bullets: AskBullet[] };
-export type AskAnswer   = { intro: string; categories: AskCategory[] };
+export type AskAnswer   = { intro: string; categories: AskCategory[]; suggestions: string[] };
 
 export type AskStreamEvent =
   | { type: 'intro'; text: string }
   | { type: 'category'; title: string; bullets: AskBullet[] }
+  | { type: 'suggestions'; prompts: string[] }
   | { type: 'error'; message: string };
 
 /**
@@ -80,7 +81,10 @@ export async function askSearchQuestionStream(
     'Line 1: {"type":"intro","text":"<one-sentence summary of the overall discussion>"}',
     'Lines 2-N (2 to 4 lines): {"type":"category","title":"<thematic heading>","bullets":[{"fact":"<key insight>","quote":"<short direct quote or paraphrase>","sourceIndex":<0-based thread index>}]}',
     'Each category should have 1-3 bullets. sourceIndex is the 0-based index of the source thread.',
-    'Output exactly 2-4 category lines. No markdown, no explanation, no prose outside the JSON.',
+    'Output exactly 2-4 category lines.',
+    'Final line: {"type":"suggestions","prompts":["<follow-up question 1>","<follow-up question 2>","<follow-up question 3>"]}',
+    'These are 2-3 short follow-up questions a user might ask next, grounded in what was discussed. Keep each under 60 characters.',
+    'No markdown, no explanation, no prose outside the JSON.',
   ].join(' ');
 
   const contextText = context
