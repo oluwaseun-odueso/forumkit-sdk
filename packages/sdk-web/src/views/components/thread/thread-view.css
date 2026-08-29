@@ -185,3 +185,8 @@
   background: var(--hover-1);
   color: var(--text);
 }
+
+.fk-ai-copy-btn--copied {
+  color: var(--accent);
+  border-color: var(--accent);
+}

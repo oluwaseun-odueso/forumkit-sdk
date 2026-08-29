@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Share } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { GradientBorderPill } from '../components/Pill';
-import { SparkleIcon, CloseIcon, CopyIcon } from '../components/icons';
+import { SparkleIcon, CloseIcon, CopyIcon, CheckIcon } from '../components/icons';
 import { checkAiAvailable, callSummariseStreaming, callSuggestStreaming } from './api-ai';
 
 // RowState drives the outer sparkle toggle:
@@ -34,6 +34,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestState, setSuggestState] = useState<PanelState>('idle');
   const [suggestText, setSuggestText] = useState<string>('');
+  const [suggestCopied, setSuggestCopied] = useState(false);
 
   // Reset all state when the thread changes so no AI content from a previous
   // thread bleeds through (defensive — React Navigation remounts ThreadScreen
@@ -46,6 +47,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
     setSuggestOpen(false);
     setSuggestState('idle');
     setSuggestText('');
+    setSuggestCopied(false);
   }, [threadId]);
 
   const openWithAvailability = async () => {
@@ -201,10 +203,16 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
                     <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>{suggestText}</Text>
                     {suggestState === 'done' && (
                       <Pressable
-                        style={[styles.copyBtn, { borderColor: tokens.border, backgroundColor: tokens.surface }]}
-                        onPress={() => void Share.share({ message: suggestText })}
+                        style={[styles.copyBtn, { borderColor: suggestCopied ? tokens.accent : tokens.border, backgroundColor: tokens.surface }]}
+                        onPress={() => {
+                          void Share.share({ message: suggestText });
+                          setSuggestCopied(true);
+                          setTimeout(() => setSuggestCopied(false), 1500);
+                        }}
                       >
-                        <CopyIcon size={15} color={tokens['text-2']} />
+                        {suggestCopied
+                          ? <CheckIcon size={15} color={tokens.accent} />
+                          : <CopyIcon size={15} color={tokens['text-2']} />}
                       </Pressable>
                     )}
                   </View>

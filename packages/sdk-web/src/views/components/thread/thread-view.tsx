@@ -9,7 +9,7 @@ import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
-import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon, EllipsisIcon, TrashIcon, CopyIcon } from '../shared/icons';
+import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon, EllipsisIcon, TrashIcon, CopyIcon, CheckIcon } from '../shared/icons';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import ConfirmDialog from '../shared/confirm-dialog';
 import { useShare } from '../../hooks/use-share';
@@ -37,6 +37,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const [aiPanel, setAiPanel] = useState<'summary' | 'reply' | null>(null);
   const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false);
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
+  const [suggestCopied, setSuggestCopied] = useState(false);
 
   const [postEditOpen, setPostEditOpen] = useState(false);
   const [postEditTitle, setPostEditTitle] = useState('');
@@ -262,11 +263,15 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
                     <p className="fk-ai-suggest-text">{state.asst.suggestedText}</p>
                     <button
                       type="button"
-                      className="fk-ai-copy-btn"
-                      onClick={() => void navigator.clipboard.writeText(state.asst.suggestedText!)}
-                      title="Copy"
+                      className={`fk-ai-copy-btn${suggestCopied ? ' fk-ai-copy-btn--copied' : ''}`}
+                      title={suggestCopied ? 'Copied!' : 'Copy'}
+                      onClick={() => {
+                        void navigator.clipboard.writeText(state.asst.suggestedText!);
+                        setSuggestCopied(true);
+                        setTimeout(() => setSuggestCopied(false), 1500);
+                      }}
                     >
-                      <CopyIcon size={14} />
+                      {suggestCopied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
                     </button>
                   </div>
                 )
