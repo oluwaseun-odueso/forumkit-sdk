@@ -1,7 +1,10 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { authenticate } from '../middleware/auth';
 import { tryConsumeAiLimit } from '../lib/ai-rate-limit';
+import { getCachedAsk, setCachedAsk } from '../lib/ask-cache';
 import * as aiService from '../services/ai';
+import * as searchService from '../services/search';
+import { askSearchQuestion, askSearchQuestionStream } from '@forumkit/ai';
 import type { AICommandError } from '../services/ai';
 
 export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
@@ -64,6 +67,152 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get('/:forumId/ai/available', { preHandler: authenticate }, async (request, reply) => {
     return reply.send({ available: request.server.ai.llm !== null });
+  });
+
+  /**
+   * POST /forums/:forumId/ai/ask
+   * Runs a forum search for the query, feeds the top results to the LLM, and
+   * returns a categorised summary with each bullet attributed to a source thread.
+   * Authenticated; shares the existing 50-req/hr rate-limit bucket.
+   */
+  app.post('/:forumId/ai/ask', { preHandler: authenticate }, async (request, reply) => {
+    const { forumId } = request.params as { forumId: string };
+    const payload = request.jwtPayload;
+
+    if (forumId !== payload.forumId) {
+      return reply.status(403).send({ error: 'forbidden', message: 'Forum ID does not match session', statusCode: 403 });
+    }
+
+    const rateLimitKey = `ai:${payload.sub}:${forumId}`;
+    if (!tryConsumeAiLimit(rateLimitKey)) {
+      return reply.status(429).send({ error: 'rate_limit_exceeded', message: "You've reached the AI limit for this hour. Please try again later.", statusCode: 429 });
+    }
+
+    const { askLlm, embed } = request.server.ai;
+    if (!askLlm) {
+      return reply.status(503).send({ error: 'ai_not_configured', message: 'No AI provider is configured for this deployment', statusCode: 503 });
+    }
+
+    const reqBody = request.body as { q?: string };
+    const q = typeof reqBody.q === 'string' ? reqBody.q.trim() : '';
+    if (!q || q.length > 500) {
+      return reply.status(400).send({ error: 'invalid_query', message: 'q must be 1–500 characters', statusCode: 400 });
+    }
+
+    // Cache check — skip search + LLM if we already have a fresh answer.
+    const cached = getCachedAsk(forumId, q);
+    if (cached) return reply.status(200).send(cached);
+
+    const { results } = await searchService.searchThreads(
+      request.server.db,
+      request.server.config.publicApiUrl,
+      forumId,
+      q,
+      { page: 1, limit: 8 },
+      embed,
+    );
+    const sources = results.slice(0, 6);
+    const context = sources.map(r => ({ title: r.title, bodySnippet: r.bodySnippet }));
+
+    const answer = await askSearchQuestion(q, context, askLlm);
+    if (!answer) {
+      return reply.status(503).send({ error: 'ai_unavailable', message: 'Could not generate summary', statusCode: 503 });
+    }
+
+    setCachedAsk(forumId, q, { answer, sources });
+    return reply.status(200).send({ answer, sources });
+  });
+
+  /**
+   * POST /forums/:forumId/ai/ask/stream
+   * Same as /ask but streams the LLM response as Server-Sent Events (SSE).
+   * Events: sources → intro → category×N → [DONE]
+   */
+  app.post('/:forumId/ai/ask/stream', { preHandler: authenticate }, async (request, reply) => {
+    const { forumId } = request.params as { forumId: string };
+    const payload = request.jwtPayload;
+
+    if (forumId !== payload.forumId) {
+      return reply.status(403).send({ error: 'forbidden', message: 'Forum ID does not match session', statusCode: 403 });
+    }
+
+    const rateLimitKey = `ai:${payload.sub}:${forumId}`;
+    if (!tryConsumeAiLimit(rateLimitKey)) {
+      return reply.status(429).send({ error: 'rate_limit_exceeded', message: "You've reached the AI limit for this hour. Please try again later.", statusCode: 429 });
+    }
+
+    const { askLlmStream, embed } = request.server.ai;
+    if (!askLlmStream) {
+      return reply.status(503).send({ error: 'ai_not_configured', message: 'No AI provider is configured for this deployment', statusCode: 503 });
+    }
+
+    const reqBody = request.body as { q?: string };
+    const q = typeof reqBody.q === 'string' ? reqBody.q.trim() : '';
+    if (!q || q.length > 500) {
+      return reply.status(400).send({ error: 'invalid_query', message: 'q must be 1–500 characters', statusCode: 400 });
+    }
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+
+    const sendSSE = (data: object) => {
+      reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Cache hit — replay stored events and close.
+    const cached = getCachedAsk(forumId, q);
+    if (cached) {
+      sendSSE({ type: 'sources', sources: cached.sources });
+      sendSSE({ type: 'intro', text: cached.answer.intro });
+      for (const cat of cached.answer.categories) {
+        sendSSE({ type: 'category', title: cat.title, bullets: cat.bullets });
+      }
+      reply.raw.write('data: [DONE]\n\n');
+      reply.raw.end();
+      return reply;
+    }
+
+    // Search
+    const { results } = await searchService.searchThreads(
+      request.server.db,
+      request.server.config.publicApiUrl,
+      forumId,
+      q,
+      { page: 1, limit: 8 },
+      embed,
+    );
+    const sources = results.slice(0, 6);
+    sendSSE({ type: 'sources', sources });
+
+    // Stream LLM response — accumulate events to populate cache afterward.
+    const accumulatedCategories: { title: string; bullets: { fact: string; quote: string; sourceIndex: number }[] }[] = [];
+    let intro = '';
+
+    const context = sources.map(r => ({ title: r.title, bodySnippet: r.bodySnippet }));
+    try {
+      await askSearchQuestionStream(q, context, askLlmStream, (event) => {
+        sendSSE(event);
+        if (event.type === 'intro') intro = event.text;
+        if (event.type === 'category') accumulatedCategories.push(event);
+      });
+    } catch (err) {
+      sendSSE({ type: 'error', message: 'Could not generate summary' });
+      request.log.error({ err }, '[ai/ask/stream] LLM stream failed');
+    }
+
+    if (intro) {
+      setCachedAsk(forumId, q, {
+        answer: { intro, categories: accumulatedCategories },
+        sources,
+      });
+    }
+
+    reply.raw.write('data: [DONE]\n\n');
+    reply.raw.end();
+    return reply;
   });
 }
 

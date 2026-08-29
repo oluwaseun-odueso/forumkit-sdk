@@ -1,4 +1,4 @@
-import type { LLMFn } from '../index';
+import type { LLMFn, LLMStreamFn } from '../index';
 import type { AISummary, AISuggestion } from '@forumkit/types';
 
 /**
@@ -23,6 +23,11 @@ async function safeLLMCall(
 export type AskBullet   = { fact: string; quote: string; sourceIndex: number };
 export type AskCategory = { title: string; bullets: AskBullet[] };
 export type AskAnswer   = { intro: string; categories: AskCategory[] };
+
+export type AskStreamEvent =
+  | { type: 'intro'; text: string }
+  | { type: 'category'; title: string; bullets: AskBullet[] }
+  | { type: 'error'; message: string };
 
 /**
  * Summarises search results into categorised bullet points, each attributed
@@ -56,6 +61,51 @@ export async function askSearchQuestion(
   } catch {
     console.error('[ai/llm] Failed to parse askSearchQuestion JSON:', raw);
     return null;
+  }
+}
+
+/**
+ * Streams a categorised answer from the LLM as NDJSON events.
+ * Calls onEvent once per parsed line; ignores malformed lines.
+ */
+export async function askSearchQuestionStream(
+  question: string,
+  context: Array<{ title: string; bodySnippet: string }>,
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: AskStreamEvent) => void,
+): Promise<void> {
+  const systemPrompt = [
+    'You are a helpful assistant that summarises forum discussions.',
+    'Output ONLY newline-delimited JSON. Each line must be a complete JSON object. No other text.',
+    'Line 1: {"type":"intro","text":"<one-sentence summary of the overall discussion>"}',
+    'Lines 2-N (2 to 4 lines): {"type":"category","title":"<thematic heading>","bullets":[{"fact":"<key insight>","quote":"<short direct quote or paraphrase>","sourceIndex":<0-based thread index>}]}',
+    'Each category should have 1-3 bullets. sourceIndex is the 0-based index of the source thread.',
+    'Output exactly 2-4 category lines. No markdown, no explanation, no prose outside the JSON.',
+  ].join(' ');
+
+  const contextText = context
+    .map((c, i) => `[${i}] "${c.title}": ${c.bodySnippet}`)
+    .join('\n\n');
+  const userPrompt = `Search query: "${question}"\n\nThreads (0-indexed):\n${contextText}`;
+
+  let buffer = '';
+  await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        onEvent(JSON.parse(trimmed) as AskStreamEvent);
+      } catch { /* malformed line — skip */ }
+    }
+  });
+  // Flush anything remaining in the buffer after the stream ends.
+  if (buffer.trim()) {
+    try {
+      onEvent(JSON.parse(buffer.trim()) as AskStreamEvent);
+    } catch { /* ignore */ }
   }
 }
 
