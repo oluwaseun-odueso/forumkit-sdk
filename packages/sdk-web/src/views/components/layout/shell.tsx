@@ -8,6 +8,7 @@ type ShellProps = {
   children: ReactNode;
   rail?: ReactNode;
   onAsk?: () => void;
+  askActive?: boolean;
   compactSearch?: boolean;
   scrollMain?: boolean;
   scopeTag?: string;
@@ -25,7 +26,7 @@ type ShellProps = {
  * right rail. Routes only supply their own center content (and rail).
  */
 export default function Shell({
-  children, rail, onAsk, compactSearch, scrollMain = true, scopeTag, mainAlign = 'center',
+  children, rail, onAsk, askActive, compactSearch, scrollMain = true, scopeTag, mainAlign = 'center',
 }: ShellProps) {
   const {
     state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
@@ -60,6 +61,7 @@ export default function Shell({
         onOpenNotifications={() => setView('notifications')}
         unreadCount={state.notifications.unreadCount}
         onAsk={onAsk}
+        askActive={askActive}
         compact={compactSearch}
         scopeTag={scopeTag}
         avatarUrl={state.profile.avatarUrl}

@@ -6,10 +6,11 @@ import Avatar from '../components/shared/avatar';
 import RenderedBody from '../components/shared/rendered-body';
 import MascotIcon from '../components/layout/mascot-icon';
 import PillButton from '../components/shared/pill-button';
-import { ChevronLeftIcon, UpvoteIcon, DownvoteIcon } from '../components/shared/icons';
+import { ChevronLeftIcon, UpvoteIcon, DownvoteIcon, ClockIcon } from '../components/shared/icons';
 import { fmtRelativeTime } from '../lib/format-time';
 import { authorAvatar } from '../lib/author-avatar';
 import { searchThreads, searchComments, searchUsers } from '../api/search';
+import { loadSearchHistory, removeFromSearchHistory } from '../components/layout/search-results-dropdown';
 import { useForum } from '../hooks/use-forum-state';
 import { useInfiniteScroll } from '../hooks/use-infinite-scroll';
 // Reuses the top-nav dropdown's row/status classes (fk-search-dropdown-row
@@ -261,11 +262,13 @@ function PersonRow({ result, onOpen }: { result: UserSearchResult; onOpen: () =>
  */
 export function SearchResults() {
   const {
-    state, openSearchResultsSection, openThread, openUserProfile, goBack,
+    state, openSearchResultsSection, openThread, openUserProfile, goBack, openSearchResults, openAsk,
     forumId: fid, sessionToken: token,
   } = useForum();
   const query = state.search.resultsQuery;
   const section = state.search.resultsSection as Section;
+
+  const [searchHistory, setSearchHistory] = useState<string[]>(() => loadSearchHistory());
 
   const [threads, setThreads] = useState<{ items: SearchResult[]; total: number; loading: boolean }>({ items: [], total: 0, loading: false });
   const [comments, setComments] = useState<{ items: CommentSearchResult[]; total: number; loading: boolean }>({ items: [], total: 0, loading: false });
@@ -327,7 +330,7 @@ export function SearchResults() {
   const mediaItems = threads.items.filter(r => r.imageUrl);
 
   return (
-    <Shell>
+    <Shell onAsk={query ? () => openAsk(query) : undefined}>
       {/* fk-profile is the existing "narrow centered content column" layout
           already used by the Profile route, widened here via
           fk-search-results-wide's own max-width override — this page has
@@ -339,6 +342,24 @@ export function SearchResults() {
       <div className="fk-profile fk-search-results-wide">
         {state.history.length > 0 && (
           <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
+        )}
+
+        {!query && searchHistory.length > 0 && (
+          <div>
+            <div className="fk-profile-filter-row"><div className="fk-profile-filter-label">Recent</div></div>
+            {searchHistory.map(q => (
+              <div key={q} className="fk-search-dropdown-history-row">
+                <button type="button" className="fk-search-dropdown-history-main" onClick={() => openSearchResults(q)}>
+                  <ClockIcon size={14} />{q}
+                </button>
+                <button
+                  type="button"
+                  className="fk-search-dropdown-history-clear"
+                  onClick={() => setSearchHistory(removeFromSearchHistory(q))}
+                >×</button>
+              </div>
+            ))}
+          </div>
         )}
 
         <div className="fk-profile-tabs fk-search-results-tabs">

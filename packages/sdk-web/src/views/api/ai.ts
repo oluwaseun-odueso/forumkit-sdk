@@ -1,4 +1,6 @@
 import type { AISuggestion, SimilarThread } from '@forumkit/types';
+import { askQuestionStreaming } from '@forumkit/shared';
+export type { AskStreamEvent } from '@forumkit/shared';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -55,6 +57,16 @@ export async function callSurfaceRelated(threadId: string, token?: string): Prom
 }
 
 export type SuggestMetadataResult = { title: string | null; tags: string[] };
+
+export async function callAskStreaming(
+  forumId: string,
+  q: string,
+  token: string | undefined,
+  onEvent: Parameters<typeof askQuestionStreaming>[4],
+): Promise<void> {
+  if (!token) throw new Error('Not authenticated');
+  await askQuestionStreaming(API_BASE, forumId, q, token, onEvent);
+}
 
 export async function callSuggestMetadata(
   forumId: string,

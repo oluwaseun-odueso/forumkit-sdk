@@ -24,7 +24,7 @@ export function loadSearchHistory(): string[] {
   } catch { return []; }
 }
 
-function removeFromSearchHistory(query: string): string[] {
+export function removeFromSearchHistory(query: string): string[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
     const current: string[] = raw ? JSON.parse(raw) : [];

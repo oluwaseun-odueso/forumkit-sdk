@@ -18,6 +18,7 @@ type TopNavProps = {
   onOpenNotifications: () => void;
   unreadCount: number;
   onAsk?: (() => void) | undefined;
+  askActive?: boolean | undefined;
   compact?: boolean | undefined;
   scopeTag?: string | undefined;
   avatarUrl: string | null;
@@ -40,7 +41,7 @@ type TopNavProps = {
 
 /** The 56px top bar: mascot+wordmark, search pill (with AI ask icon inside), theme toggle, and account menu. Shared across every route. */
 export default function TopNav({
-  onHome, onOpenComposer, onViewProfile, onOpenNotifications, unreadCount, onAsk, compact, scopeTag, avatarUrl, displayName,
+  onHome, onOpenComposer, onViewProfile, onOpenNotifications, unreadCount, onAsk, askActive, compact, scopeTag, avatarUrl, displayName,
   searchQuery, onSearchChange, searchOpen, searchLoading, searchResults,
   onCloseSearchDropdown, onSelectSearchResult, onSubmitSearch, theme, onToggleTheme,
   latestPosts, featuredPosts, onOpenPost,
@@ -67,7 +68,7 @@ export default function TopNav({
       </button>
 
       <div className="fk-topnav-search-wrap">
-        <div className={`fk-topnav-search${compact ? ' fk-topnav-search--compact' : ''}`}>
+        <div className={`fk-topnav-search${compact ? ' fk-topnav-search--compact' : ''}${askActive ? ' fk-topnav-search--ask-active' : ''}`}>
           <SearchIcon size={compact ? 18 : 20} />
           {showTag && (
             <span className="fk-topnav-scope-tag">

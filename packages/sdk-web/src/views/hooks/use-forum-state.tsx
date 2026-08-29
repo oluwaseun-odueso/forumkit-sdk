@@ -38,7 +38,7 @@ import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search' | 'notifications' | 'moderation';
+export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search' | 'notifications' | 'moderation' | 'ask';
 export type FeedView = 'card' | 'compact';
 export type FeedSort = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
 export type FeedScope = 'home' | 'popular' | 'news';
@@ -215,6 +215,7 @@ type State = {
   shareModal: { open: boolean; threadId: string | null };
   reportModal: { open: boolean; target: ReportTarget | null };
   notificationSettingsModal: { open: boolean };
+  ask: { query: string };
   history: NavEntry[];
   // Set by GO_BACK to the scroll position the previous page was at; Shell
   // applies it to the scrollable main column then clears it via
@@ -331,6 +332,7 @@ type Action =
   | { type: 'SET_VIEWED_PROFILE_TAB'; tab: string }
   | { type: 'SET_VIEWED_PROFILE_SORT'; sort: ProfileActivitySort }
   | { type: 'SET_VIEWED_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
+  | { type: 'OPEN_ASK'; query: string; fromScrollTop: number }
   | { type: 'ASST_SUMMARIZING' }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
   | { type: 'ASST_SUGGEST'; text: string }
@@ -567,6 +569,7 @@ const initialState: State = {
   viewedProfile: null,
   settings: { open: false },
   draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
+  ask: { query: '' },
   search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
   notifications: { unreadCount: 0 },
   shareModal: { open: false, threadId: null },
@@ -968,6 +971,15 @@ function reducer(state: State, action: Action): State {
         view: 'search',
         search: { ...state.search, open: false, resultsQuery: action.query, resultsSection: 'all' },
         history: [...state.history, buildNavEntry(state, action.fromScrollTop)],
+      };
+    case 'OPEN_ASK':
+      return {
+        ...state,
+        view: 'ask',
+        ask: { query: action.query },
+        search: { ...state.search, open: false },
+        history: [...state.history, buildNavEntry(state, action.fromScrollTop)],
+        pendingScrollTop: 0,
       };
     // "Show all →" on a section, or GO_BACK returning into one — pushes
     // history too so the back button can step from a drilled-into section
@@ -1530,6 +1542,10 @@ function useForumStateInternal() {
   );
   const openSearchResultsSection = useCallback(
     (section: SearchState['resultsSection']) => dispatch({ type: 'SET_SEARCH_RESULTS_SECTION', section, fromScrollTop: scrollTopRef.current }),
+    [],
+  );
+  const openAsk = useCallback(
+    (query: string) => dispatch({ type: 'OPEN_ASK', query, fromScrollTop: scrollTopRef.current }),
     [],
   );
 
@@ -2158,6 +2174,7 @@ function useForumStateInternal() {
     closeSearchDropdown,
     openSearchResults,
     openSearchResultsSection,
+    openAsk,
     setProfileTab,
     setProfileSort,
     setProfileContentType,
