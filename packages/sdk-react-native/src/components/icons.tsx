@@ -253,6 +253,15 @@ export function TrashIcon({ size = 18, color = '#000' }: IconProps) {
   );
 }
 
+export function CopyIcon({ size = 16, color = '#000' }: IconProps) {
+  return (
+    <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={1.7}>
+      <Rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <Path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </Svg>
+  );
+}
+
 export function CheckIcon({ size = 18, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={2.5}>
@@ -500,6 +509,14 @@ export function ChubbyArrowIcon({ size = 20, color = '#000' }: IconProps) {
   return (
     <Svg width={size} height={size} {...strokeBase} stroke={color} strokeWidth={2.8}>
       <Path d="M5 12h14M13 6l6 6-6 6" />
+    </Svg>
+  );
+}
+
+export function CursorIcon({ size = 20, color = '#fff' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M6 2L6 18L9.5 14L12.5 21L14.5 20L11.5 14H17L6 2Z" transform="rotate(-90 12 12)" />
     </Svg>
   );
 }

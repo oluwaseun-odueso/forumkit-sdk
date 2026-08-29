@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator, Share } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { GradientBorderPill } from '../components/Pill';
-import { SparkleIcon, CloseIcon } from '../components/icons';
+import { SparkleIcon, CloseIcon, CopyIcon } from '../components/icons';
 import { checkAiAvailable, callSummariseStreaming, callSuggestStreaming } from './api-ai';
 
 // RowState drives the outer sparkle toggle:
@@ -178,7 +178,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
 
               {summaryOpen && (
                 summaryState === 'loading' ? (
-                  <ActivityIndicator size="small" color={tokens.accent} style={{ marginTop: 4 }} />
+                  <Text style={[styles.panelBody, { color: tokens.muted }]}>Summarising…</Text>
                 ) : summaryState === 'error' ? (
                   <Text style={[styles.panelBody, { color: tokens.muted }]}>AI service unavailable</Text>
                 ) : (
@@ -204,12 +204,12 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
                         style={[styles.copyBtn, { borderColor: tokens.border, backgroundColor: tokens.surface }]}
                         onPress={() => void Share.share({ message: suggestText })}
                       >
-                        <Text style={[styles.copyBtnLabel, { color: tokens.text }]}>Copy</Text>
+                        <CopyIcon size={15} color={tokens['text-2']} />
                       </Pressable>
                     )}
                   </View>
                 ) : (
-                  <ActivityIndicator size="small" color={tokens.accent} style={{ marginTop: 4 }} />
+                  <Text style={[styles.panelBody, { color: tokens.muted }]}>Generating suggestion…</Text>
                 )
               )}
             </View>
@@ -258,10 +258,11 @@ const styles = StyleSheet.create({
   copyBtn: {
     alignSelf: 'flex-start',
     marginTop: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 14,
+    width: 30,
+    height: 30,
     borderRadius: 100,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  copyBtnLabel: { fontSize: 13, fontWeight: '500' },
 });

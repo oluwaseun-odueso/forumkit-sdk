@@ -9,7 +9,7 @@ import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
-import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon, EllipsisIcon, TrashIcon } from '../shared/icons';
+import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon, EllipsisIcon, TrashIcon, CopyIcon } from '../shared/icons';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import ConfirmDialog from '../shared/confirm-dialog';
 import { useShare } from '../../hooks/use-share';
@@ -264,8 +264,9 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
                       type="button"
                       className="fk-ai-copy-btn"
                       onClick={() => void navigator.clipboard.writeText(state.asst.suggestedText!)}
+                      title="Copy"
                     >
-                      Copy
+                      <CopyIcon size={14} />
                     </button>
                   </div>
                 )
