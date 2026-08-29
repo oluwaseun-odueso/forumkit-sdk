@@ -18,6 +18,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 type PartialAnswer = {
   intro: string;
   categories: { title: string; bullets: { fact: string; quote: string; sourceIndex: number }[] }[];
+  suggestions: string[];
 };
 
 type Turn = {
@@ -55,10 +56,11 @@ export default function AskResultScreen() {
             return { ...t, sources: event.sources };
           }
           if (event.type === 'intro') {
-            return { ...t, answer: { intro: event.text, categories: t.answer?.categories ?? [] } };
+            const existing = t.answer ?? { intro: '', categories: [], suggestions: [] };
+            return { ...t, answer: { ...existing, intro: event.text } };
           }
           if (event.type === 'category') {
-            const existing = t.answer ?? { intro: '', categories: [] };
+            const existing = t.answer ?? { intro: '', categories: [], suggestions: [] };
             return {
               ...t,
               answer: {
@@ -66,6 +68,10 @@ export default function AskResultScreen() {
                 categories: [...existing.categories, { title: event.title, bullets: event.bullets }],
               },
             };
+          }
+          if (event.type === 'suggestions') {
+            const existing = t.answer ?? { intro: '', categories: [], suggestions: [] };
+            return { ...t, answer: { ...existing, suggestions: event.prompts } };
           }
           if (event.type === 'error') {
             return { ...t, error: event.message, loading: false };
@@ -96,6 +102,10 @@ export default function AskResultScreen() {
     void ask(q);
   }
 
+  function handleSuggest(p: string) {
+    void ask(p);
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: tokens.bg }]}>
       <View style={{ height: insets.top + (Platform.OS === 'android' ? 12 : 0) }} />
@@ -123,6 +133,7 @@ export default function AskResultScreen() {
               tokens={tokens}
               onSourcesPress={() => setSheetTurn(turn)}
               onThreadPress={threadId => navigation.navigate('Thread', { threadId })}
+              onSuggest={handleSuggest}
             />
           ))}
         </ScrollView>
@@ -198,12 +209,13 @@ export default function AskResultScreen() {
 type Tokens = ReturnType<typeof useTheme>['tokens'];
 
 function TurnView({
-  turn, tokens, onSourcesPress, onThreadPress,
+  turn, tokens, onSourcesPress, onThreadPress, onSuggest,
 }: {
   turn: Turn;
   tokens: Tokens;
   onSourcesPress: () => void;
   onThreadPress: (id: string) => void;
+  onSuggest: (p: string) => void;
 }) {
   const mediaSources = turn.sources.filter(s => s.imageUrl);
 
@@ -302,6 +314,21 @@ function TurnView({
               <Text style={[styles.disclaimer, { color: tokens.muted }]}>
                 Responses are AI-generated from threads and comments and may not be accurate.
               </Text>
+            )}
+
+            {/* Suggestion chips */}
+            {!turn.loading && (turn.answer?.suggestions.length ?? 0) > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestionRow}>
+                {turn.answer!.suggestions.map((p, i) => (
+                  <Pressable
+                    key={i}
+                    style={[styles.suggestionChip, { borderColor: tokens.accent }]}
+                    onPress={() => onSuggest(p)}
+                  >
+                    <Text style={[styles.suggestionText, { color: tokens.accent }]}>{p}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             )}
           </View>
         )}
@@ -592,5 +619,22 @@ const styles = StyleSheet.create({
   sourceCardMeta: {
     fontSize: 12,
     lineHeight: 17,
+  },
+
+  suggestionRow: {
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  suggestionChip: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginRight: 8,
+    backgroundColor: 'transparent',
+  },
+  suggestionText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

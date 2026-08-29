@@ -99,6 +99,7 @@ function SearchBody() {
   const [comments, setComments] = useState<CommentSearchResult[]>([]);
   const [users, setUsers] = useState<UserSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [querySuggestion, setQuerySuggestion] = useState<{ query: string | null; isRelated: boolean }>({ query: null, isRelated: false });
 
   // Load preview results for all tabs simultaneously on mount / query change
   useEffect(() => {
@@ -106,6 +107,7 @@ function SearchBody() {
     let cancelled = false;
     setLoading(true);
     setTab('All');
+    setQuerySuggestion({ query: null, isRelated: false });
     Promise.all([
       searchThreads(apiUrl, forumId, query, { limit: PREVIEW_LIMIT }, token),
       searchComments(apiUrl, forumId, query, { limit: PREVIEW_LIMIT }, token),
@@ -115,6 +117,7 @@ function SearchBody() {
       setThreads(t.results);
       setComments(c.results);
       setUsers(u.results);
+      setQuerySuggestion({ query: t.suggestedQuery, isRelated: t.isRelated });
     }).catch(() => {
       if (!cancelled) { setThreads([]); setComments([]); setUsers([]); }
     }).finally(() => { if (!cancelled) setLoading(false); });
@@ -153,6 +156,33 @@ function SearchBody() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={16}>
+      {querySuggestion.isRelated && querySuggestion.query && (
+        <Pressable
+          style={styles.suggestionBanner}
+          onPress={() => navigation.navigate('Search', { query: querySuggestion.query! })}
+        >
+          <Text style={[styles.suggestionBannerText, { color: tokens['text-2'] }]}>
+            {'No results for "'}
+            <Text style={{ fontWeight: '700' }}>{query}</Text>
+            {'". Showing related results for '}
+            <Text style={{ color: tokens.accent, fontWeight: '500' }}>{querySuggestion.query}</Text>
+          </Text>
+        </Pressable>
+      )}
+
+      {!querySuggestion.isRelated && querySuggestion.query && querySuggestion.query.toLowerCase() !== query.toLowerCase() && (
+        <Pressable
+          style={styles.suggestionBanner}
+          onPress={() => navigation.navigate('Search', { query: querySuggestion.query! })}
+        >
+          <Text style={[styles.suggestionBannerText, { color: tokens['text-2'] }]}>
+            {'Did you mean: '}
+            <Text style={{ color: tokens.accent, fontWeight: '500' }}>{querySuggestion.query}</Text>
+            {'?'}
+          </Text>
+        </Pressable>
+      )}
+
       <TabPills tabs={TABS} active={tab} onSelect={t => switchTab(t as Tab)} />
 
       {loading ? (
@@ -247,4 +277,6 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12, marginTop: 6 },
   mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingHorizontal: 16, marginTop: 8 },
   mediaCell: { width: '48.5%' },
+  suggestionBanner: { paddingHorizontal: 16, paddingVertical: 8 },
+  suggestionBannerText: { fontSize: 13, lineHeight: 18 },
 });
