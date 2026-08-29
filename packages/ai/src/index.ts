@@ -27,6 +27,7 @@ export type AIAdapters = {
   embed: EmbedFn;
   moderate: ModerateFn;
   llm: LLMFn | null;
+  llmStream: LLMStreamFn | null;
   askLlm: LLMFn | null;
   askLlmStream: LLMStreamFn | null;
 };
@@ -51,9 +52,10 @@ export async function buildAdapters(config: AdapterConfig): Promise<AIAdapters> 
   const embed = await buildEmbedAdapter(config);
   const moderate = await buildModerationAdapter(config);
   const llm = await buildLLMAdapter(config);
+  const llmStream = await buildLLMStreamAdapter(config);
   const askLlm = await buildAskLLMAdapter(config);
   const askLlmStream = await buildAskLLMStreamAdapter(config);
-  return { embed, moderate, llm, askLlm, askLlmStream };
+  return { embed, moderate, llm, llmStream, askLlm, askLlmStream };
 }
 
 async function buildEmbedAdapter(config: AdapterConfig): Promise<EmbedFn> {
@@ -88,6 +90,23 @@ async function buildLLMAdapter(config: AdapterConfig): Promise<LLMFn | null> {
   if (config.aiProvider === 'openrouter' && config.openrouterApiKey) {
     const { openrouterLLM } = await import('./providers/openrouter-llm.js');
     return openrouterLLM(config.openrouterApiKey, model ?? 'anthropic/claude-sonnet-4-5');
+  }
+  return null;
+}
+
+async function buildLLMStreamAdapter(config: AdapterConfig): Promise<LLMStreamFn | null> {
+  const model = config.aiModel;
+  if (config.aiProvider === 'anthropic' && config.anthropicApiKey) {
+    const { buildAnthropicStreamFn } = await import('./providers/anthropic.js');
+    return buildAnthropicStreamFn(config.anthropicApiKey, model ?? 'claude-sonnet-4-5');
+  }
+  if (config.aiProvider === 'openai' && config.openaiApiKey) {
+    const { buildOpenAIStreamFn } = await import('./providers/openai-llm.js');
+    return buildOpenAIStreamFn(config.openaiApiKey, model ?? 'gpt-4o-mini');
+  }
+  if (config.aiProvider === 'openrouter' && config.openrouterApiKey) {
+    const { buildOpenRouterStreamFn } = await import('./providers/openrouter-llm.js');
+    return buildOpenRouterStreamFn(config.openrouterApiKey, model ?? 'anthropic/claude-sonnet-4-5');
   }
   return null;
 }

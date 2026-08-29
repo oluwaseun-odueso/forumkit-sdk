@@ -178,6 +178,17 @@ export async function suggestTitle(
   return safeLLMCall(systemPrompt, userPrompt, llmFn);
 }
 
+export type SummariseStreamEvent =
+  | { type: 'keyPoint'; text: string }
+  | { type: 'conclusion'; text: string }
+  | { type: 'openQuestion'; text: string }
+  | { type: 'error'; message: string };
+
+export type SuggestStreamEvent =
+  | { type: 'chunk'; text: string }
+  | { type: 'meta'; confidence: string; caveats: string[] }
+  | { type: 'error'; message: string };
+
 /**
  * Summarises a forum thread.
  * Returns null if the LLM is unavailable.
@@ -246,5 +257,105 @@ export async function suggestAnswer(
   } catch {
     console.error('[ai/llm] Failed to parse suggestion JSON:', raw);
     return null;
+  }
+}
+
+/**
+ * Streams a thread summary as NDJSON events via LLMStreamFn.
+ * Emits keyPoint / conclusion / openQuestion events as they are generated.
+ */
+export async function summariseThreadStream(
+  threadTitle: string,
+  posts: string[],
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: SummariseStreamEvent) => void,
+): Promise<void> {
+  const systemPrompt = [
+    'You are a helpful assistant that summarises forum thread discussions.',
+    'Output ONLY newline-delimited JSON. Each line must be a complete, valid JSON object. No other text.',
+    'Lines 1-5: {"type":"keyPoint","text":"<one key insight from the discussion>"}',
+    'Output 2-5 keyPoint lines depending on the content depth.',
+    'Next line: {"type":"conclusion","text":"<overall conclusion or takeaway>"}',
+    'Optional lines (0-2): {"type":"openQuestion","text":"<unanswered question raised by the discussion>"}',
+    'No markdown, no explanation, no prose outside the JSON lines.',
+  ].join(' ');
+
+  const userPrompt = [
+    `Thread title: ${threadTitle}`,
+    `Posts:\n${posts.map((p, i) => `[${i + 1}] ${p}`).join('\n')}`,
+    'Summarise the discussion using the NDJSON format above.',
+  ].join('\n');
+
+  let buffer = '';
+  await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        onEvent(JSON.parse(trimmed) as SummariseStreamEvent);
+      } catch { /* malformed line — skip */ }
+    }
+  });
+  if (buffer.trim()) {
+    try {
+      onEvent(JSON.parse(buffer.trim()) as SummariseStreamEvent);
+    } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Streams a suggested reply as NDJSON chunk events via LLMStreamFn.
+ * Emits chunk events for progressive text display, then a meta event at the end.
+ */
+export async function suggestAnswerStream(
+  threadTitle: string,
+  posts: string[],
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: SuggestStreamEvent) => void,
+): Promise<void> {
+  const systemPrompt = [
+    'You are a knowledgeable forum member writing a genuine reply to a discussion.',
+    'Write in a natural, conversational tone — the way a real person would write, not an AI assistant.',
+    'Be direct and specific. Avoid filler phrases like "Great question!", "Certainly!", or "I hope this helps".',
+    'Do not use em dashes (—) or en dashes (–) or double hyphens (--); use commas, conjunctions, or separate sentences instead.',
+    'Output ONLY newline-delimited JSON. Each line must be a complete, valid JSON object. No other text.',
+    'Lines 1-N: {"type":"chunk","text":"<1-2 sentences of the reply>"}',
+    'Split the reply into 1-2 sentence chunks — emit one chunk line per 1-2 sentences.',
+    'Final line: {"type":"meta","confidence":"high"|"medium"|"low","caveats":["<caveat if any>"]}',
+    'Use an empty caveats array if there are none. No markdown, no prose outside the JSON.',
+  ].join(' ');
+
+  const userPrompt = [
+    `Thread title: ${threadTitle}`,
+    `Posts:\n${posts.map((p, i) => `[${i + 1}] ${p}`).join('\n')}`,
+    'Write a helpful reply using the NDJSON chunk format above.',
+  ].join('\n');
+
+  let buffer = '';
+  await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const event = JSON.parse(trimmed) as SuggestStreamEvent;
+        if (event.type === 'chunk') {
+          event.text = event.text
+            .replace(/\s*--\s*/g, ', ')
+            .replace(/[–—]/g, ',');
+        }
+        onEvent(event);
+      } catch { /* malformed line — skip */ }
+    }
+  });
+  if (buffer.trim()) {
+    try {
+      onEvent(JSON.parse(buffer.trim()) as SuggestStreamEvent);
+    } catch { /* ignore */ }
   }
 }
