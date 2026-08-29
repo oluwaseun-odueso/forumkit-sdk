@@ -1,18 +1,13 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { View, Pressable, StyleSheet, type ViewStyle, type LayoutChangeEvent } from 'react-native';
+import { View, Pressable, PixelRatio, StyleSheet, type ViewStyle, type LayoutChangeEvent } from 'react-native';
 import Svg, { Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeContext';
 
 let gradIdCounter = 0;
 
-// The brand AI gradient border — web achieves this with a double-background
-// padding-box/border-box trick (README §1); RN has no such trick, so this
-// draws the rounded-rect outline as a stroked SVG path with a linear
-// gradient. `width` is optional: pass it for a fixed-size pill, or omit it
-// to have the pill fill its flex parent and measure itself via onLayout —
-// a fixed width doesn't account for how much room siblings (e.g. the top
-// bar's other buttons) leave on a given screen, which was clipping the
-// search pill on narrower phones.
+// The brand AI gradient border. Uses PixelRatio.roundToNearestPixel on the
+// onLayout width so the SVG viewport matches the physical pixel grid exactly
+// and the right-edge stroke never clips on high-DPI screens.
 export function GradientBorderPill({
   width, height, borderWidth = 1.4, radius, filled = false, children, style,
 }: {
@@ -31,9 +26,13 @@ export function GradientBorderPill({
   const r = radius ?? height / 2;
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const w = width ?? measuredWidth;
+  // inset by 1 extra logical pixel so the stroke never kisses the SVG boundary
+  const inset = borderWidth / 2 + 0.5;
 
   function handleLayout(e: LayoutChangeEvent) {
-    if (width == null) setMeasuredWidth(e.nativeEvent.layout.width);
+    if (width == null) {
+      setMeasuredWidth(PixelRatio.roundToNearestPixel(e.nativeEvent.layout.width));
+    }
   }
 
   return (
@@ -53,14 +52,14 @@ export function GradientBorderPill({
             </LinearGradient>
           </Defs>
           <Rect
-            x={borderWidth / 2} y={borderWidth / 2}
-            width={w - borderWidth} height={height - borderWidth}
+            x={inset} y={inset}
+            width={w - inset * 2} height={height - inset * 2}
             rx={r} ry={r}
             fill={filled ? `url(#${fillId})` : 'none'}
           />
           <Rect
-            x={borderWidth / 2} y={borderWidth / 2}
-            width={w - borderWidth} height={height - borderWidth}
+            x={inset} y={inset}
+            width={w - inset * 2} height={height - inset * 2}
             rx={r} ry={r}
             fill="none" stroke={`url(#${id})`} strokeWidth={borderWidth}
           />
