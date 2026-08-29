@@ -175,7 +175,7 @@
   height: 30px;
   border-radius: 100px;
   border: 1px solid var(--border);
-  background: var(--surface-1);
+  background: var(--surface);
   color: var(--text-2);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
