@@ -90,7 +90,7 @@ async function hydrateImages<T extends { threadId: string }>(
   }));
 }
 
-export async function searchThreads(
+async function runThreadSearch(
   db: DB,
   publicApiUrl: string,
   forumId: string,
@@ -100,9 +100,6 @@ export async function searchThreads(
 ): Promise<{ results: SearchResult[]; total: number; mode: SearchMode }> {
   const vector = await embedOne(query, embedFn);
   const fetchOpts = overfetchOpts(opts);
-
-  // Keyword+fuzzy always runs — it's cheap (a single indexed query) and is
-  // the only source at all when embedding generation fails.
   const keywordPromise = searchRepo.keywordSearch(db, publicApiUrl, forumId, query, fetchOpts);
 
   if (!vector || vector.length === 0) {
@@ -112,9 +109,6 @@ export async function searchThreads(
     return { results: await hydrateImages(db, publicApiUrl, forumId, page), total, mode: 'keyword' };
   }
 
-  // Both run concurrently — semantic search is a separate query, not a
-  // dependency of the keyword one, so there's no reason to wait on one
-  // before starting the other.
   const [semantic, keyword] = await Promise.all([
     searchRepo.semanticSearch(db, publicApiUrl, forumId, vector, fetchOpts),
     keywordPromise,
@@ -124,7 +118,28 @@ export async function searchThreads(
   return { results: await hydrateImages(db, publicApiUrl, forumId, results), total, mode: 'hybrid' };
 }
 
-export async function searchComments(
+export async function searchThreads(
+  db: DB,
+  publicApiUrl: string,
+  forumId: string,
+  query: string,
+  opts: SearchOpts,
+  embedFn: EmbedFn,
+): Promise<{ results: SearchResult[]; total: number; mode: SearchMode; suggestedQuery: string | null; isRelated: boolean }> {
+  const [primary, suggestedQuery] = await Promise.all([
+    runThreadSearch(db, publicApiUrl, forumId, query, opts, embedFn),
+    searchRepo.findSuggestedQuery(db, forumId, query),
+  ]);
+
+  if (primary.total === 0 && suggestedQuery) {
+    const related = await runThreadSearch(db, publicApiUrl, forumId, suggestedQuery, opts, embedFn);
+    return { ...related, suggestedQuery, isRelated: true };
+  }
+
+  return { ...primary, suggestedQuery, isRelated: false };
+}
+
+async function runCommentSearch(
   db: DB,
   publicApiUrl: string,
   forumId: string,
@@ -135,7 +150,6 @@ export async function searchComments(
 ): Promise<{ results: CommentSearchResult[]; total: number; mode: SearchMode }> {
   const vector = await embedOne(query, embedFn);
   const fetchOpts = overfetchOpts(opts);
-
   const keywordPromise = searchRepo.keywordSearchComments(db, publicApiUrl, forumId, query, fetchOpts, threadId);
 
   if (!vector || vector.length === 0) {
@@ -152,4 +166,28 @@ export async function searchComments(
   const merged = mergeRanked(semantic.results, keyword.results, (r) => r.commentId);
   const { results, total } = paginate(merged, opts, semantic.total, keyword.total);
   return { results: await hydrateImages(db, publicApiUrl, forumId, results), total, mode: 'hybrid' };
+}
+
+export async function searchComments(
+  db: DB,
+  publicApiUrl: string,
+  forumId: string,
+  query: string,
+  opts: SearchOpts,
+  embedFn: EmbedFn,
+  threadId?: string,
+): Promise<{ results: CommentSearchResult[]; total: number; mode: SearchMode; suggestedQuery: string | null; isRelated: boolean }> {
+  const [primary, suggestedQuery] = await Promise.all([
+    runCommentSearch(db, publicApiUrl, forumId, query, opts, embedFn, threadId),
+    // Only suggest when searching forum-wide — in-thread comment search
+    // is already scoped to one thread, so a cross-thread fallback doesn't make sense.
+    threadId ? Promise.resolve(null) : searchRepo.findSuggestedQuery(db, forumId, query),
+  ]);
+
+  if (primary.total === 0 && suggestedQuery) {
+    const related = await runCommentSearch(db, publicApiUrl, forumId, suggestedQuery, opts, embedFn, threadId);
+    return { ...related, suggestedQuery, isRelated: true };
+  }
+
+  return { ...primary, suggestedQuery, isRelated: false };
 }

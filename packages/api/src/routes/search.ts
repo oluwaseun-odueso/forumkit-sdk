@@ -32,10 +32,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { q, page, limit } = parsed.data;
-    const { results, total, mode } = await searchService.searchThreads(
+    const { results, total, mode, suggestedQuery, isRelated } = await searchService.searchThreads(
       request.server.db, request.server.config.publicApiUrl, fid, q, { page, limit }, request.server.ai.embed,
     );
-    return reply.status(200).send({ results, total, page, limit, mode });
+    return reply.status(200).send({ results, total, page, limit, mode, suggestedQuery, isRelated });
   });
 
   /**
@@ -59,10 +59,10 @@ export async function searchRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { q, page, limit } = parsed.data;
-    const { results, total, mode } = await searchService.searchComments(
+    const { results, total, mode, suggestedQuery, isRelated } = await searchService.searchComments(
       request.server.db, request.server.config.publicApiUrl, fid, q, { page, limit }, request.server.ai.embed,
     );
-    return reply.status(200).send({ results, total, page, limit, mode });
+    return reply.status(200).send({ results, total, page, limit, mode, suggestedQuery, isRelated });
   });
 
   /**

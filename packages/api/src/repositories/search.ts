@@ -100,13 +100,16 @@ const COMMENT_SEARCH_VOTE_COUNTS_SUBQUERY = `
    FROM votes WHERE comment_id = c.id)::json AS comment_vote_counts
 `;
 
-// FUZZY_SIMILARITY_THRESHOLD is pg_trgm's similarity() score, from 0 to 1,
-// measuring how many 3-letter chunks ("trigrams") two strings have in
-// common. 0.25 is a permissive-but-not-noisy cutoff: loose enough to catch
-// a typical typo (one or two letters off), tight enough to not match
-// unrelated short words. Shared by every fuzzy query below (threads,
-// comments, users) so all three search types behave consistently.
+// FUZZY_SIMILARITY_THRESHOLD: pg_trgm similarity() over the whole string.
+// 0.25 catches most single-char typos in short title strings.
 const FUZZY_SIMILARITY_THRESHOLD = 0.25;
+
+// WORD_SIMILARITY_THRESHOLD: pg_trgm word_similarity(), which finds the best
+// alignment of the shorter query string within a longer text — better than
+// similarity() for matching a query word inside a full title or body.
+// 0.35 is slightly higher than FUZZY because word_similarity naturally scores
+// higher (it ignores non-overlapping chars in the longer string).
+const WORD_SIMILARITY_THRESHOLD = 0.35;
 
 export async function keywordSearch(
   db: DB,
@@ -137,7 +140,9 @@ export async function keywordSearch(
           to_tsvector('english', t.title || ' ' || t.body),
           plainto_tsquery('english', ${query})
         ),
-        similarity(t.title, ${query})
+        similarity(t.title, ${query}),
+        word_similarity(${query}, t.title),
+        word_similarity(${query}, LEFT(t.body, 500))
       )                                                          AS rank,
       t.created_at,
       t.author_id,
@@ -154,6 +159,8 @@ export async function keywordSearch(
         to_tsvector('english', t.title || ' ' || t.body)
             @@ plainto_tsquery('english', ${query})
         OR similarity(t.title, ${query}) > ${FUZZY_SIMILARITY_THRESHOLD}
+        OR word_similarity(${query}, t.title) > ${WORD_SIMILARITY_THRESHOLD}
+        OR word_similarity(${query}, LEFT(t.body, 500)) > ${WORD_SIMILARITY_THRESHOLD}
       )
     ORDER BY rank DESC, t.created_at DESC
     LIMIT ${opts.limit} OFFSET ${offset}
@@ -326,7 +333,8 @@ export async function keywordSearchComments(
       LEFT(c.body, 200)                                          AS body_snippet,
       GREATEST(
         ts_rank(to_tsvector('english', c.body), plainto_tsquery('english', ${query})),
-        similarity(c.body, ${query})
+        similarity(c.body, ${query}),
+        word_similarity(${query}, c.body)
       )                                                          AS rank,
       c.created_at,
       c.author_id,
@@ -349,6 +357,7 @@ export async function keywordSearchComments(
       AND (
         to_tsvector('english', c.body) @@ plainto_tsquery('english', ${query})
         OR similarity(c.body, ${query}) > ${FUZZY_SIMILARITY_THRESHOLD}
+        OR word_similarity(${query}, c.body) > ${WORD_SIMILARITY_THRESHOLD}
       )
     ORDER BY rank DESC, c.created_at DESC
     LIMIT ${opts.limit} OFFSET ${offset}
@@ -410,4 +419,29 @@ export async function semanticSearchComments(
     results: rows.map(r => toCommentSearchResult(r, publicApiUrl)),
     total: Number(rows[0]?.total_count ?? 0),
   };
+}
+
+// Returns the title of the most trigram-similar thread in the forum to the
+// given query. Used by the service layer as a "Did you mean?" suggestion when
+// the primary search returns no results — the caller re-runs the search with
+// this title as the query and surfaces the related results instead of an
+// empty page. Threshold 0.15 is intentionally permissive: this query only
+// runs when the primary search already returned nothing, so false positives
+// (a slightly-wrong suggestion) are preferable to returning null.
+export async function findSuggestedQuery(
+  db: DB,
+  forumId: string,
+  query: string,
+): Promise<string | null> {
+  type Row = { title: string };
+  const rows = await db<Row[]>`
+    SELECT title
+    FROM threads
+    WHERE forum_id = ${forumId}
+      AND status != 'deleted'
+      AND similarity(title, ${query}) > 0.15
+    ORDER BY similarity(title, ${query}) DESC
+    LIMIT 1
+  `;
+  return rows[0]?.title ?? null;
 }
