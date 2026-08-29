@@ -1,7 +1,7 @@
 import type { DB } from '../db';
-import type { LLMFn, EmbedFn } from '@forumkit/ai';
+import type { LLMFn, LLMStreamFn, EmbedFn, SummariseStreamEvent, SuggestStreamEvent } from '@forumkit/ai';
 import type { AISummary, AISuggestion, SimilarThread } from '@forumkit/types';
-import { summariseThread, suggestAnswer, suggestTitle, suggestTags, embedOne } from '@forumkit/ai';
+import { summariseThread, summariseThreadStream, suggestAnswer, suggestAnswerStream, suggestTitle, suggestTags, embedOne } from '@forumkit/ai';
 import { getThread } from './thread';
 import { findRelatedThreads } from '../repositories/search';
 import { ok, err, type Result } from '../lib/result';
@@ -93,6 +93,42 @@ export type SuggestMetadataResult = {
   title: string | null;
   tags: string[];
 };
+
+export async function summariseStream(
+  db: DB,
+  publicApiUrl: string,
+  forumId: string,
+  threadId: string,
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: SummariseStreamEvent) => void,
+): Promise<Result<void, AICommandError>> {
+  const threadResult = await getThread(db, publicApiUrl, forumId, threadId);
+  if (!threadResult.ok) return err('thread_not_found');
+
+  const { thread, comments } = threadResult.value;
+  const commentBodies = buildCommentContext(comments);
+  const allContent = [thread.body.slice(0, MAX_COMMENT_CHARS), ...commentBodies];
+  await summariseThreadStream(thread.title, allContent, llmStreamFn, onEvent);
+  return ok(undefined);
+}
+
+export async function suggestStream(
+  db: DB,
+  publicApiUrl: string,
+  forumId: string,
+  threadId: string,
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: SuggestStreamEvent) => void,
+): Promise<Result<void, AICommandError>> {
+  const threadResult = await getThread(db, publicApiUrl, forumId, threadId);
+  if (!threadResult.ok) return err('thread_not_found');
+
+  const { thread, comments } = threadResult.value;
+  const commentBodies = buildCommentContext(comments);
+  const allContent = [thread.body.slice(0, MAX_COMMENT_CHARS), ...commentBodies];
+  await suggestAnswerStream(thread.title, allContent, llmStreamFn, onEvent);
+  return ok(undefined);
+}
 
 export async function suggestMetadata(
   input: SuggestMetadataInput,

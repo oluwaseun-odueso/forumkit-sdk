@@ -395,4 +395,104 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(200).send({ suggestion: result.value });
     },
   );
+
+  /**
+   * POST /threads/:threadId/ai/summarise/stream
+   * Streams the thread summary as SSE (NDJSON events: keyPoint / conclusion / openQuestion).
+   */
+  app.post(
+    '/:threadId/ai/summarise/stream',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { threadId } = request.params as { threadId: string };
+      const payload = request.jwtPayload;
+
+      type ThreadRow = { forum_id: string };
+      const row = await request.server.db<ThreadRow[]>`
+        SELECT forum_id FROM threads
+        WHERE id = ${threadId} AND status != 'deleted'
+        LIMIT 1
+      `.then((rows) => rows[0]);
+
+      if (!row) return sendAIError('thread_not_found', reply);
+
+      const rateLimitKey = `ai:${payload.sub}:${row.forum_id}`;
+      if (!tryConsumeAiLimit(rateLimitKey)) return sendAIError('rate_limit_exceeded', reply);
+
+      const { llmStream } = request.server.ai;
+      if (!llmStream) {
+        return reply.status(503).send({ error: 'ai_not_configured', message: 'No AI provider is configured for this deployment', statusCode: 503 });
+      }
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+      const sendSSE = (data: object) => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
+
+      const result = await aiService.summariseStream(
+        request.server.db,
+        request.server.config.publicApiUrl,
+        row.forum_id,
+        threadId,
+        llmStream,
+        sendSSE,
+      );
+
+      if (!result.ok) sendSSE({ type: 'error', message: result.code });
+      reply.raw.write('data: [DONE]\n\n');
+      reply.raw.end();
+    },
+  );
+
+  /**
+   * POST /threads/:threadId/ai/suggest/stream
+   * Streams the suggested reply as SSE (NDJSON events: chunk / meta).
+   */
+  app.post(
+    '/:threadId/ai/suggest/stream',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { threadId } = request.params as { threadId: string };
+      const payload = request.jwtPayload;
+
+      type ThreadRow = { forum_id: string };
+      const row = await request.server.db<ThreadRow[]>`
+        SELECT forum_id FROM threads
+        WHERE id = ${threadId} AND status != 'deleted'
+        LIMIT 1
+      `.then((rows) => rows[0]);
+
+      if (!row) return sendAIError('thread_not_found', reply);
+
+      const rateLimitKey = `ai:${payload.sub}:${row.forum_id}`;
+      if (!tryConsumeAiLimit(rateLimitKey)) return sendAIError('rate_limit_exceeded', reply);
+
+      const { llmStream } = request.server.ai;
+      if (!llmStream) {
+        return reply.status(503).send({ error: 'ai_not_configured', message: 'No AI provider is configured for this deployment', statusCode: 503 });
+      }
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+      const sendSSE = (data: object) => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
+
+      const result = await aiService.suggestStream(
+        request.server.db,
+        request.server.config.publicApiUrl,
+        row.forum_id,
+        threadId,
+        llmStream,
+        sendSSE,
+      );
+
+      if (!result.ok) sendSSE({ type: 'error', message: result.code });
+      reply.raw.write('data: [DONE]\n\n');
+      reply.raw.end();
+    },
+  );
 }
