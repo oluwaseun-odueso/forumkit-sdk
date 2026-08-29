@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Modal,
-  ActivityIndicator, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Platform, KeyboardAvoidingView, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
-import { askQuestion, fmtRelativeTime } from '@forumkit/shared';
-import type { AskAnswer, AskQuestionResult } from '@forumkit/shared';
+import { askQuestionStreaming, fmtRelativeTime } from '@forumkit/shared';
+import type { AskStreamEvent } from '@forumkit/shared';
 import type { SearchResult } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -14,9 +14,15 @@ import Avatar from '../components/Avatar';
 import { ArrowRightIcon, ChevronRightIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+// Partial answer built up as SSE events arrive
+type PartialAnswer = {
+  intro: string;
+  categories: { title: string; bullets: { fact: string; quote: string; sourceIndex: number }[] }[];
+};
+
 type Turn = {
   query: string;
-  answer: AskAnswer | null;
+  answer: PartialAnswer | null;
   sources: SearchResult[];
   loading: boolean;
   error: string | null;
@@ -40,28 +46,47 @@ export default function AskResultScreen() {
     if (!token) return;
     const idx = turns.length;
     setTurns(prev => [...prev, { query: q, answer: null, sources: [], loading: true, error: null }]);
+
     try {
-      const result: AskQuestionResult = await askQuestion(apiUrl, forumId, q, token);
-      setTurns(prev => prev.map((t, i) =>
-        i === idx ? { ...t, answer: result.answer, sources: result.sources, loading: false } : t,
-      ));
+      await askQuestionStreaming(apiUrl, forumId, q, token, (event: AskStreamEvent) => {
+        setTurns(prev => prev.map((t, i) => {
+          if (i !== idx) return t;
+          if (event.type === 'sources') {
+            return { ...t, sources: event.sources };
+          }
+          if (event.type === 'intro') {
+            return { ...t, answer: { intro: event.text, categories: t.answer?.categories ?? [] } };
+          }
+          if (event.type === 'category') {
+            const existing = t.answer ?? { intro: '', categories: [] };
+            return {
+              ...t,
+              answer: {
+                ...existing,
+                categories: [...existing.categories, { title: event.title, bullets: event.bullets }],
+              },
+            };
+          }
+          if (event.type === 'error') {
+            return { ...t, error: event.message, loading: false };
+          }
+          return t;
+        }));
+      });
+      setTurns(prev => prev.map((t, i) => i === idx ? { ...t, loading: false } : t));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      setTurns(prev => prev.map((t, i) =>
-        i === idx ? { ...t, loading: false, error: msg } : t,
-      ));
+      setTurns(prev => prev.map((t, i) => i === idx ? { ...t, loading: false, error: msg } : t));
     }
   }, [apiUrl, forumId, token, turns.length]);
 
-  // Fire the initial query on mount
   useEffect(() => {
     void ask(route.params.query);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    // Scroll to bottom after each turn update
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
   }, [turns]);
 
   function submitFollowUp() {
@@ -96,7 +121,6 @@ export default function AskResultScreen() {
               key={i}
               turn={turn}
               tokens={tokens}
-              mode={mode}
               onSourcesPress={() => setSheetTurn(turn)}
               onThreadPress={threadId => navigation.navigate('Thread', { threadId })}
             />
@@ -143,13 +167,14 @@ export default function AskResultScreen() {
           backgroundColor: tokens.bg,
           paddingBottom: insets.bottom + 16,
         }]}>
+          <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}>
             <Text style={[styles.sheetTitle, { color: tokens.text }]}>Sources</Text>
             <Pressable onPress={() => setSheetTurn(null)} hitSlop={8}>
               <Text style={[styles.sheetClose, { color: tokens.muted }]}>✕</Text>
             </Pressable>
           </View>
-          <ScrollView>
+          <ScrollView contentContainerStyle={{ paddingVertical: 8 }}>
             {(sheetTurn?.sources ?? []).map((src, i) => (
               <SourceCard
                 key={src.threadId + i}
@@ -173,14 +198,15 @@ export default function AskResultScreen() {
 type Tokens = ReturnType<typeof useTheme>['tokens'];
 
 function TurnView({
-  turn, tokens, mode, onSourcesPress, onThreadPress,
+  turn, tokens, onSourcesPress, onThreadPress,
 }: {
   turn: Turn;
   tokens: Tokens;
-  mode: string;
   onSourcesPress: () => void;
   onThreadPress: (id: string) => void;
 }) {
+  const mediaSources = turn.sources.filter(s => s.imageUrl);
+
   return (
     <View style={styles.turn}>
       {/* User query — right-aligned pill */}
@@ -192,15 +218,15 @@ function TurnView({
 
       {/* AI response */}
       <View style={styles.responseWrap}>
-        {turn.loading && (
+        {turn.loading && !turn.answer && (
           <ActivityIndicator color={tokens.accent} style={{ marginTop: 12 }} />
         )}
-        {turn.error && !turn.loading && (
+        {turn.error && (
           <Text style={[styles.errorText, { color: tokens.up }]}>{turn.error}</Text>
         )}
-        {turn.answer && !turn.loading && (
+        {(turn.answer || turn.sources.length > 0) && !turn.error && (
           <View style={styles.answerWrap}>
-            {/* Source pill */}
+            {/* Source pill — appears as soon as sources arrive */}
             {turn.sources.length > 0 && (
               <Pressable
                 style={[styles.sourcePill, { borderColor: tokens.border, backgroundColor: tokens['surface-2'] }]}
@@ -215,11 +241,15 @@ function TurnView({
               </Pressable>
             )}
 
-            {/* Intro */}
-            <Text style={[styles.intro, { color: tokens.text }]}>{turn.answer.intro}</Text>
+            {/* Intro — appears once the intro event arrives */}
+            {turn.answer?.intro ? (
+              <Text style={[styles.intro, { color: tokens.text }]}>{turn.answer.intro}</Text>
+            ) : turn.loading ? (
+              <ActivityIndicator color={tokens.accent} style={{ marginVertical: 10 }} size="small" />
+            ) : null}
 
-            {/* Categories */}
-            {turn.answer.categories.map((cat, ci) => (
+            {/* Categories — each appears as its event arrives */}
+            {(turn.answer?.categories ?? []).map((cat, ci) => (
               <View key={ci} style={styles.category}>
                 <Text style={[styles.catTitle, { color: tokens['text-2'] }]}>{cat.title}</Text>
                 {cat.bullets.map((b, bi) => {
@@ -244,6 +274,35 @@ function TurnView({
                 })}
               </View>
             ))}
+
+            {/* Related Media — horizontal scroll of thread thumbnails */}
+            {!turn.loading && mediaSources.length > 0 && (
+              <View style={styles.mediaSection}>
+                <Text style={[styles.catTitle, { color: tokens['text-2'] }]}>Related Media</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
+                  {mediaSources.map((src) => (
+                    <Pressable
+                      key={src.threadId}
+                      style={[styles.mediaThumbnail, { borderColor: tokens.border }]}
+                      onPress={() => onThreadPress(src.threadId)}
+                    >
+                      <Image
+                        source={{ uri: src.imageUrl! }}
+                        style={styles.mediaImage}
+                        resizeMode="cover"
+                      />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Disclaimer — shown once loading is done */}
+            {!turn.loading && turn.answer && (
+              <Text style={[styles.disclaimer, { color: tokens.muted }]}>
+                Responses are AI-generated from threads and comments and may not be accurate.
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -277,7 +336,10 @@ function SourceCard({
   onPress: () => void;
 }) {
   return (
-    <Pressable style={[styles.sourceCard, { borderBottomColor: tokens.border }]} onPress={onPress}>
+    <Pressable
+      style={[styles.sourceCard, { backgroundColor: tokens['surface-2'] }]}
+      onPress={onPress}
+    >
       <Avatar
         authorId={src.authorId}
         author={src.authorDisplayName}
@@ -423,6 +485,32 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+  mediaSection: {
+    marginBottom: 16,
+  },
+  mediaScroll: {
+    marginTop: 4,
+  },
+  mediaThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    marginRight: 8,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  mediaImage: {
+    width: 80,
+    height: 80,
+  },
+
+  disclaimer: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+
   errorText: {
     fontSize: 14,
     lineHeight: 20,
@@ -456,17 +544,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 16,
+    borderRadius: 20,
+    paddingTop: 12,
     maxHeight: '70%',
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#88888866',
+    alignSelf: 'center',
+    marginBottom: 12,
   },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 4,
   },
   sheetTitle: {
     fontSize: 16,
@@ -480,9 +575,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
+    marginVertical: 5,
+    padding: 14,
+    borderRadius: 12,
   },
   sourceCardBody: {
     flex: 1,
