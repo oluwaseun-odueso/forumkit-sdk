@@ -1,7 +1,7 @@
 import type { AskAnswer } from '@forumkit/ai';
 import type { SearchResult } from '@forumkit/types';
 
-type Entry = { answer: AskAnswer; sources: SearchResult[]; expiresAt: number };
+type Entry = { answer: AskAnswer; sources: SearchResult[]; suggestions: string[]; expiresAt: number };
 
 const cache = new Map<string, Entry>();
 const TTL_MS = 5 * 60 * 1000;   // 5 min
@@ -22,7 +22,7 @@ function cacheKey(forumId: string, q: string): string {
 export function getCachedAsk(
   forumId: string,
   q: string,
-): { answer: AskAnswer; sources: SearchResult[] } | null {
+): { answer: AskAnswer; sources: SearchResult[]; suggestions: string[] } | null {
   const k = cacheKey(forumId, q);
   const entry = cache.get(k);
   if (!entry) return null;
@@ -33,18 +33,18 @@ export function getCachedAsk(
   // Refresh position in insertion order (makes the map behave like an LRU on access).
   cache.delete(k);
   cache.set(k, entry);
-  return { answer: entry.answer, sources: entry.sources };
+  return { answer: entry.answer, sources: entry.sources, suggestions: entry.suggestions };
 }
 
 export function setCachedAsk(
   forumId: string,
   q: string,
-  value: { answer: AskAnswer; sources: SearchResult[] },
+  value: { answer: AskAnswer; sources: SearchResult[]; suggestions: string[] },
 ): void {
   // Evict the oldest entry when we're at the size limit.
   if (cache.size >= MAX_ENTRIES) {
     const oldest = cache.keys().next().value;
     if (oldest !== undefined) cache.delete(oldest);
   }
-  cache.set(cacheKey(forumId, q), { ...value, expiresAt: Date.now() + TTL_MS });
+  cache.set(cacheKey(forumId, q), { answer: value.answer, sources: value.sources, suggestions: value.suggestions, expiresAt: Date.now() + TTL_MS });
 }

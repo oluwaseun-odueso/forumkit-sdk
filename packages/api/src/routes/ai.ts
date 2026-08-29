@@ -174,6 +174,9 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
         for (const cat of cached.answer.categories) {
           sendSSE({ type: 'category', title: cat.title, bullets: cat.bullets });
         }
+        if (cached.suggestions.length > 0) {
+          sendSSE({ type: 'suggestions', prompts: cached.suggestions });
+        }
         reply.raw.write('data: [DONE]\n\n');
         reply.raw.end();
         return reply;
@@ -194,6 +197,7 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
       // Stream LLM response — accumulate events to populate cache afterward.
       const accumulatedCategories: { title: string; bullets: { fact: string; quote: string; sourceIndex: number }[] }[] = [];
       let intro = '';
+      let suggestions: string[] = [];
 
       const context = sources.map(r => ({ title: r.title, bodySnippet: r.bodySnippet }));
       try {
@@ -201,6 +205,7 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
           sendSSE(event);
           if (event.type === 'intro') intro = event.text;
           if (event.type === 'category') accumulatedCategories.push(event);
+          if (event.type === 'suggestions') suggestions = event.prompts;
         });
       } catch (err) {
         sendSSE({ type: 'error', message: 'Could not generate summary' });
@@ -209,8 +214,9 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
 
       if (intro) {
         setCachedAsk(forumId, q, {
-          answer: { intro, categories: accumulatedCategories },
+          answer: { intro, categories: accumulatedCategories, suggestions },
           sources,
+          suggestions,
         });
       }
     } catch (err) {
