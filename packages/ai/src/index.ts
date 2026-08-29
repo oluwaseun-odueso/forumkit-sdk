@@ -61,8 +61,9 @@ async function buildEmbedAdapter(config: AdapterConfig): Promise<EmbedFn> {
     const { openaiEmbed } = await import('./providers/openai-embed.js');
     return openaiEmbed(config.openaiApiKey);
   }
-  // No embedding key available — return empty vectors; vector search degrades gracefully.
-  return async (texts: string[]) => texts.map(() => []);
+  // No embedding key available — throw so safeEmbed/embedOne returns null,
+  // causing searchThreads to fall back to keyword-only search.
+  return async (_texts: string[]) => { throw new Error('No embedding provider configured'); };
 }
 
 async function buildModerationAdapter(config: AdapterConfig): Promise<ModerateFn> {

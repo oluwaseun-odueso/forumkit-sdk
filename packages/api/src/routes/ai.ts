@@ -162,52 +162,60 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
       reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
     };
 
-    // Cache hit — replay stored events and close.
-    const cached = getCachedAsk(forumId, q);
-    if (cached) {
-      sendSSE({ type: 'sources', sources: cached.sources });
-      sendSSE({ type: 'intro', text: cached.answer.intro });
-      for (const cat of cached.answer.categories) {
-        sendSSE({ type: 'category', title: cat.title, bullets: cat.bullets });
-      }
-      reply.raw.write('data: [DONE]\n\n');
-      reply.raw.end();
-      return reply;
-    }
-
-    // Search
-    const { results } = await searchService.searchThreads(
-      request.server.db,
-      request.server.config.publicApiUrl,
-      forumId,
-      q,
-      { page: 1, limit: 8 },
-      embed,
-    );
-    const sources = results.slice(0, 6);
-    sendSSE({ type: 'sources', sources });
-
-    // Stream LLM response — accumulate events to populate cache afterward.
-    const accumulatedCategories: { title: string; bullets: { fact: string; quote: string; sourceIndex: number }[] }[] = [];
-    let intro = '';
-
-    const context = sources.map(r => ({ title: r.title, bodySnippet: r.bodySnippet }));
+    // Everything after writeHead must be caught locally — once headers are
+    // written Fastify's error handler can't send a 500, and an unhandled
+    // rejection would crash the process with ERR_HTTP_HEADERS_SENT.
     try {
-      await askSearchQuestionStream(q, context, askLlmStream, (event) => {
-        sendSSE(event);
-        if (event.type === 'intro') intro = event.text;
-        if (event.type === 'category') accumulatedCategories.push(event);
-      });
-    } catch (err) {
-      sendSSE({ type: 'error', message: 'Could not generate summary' });
-      request.log.error({ err }, '[ai/ask/stream] LLM stream failed');
-    }
+      // Cache hit — replay stored events and close.
+      const cached = getCachedAsk(forumId, q);
+      if (cached) {
+        sendSSE({ type: 'sources', sources: cached.sources });
+        sendSSE({ type: 'intro', text: cached.answer.intro });
+        for (const cat of cached.answer.categories) {
+          sendSSE({ type: 'category', title: cat.title, bullets: cat.bullets });
+        }
+        reply.raw.write('data: [DONE]\n\n');
+        reply.raw.end();
+        return reply;
+      }
 
-    if (intro) {
-      setCachedAsk(forumId, q, {
-        answer: { intro, categories: accumulatedCategories },
-        sources,
-      });
+      // Search
+      const { results } = await searchService.searchThreads(
+        request.server.db,
+        request.server.config.publicApiUrl,
+        forumId,
+        q,
+        { page: 1, limit: 8 },
+        embed,
+      );
+      const sources = results.slice(0, 6);
+      sendSSE({ type: 'sources', sources });
+
+      // Stream LLM response — accumulate events to populate cache afterward.
+      const accumulatedCategories: { title: string; bullets: { fact: string; quote: string; sourceIndex: number }[] }[] = [];
+      let intro = '';
+
+      const context = sources.map(r => ({ title: r.title, bodySnippet: r.bodySnippet }));
+      try {
+        await askSearchQuestionStream(q, context, askLlmStream, (event) => {
+          sendSSE(event);
+          if (event.type === 'intro') intro = event.text;
+          if (event.type === 'category') accumulatedCategories.push(event);
+        });
+      } catch (err) {
+        sendSSE({ type: 'error', message: 'Could not generate summary' });
+        request.log.error({ err }, '[ai/ask/stream] LLM stream failed');
+      }
+
+      if (intro) {
+        setCachedAsk(forumId, q, {
+          answer: { intro, categories: accumulatedCategories },
+          sources,
+        });
+      }
+    } catch (err) {
+      sendSSE({ type: 'error', message: 'Search failed' });
+      request.log.error({ err }, '[ai/ask/stream] search failed');
     }
 
     reply.raw.write('data: [DONE]\n\n');
