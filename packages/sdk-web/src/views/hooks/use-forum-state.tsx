@@ -14,7 +14,7 @@ import { shareThreadWithUsers as apiShareThreadWithUsers, reportThread as apiRep
 import { reportComment as apiReportComment } from '../api/comments';
 import type { ReportTarget } from '../components/shared/report-modal';
 import { ThemeHostContext } from './use-theme';
-import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
+import { callSummarise, callSuggest, callSummariseStreaming, callSuggestStreaming, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
 import { requestUploadUrl, putFile, confirmUpload, deleteAttachment as apiDeleteAttachment } from '../api/attachments';
 import {
   getMyProfile, updateMyProfile, updateThemePreference, updateNotificationPrefs as apiUpdateNotificationPrefs, getProfileActivity,
@@ -96,6 +96,7 @@ type AsstState = {
   summarizing: boolean;
   summary: { points: string[]; note: string } | null;
   suggested: boolean;
+  suggestedText: string | null;
   surfacing: boolean;
   related: SimilarThread[] | null;
 };
@@ -334,7 +335,10 @@ type Action =
   | { type: 'SET_VIEWED_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
   | { type: 'OPEN_ASK'; query: string; fromScrollTop: number }
   | { type: 'ASST_SUMMARIZING' }
+  | { type: 'ASST_SUMMARY_POINT'; point: string }
+  | { type: 'ASST_SUMMARY_DONE'; note: string }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
+  | { type: 'ASST_SUGGEST_CHUNK'; text: string }
   | { type: 'ASST_SUGGEST'; text: string }
   | { type: 'ASST_SURFACING' }
   | { type: 'ASST_RELATED'; threads: SimilarThread[] };
@@ -557,7 +561,7 @@ const initialState: State = {
     attachments: [], inlineAttachmentIds: [], genTitle: false, genTags: false, submitting: false, error: null,
     draftId: null, savingDraft: false,
   },
-  asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
+  asst: { summarizing: false, summary: null, suggested: false, suggestedText: null, surfacing: false, related: null },
   profile: {
     activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null,
     joinedAt: null, postKarma: 0, commentKarma: 0, themePreference: null,
@@ -620,7 +624,7 @@ function reducer(state: State, action: Action): State {
         view: 'thread',
         accountMenu: { open: false },
         thread: { ...state.thread, activePostId: action.postId, commentInput: '' },
-        asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
+        asst: { summarizing: false, summary: null, suggested: false, suggestedText: null, surfacing: false, related: null },
         history: state.view === 'thread' && state.thread.activePostId === action.postId
           ? state.history
           : [...state.history, buildNavEntry(state, action.fromScrollTop)],
@@ -1106,10 +1110,18 @@ function reducer(state: State, action: Action): State {
       return { ...state, viewedProfile: { ...state.viewedProfile, activityContentType: action.contentType, activityPage: 1 } };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
+    case 'ASST_SUMMARY_POINT': {
+      const prev = state.asst.summary;
+      return { ...state, asst: { ...state.asst, summary: { points: [...(prev?.points ?? []), action.point], note: prev?.note ?? '' } } };
+    }
+    case 'ASST_SUMMARY_DONE':
+      return { ...state, asst: { ...state.asst, summarizing: false, summary: { points: state.asst.summary?.points ?? [], note: action.note } } };
     case 'ASST_SUMMARY':
       return { ...state, asst: { ...state.asst, summarizing: false, summary: { points: action.points, note: action.note } } };
+    case 'ASST_SUGGEST_CHUNK':
+      return { ...state, asst: { ...state.asst, suggestedText: action.text } };
     case 'ASST_SUGGEST':
-      return { ...state, thread: { ...state.thread, commentInput: action.text }, asst: { ...state.asst, suggested: true } };
+      return { ...state, asst: { ...state.asst, suggested: true, suggestedText: action.text } };
     case 'ASST_SURFACING':
       return { ...state, asst: { ...state.asst, surfacing: true, related: null } };
     case 'ASST_RELATED':
@@ -1731,17 +1743,39 @@ function useForumStateInternal() {
   const summarize = useCallback(async () => {
     if (state.asst.summarizing || state.thread.activePostId === null) return;
     dispatch({ type: 'ASST_SUMMARIZING' });
-    const points = await callSummarise(state.thread.activePostId, sessionToken);
-    const note = points.length > 0
+    const threadId = state.thread.activePostId;
+    let pointCount = 0;
+    try {
+      await callSummariseStreaming(threadId, (event) => {
+        if (event.type === 'keyPoint' || event.type === 'conclusion' || event.type === 'openQuestion') {
+          pointCount++;
+          dispatch({ type: 'ASST_SUMMARY_POINT', point: event.text });
+        }
+      }, sessionToken);
+    } catch {
+      // fallthrough to note
+    }
+    const note = pointCount > 0
       ? `Synthesized from ${state.comments.length} comment${state.comments.length !== 1 ? 's' : ''}`
       : 'AI service unavailable';
-    dispatch({ type: 'ASST_SUMMARY', points, note });
+    dispatch({ type: 'ASST_SUMMARY_DONE', note });
   }, [state.asst.summarizing, state.thread.activePostId, state.comments.length, sessionToken]);
 
   const suggest = useCallback(async () => {
     if (state.thread.activePostId === null) return;
-    const text = await callSuggest(state.thread.activePostId, sessionToken);
-    dispatch({ type: 'ASST_SUGGEST', text });
+    const threadId = state.thread.activePostId;
+    let finalText = '';
+    try {
+      await callSuggestStreaming(threadId, (event) => {
+        if (event.type === 'chunk') {
+          finalText += event.text;
+          dispatch({ type: 'ASST_SUGGEST_CHUNK', text: finalText });
+        }
+      }, sessionToken);
+    } catch {
+      // fallthrough
+    }
+    dispatch({ type: 'ASST_SUGGEST', text: finalText });
   }, [state.thread.activePostId, sessionToken]);
 
   const surfaceRelated = useCallback(async () => {

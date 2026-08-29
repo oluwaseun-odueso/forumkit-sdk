@@ -9,7 +9,7 @@ import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import PillButton from '../shared/pill-button';
-import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon } from '../shared/icons';
+import { ChevronLeftIcon, CommentIcon, ShareIcon, CloseIcon, AiSparkleIcon, LinkIcon, EllipsisIcon, TrashIcon } from '../shared/icons';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
 import ConfirmDialog from '../shared/confirm-dialog';
 import { useShare } from '../../hooks/use-share';
@@ -36,6 +36,7 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const [commentSearch, setCommentSearch] = useState('');
   const [aiPanel, setAiPanel] = useState<'summary' | 'reply' | null>(null);
   const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false);
+  const [threadMenuOpen, setThreadMenuOpen] = useState(false);
 
   const [postEditOpen, setPostEditOpen] = useState(false);
   const [postEditTitle, setPostEditTitle] = useState('');
@@ -187,26 +188,28 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
           <CommentIcon size={18} />
           {activePost.commentCount}
         </div>
-        <div style={{ position: 'relative' }}>
-          <button type="button" className="fk-thread-chip" onClick={share.handleShareClick}>
-            <ShareIcon size={18} />
-            Share
-          </button>
-          <DropdownMenu open={share.menuOpen} onClose={share.closeMenu} style={{ top: 40, left: 0, width: 210, padding: 6 }}>
-            <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={share.handleCopyLink} />
-            <DropdownMenuItem icon={<ShareIcon />} label="Share with a member" onClick={share.handleShareWithMember} />
-          </DropdownMenu>
-        </div>
         {isMyPost && !postEditOpen && (
           <button type="button" className="fk-thread-chip" onClick={openPostEdit}>
             Edit
           </button>
         )}
-        {canDeletePost && (
-          <button type="button" className="fk-thread-chip" onClick={() => setDeletePostConfirmOpen(true)}>
-            Delete
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="fk-thread-chip"
+            aria-label="More actions"
+            onClick={() => setThreadMenuOpen(o => !o)}
+          >
+            <EllipsisIcon size={18} />
           </button>
-        )}
+          <DropdownMenu open={threadMenuOpen} onClose={() => setThreadMenuOpen(false)} style={{ top: 40, right: 0, width: 210, padding: 6 }}>
+            <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={() => { share.handleCopyLink(); setThreadMenuOpen(false); }} />
+            <DropdownMenuItem icon={<ShareIcon size={16} />} label="Share with a member" onClick={() => { share.handleShareWithMember(); setThreadMenuOpen(false); }} />
+            {canDeletePost && (
+              <DropdownMenuItem icon={<TrashIcon size={16} />} label="Delete" onClick={() => { setThreadMenuOpen(false); setDeletePostConfirmOpen(true); }} />
+            )}
+          </DropdownMenu>
+        </div>
       </div>
 
       {deletePostConfirmOpen && (
@@ -253,7 +256,20 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
                 : state.asst.summary
                   ? state.asst.summary.points.map((p, i) => <p key={i}>{p}</p>)
                   : 'No summary yet.'
-              : state.thread.commentInput || 'Generating suggestion…'}
+              : state.asst.suggestedText
+                ? (
+                  <div className="fk-ai-suggest-block">
+                    <p className="fk-ai-suggest-text">{state.asst.suggestedText}</p>
+                    <button
+                      type="button"
+                      className="fk-ai-copy-btn"
+                      onClick={() => void navigator.clipboard.writeText(state.asst.suggestedText!)}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                )
+                : 'Generating suggestion…'}
           </div>
         </div>
       )}

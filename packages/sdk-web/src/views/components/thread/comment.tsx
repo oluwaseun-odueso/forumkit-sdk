@@ -5,7 +5,7 @@ import Avatar from '../shared/avatar';
 import VotePill from '../shared/vote-pill';
 import RenderedBody from '../shared/rendered-body';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon, CheckIcon, TrashIcon } from '../shared/icons';
+import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon, CheckIcon, TrashIcon, SaveIcon } from '../shared/icons';
 import { useShare } from '../../hooks/use-share';
 import { useForum } from '../../hooks/use-forum-state';
 import CommentComposer from './comment-composer';
@@ -159,27 +159,6 @@ export default function Comment({
             {isMine && !editOpen && (
               <button type="button" className="fk-comment-action" onClick={() => setEditOpen(true)}>Edit</button>
             )}
-            <button type="button" className="fk-comment-action" onClick={() => onSave(comment.id)}>
-              {comment.isSaved ? 'Saved' : 'Save'}
-            </button>
-            {depth === 0 && onAcceptAnswer && (
-              <button
-                type="button"
-                className={`fk-comment-action${comment.isAcceptedAnswer ? ' fk-comment-action--accepted' : ''}`}
-                onClick={() => onAcceptAnswer(comment.id)}
-              >
-                {comment.isAcceptedAnswer ? 'Unmark answer' : 'Mark as answer'}
-              </button>
-            )}
-            {depth === 0 && (
-              <div style={{ position: 'relative', display: 'inline-block' }}>
-                <button type="button" className="fk-comment-action" onClick={share.handleShareClick}>Share</button>
-                <DropdownMenu open={share.menuOpen} onClose={share.closeMenu} style={{ top: 26, left: 0, width: 200, padding: 6 }}>
-                  <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={share.handleCopyLink} />
-                  <DropdownMenuItem icon={<ShareIcon />} label="Share with a member" onClick={share.handleShareWithMember} />
-                </DropdownMenu>
-              </div>
-            )}
             <div className="fk-post-card-menu-anchor" style={{ marginLeft: 'auto' }}>
               <button
                 type="button"
@@ -190,7 +169,25 @@ export default function Comment({
               >
                 <EllipsisIcon />
               </button>
-              <DropdownMenu open={menuOpen} onClose={() => setMenuOpen(false)} style={{ top: 30, right: 0, width: 170, padding: 6 }}>
+              <DropdownMenu open={menuOpen} onClose={() => setMenuOpen(false)} style={{ top: 30, right: 0, width: 200, padding: 6 }}>
+                <DropdownMenuItem
+                  icon={<SaveIcon size={16} filled={comment.isSaved} />}
+                  label={comment.isSaved ? 'Saved' : 'Save'}
+                  onClick={() => { setMenuOpen(false); onSave(comment.id); }}
+                />
+                {depth === 0 && onAcceptAnswer && (
+                  <DropdownMenuItem
+                    icon={<CheckIcon size={16} />}
+                    label={comment.isAcceptedAnswer ? 'Unmark answer' : 'Mark as answer'}
+                    onClick={() => { setMenuOpen(false); onAcceptAnswer(comment.id); }}
+                  />
+                )}
+                {depth === 0 && (
+                  <>
+                    <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={() => { setMenuOpen(false); share.handleCopyLink(); }} />
+                    <DropdownMenuItem icon={<ShareIcon size={16} />} label="Share with a member" onClick={() => { setMenuOpen(false); share.handleShareWithMember(); }} />
+                  </>
+                )}
                 <DropdownMenuItem
                   icon={<ReportIcon />}
                   label="Report"

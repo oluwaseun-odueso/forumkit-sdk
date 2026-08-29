@@ -155,3 +155,31 @@
 .fk-ai-panel-body p:last-child {
   margin-bottom: 0;
 }
+
+.fk-ai-suggest-block {
+  background: var(--surface-2);
+  border-radius: 20px;
+  padding: 14px 16px;
+}
+
+.fk-ai-suggest-text {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+}
+
+.fk-ai-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fk-ai-copy-btn:hover {
+  background: var(--hover-1);
+}
