@@ -7,7 +7,7 @@ import './shell.css';
 type ShellProps = {
   children: ReactNode;
   rail?: ReactNode;
-  onAsk?: () => void;
+  onAsk?: (() => void) | undefined;
   askActive?: boolean;
   compactSearch?: boolean;
   scrollMain?: boolean;

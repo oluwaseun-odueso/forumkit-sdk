@@ -269,6 +269,7 @@ export function SearchResults() {
   const section = state.search.resultsSection as Section;
 
   const [searchHistory, setSearchHistory] = useState<string[]>(() => loadSearchHistory());
+  const [querySuggestion, setQuerySuggestion] = useState<{ query: string | null; isRelated: boolean }>({ query: null, isRelated: false });
 
   const [threads, setThreads] = useState<{ items: SearchResult[]; total: number; loading: boolean }>({ items: [], total: 0, loading: false });
   const [comments, setComments] = useState<{ items: CommentSearchResult[]; total: number; loading: boolean }>({ items: [], total: 0, loading: false });
@@ -279,8 +280,12 @@ export function SearchResults() {
   useEffect(() => {
     if (!fid || !query) return;
     setThreads(s => ({ ...s, loading: true }));
+    setQuerySuggestion({ query: null, isRelated: false });
     searchThreads(fid, query, { limit: PREVIEW_SIZE }, token)
-      .then(r => setThreads({ items: r.results, total: r.total, loading: false }))
+      .then(r => {
+        setThreads({ items: r.results, total: r.total, loading: false });
+        setQuerySuggestion({ query: r.suggestedQuery, isRelated: r.isRelated });
+      })
       .catch(() => setThreads({ items: [], total: 0, loading: false }));
 
     setComments(s => ({ ...s, loading: true }));
@@ -374,6 +379,25 @@ export function SearchResults() {
             </button>
           ))}
         </div>
+
+        {query && querySuggestion.isRelated && querySuggestion.query && (
+          <div className="fk-search-did-you-mean">
+            No results for <strong>"{query}"</strong>. Showing related results for{' '}
+            <button type="button" onClick={() => openSearchResults(querySuggestion.query!)}>
+              {querySuggestion.query}
+            </button>
+          </div>
+        )}
+
+        {query && !querySuggestion.isRelated && querySuggestion.query && querySuggestion.query.toLowerCase() !== query.toLowerCase() && (
+          <div className="fk-search-did-you-mean">
+            Did you mean:{' '}
+            <button type="button" onClick={() => openSearchResults(querySuggestion.query!)}>
+              {querySuggestion.query}
+            </button>
+            ?
+          </div>
+        )}
 
         {section === 'all' ? (
           <>

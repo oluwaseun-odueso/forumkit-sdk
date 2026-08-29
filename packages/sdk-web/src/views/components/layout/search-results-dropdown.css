@@ -391,3 +391,20 @@
 .fk-search-results-tabs .fk-profile-tab {
   font-weight: 400;
 }
+
+.fk-search-did-you-mean {
+  font-size: 13px;
+  color: var(--text-2);
+  padding: 8px 0 12px;
+}
+
+.fk-search-did-you-mean button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 13px;
+  text-decoration: underline;
+}

@@ -1,17 +1,18 @@
 .fk-dropdown-backdrop {
   position: fixed;
   inset: 0;
+  background: transparent;
   z-index: 55;
 }
 
 .fk-dropdown-panel {
   position: absolute;
-  z-index: 60;
+  z-index: 56;
   background: var(--elev);
   border: 1px solid var(--border);
   border-radius: 14px;
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.58);
   padding: 8px;
-  box-shadow: 0 20px 50px -16px rgba(0, 0, 0, 0.55);
 }
 
 .fk-dropdown-title {

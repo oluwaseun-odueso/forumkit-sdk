@@ -19,6 +19,7 @@ type AskCategory = { title: string; bullets: AskBullet[] };
 type PartialAnswer = {
   intro: string;
   categories: AskCategory[];
+  suggestions: string[];
 };
 
 type Turn = {
@@ -62,10 +63,11 @@ function SourcesModal({ sources, onClose, onOpenThread }: {
   );
 }
 
-function TurnView({ turn, onOpenThread, onOpenSources }: {
+function TurnView({ turn, onOpenThread, onOpenSources, onSuggest }: {
   turn: Turn;
   onOpenThread: (id: string) => void;
   onOpenSources: () => void;
+  onSuggest: (p: string) => void;
 }) {
   const mediaSources = turn.sources.filter(s => s.imageUrl !== null);
 
@@ -133,6 +135,16 @@ function TurnView({ turn, onOpenThread, onOpenSources }: {
           Responses are AI-generated from threads and comments and may not be accurate.
         </div>
       )}
+
+      {!turn.loading && (turn.answer?.suggestions.length ?? 0) > 0 && (
+        <div className="fk-ask-suggestions">
+          {turn.answer!.suggestions.map((p, i) => (
+            <button key={i} type="button" className="fk-ask-suggestion-chip" onClick={() => onSuggest(p)}>
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -156,11 +168,16 @@ export function AskResult() {
           if (i !== idx) return t;
           if (event.type === 'sources') return { ...t, sources: event.sources };
           if (event.type === 'intro') {
-            return { ...t, answer: { intro: event.text, categories: t.answer?.categories ?? [] } };
+            const existing = t.answer ?? { intro: '', categories: [], suggestions: [] };
+            return { ...t, answer: { ...existing, intro: event.text } };
           }
           if (event.type === 'category') {
-            const existing = t.answer ?? { intro: '', categories: [] };
+            const existing = t.answer ?? { intro: '', categories: [], suggestions: [] };
             return { ...t, answer: { ...existing, categories: [...existing.categories, { title: event.title, bullets: event.bullets }] } };
+          }
+          if (event.type === 'suggestions') {
+            const existing = t.answer ?? { intro: '', categories: [], suggestions: [] };
+            return { ...t, answer: { ...existing, suggestions: event.prompts } };
           }
           if (event.type === 'error') return { ...t, error: event.message };
           return t;
@@ -196,6 +213,10 @@ export function AskResult() {
     void ask(q);
   }
 
+  function handleSuggest(p: string) {
+    void ask(p);
+  }
+
   const sourcesModalTurn = sourcesModalTurnIdx !== null ? turns[sourcesModalTurnIdx] : null;
 
   return (
@@ -217,6 +238,7 @@ export function AskResult() {
               turn={turn}
               onOpenThread={openThread}
               onOpenSources={() => setSourcesModalTurnIdx(i)}
+              onSuggest={handleSuggest}
             />
           ))}
         </div>

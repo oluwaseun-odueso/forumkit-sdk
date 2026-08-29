@@ -244,3 +244,27 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+.fk-ask-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.fk-ask-suggestion-chip {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.fk-ask-suggestion-chip:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
