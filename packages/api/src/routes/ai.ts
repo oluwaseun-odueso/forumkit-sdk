@@ -119,7 +119,7 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(503).send({ error: 'ai_unavailable', message: 'Could not generate summary', statusCode: 503 });
     }
 
-    setCachedAsk(forumId, q, { answer, sources });
+    setCachedAsk(forumId, q, { answer: { ...answer, suggestions: answer.suggestions ?? [] }, sources, suggestions: answer.suggestions ?? [] });
     return reply.status(200).send({ answer, sources });
   });
 

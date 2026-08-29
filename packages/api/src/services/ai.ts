@@ -30,7 +30,8 @@ export async function summarise(
 
   const { thread, comments } = threadResult.value;
   const commentBodies = buildCommentContext(comments);
-  const summary = await summariseThread(thread.title, commentBodies, llmFn);
+  const allContent = [thread.body.slice(0, MAX_COMMENT_CHARS), ...commentBodies];
+  const summary = await summariseThread(thread.title, allContent, llmFn);
   if (!summary) return err('ai_unavailable');
   return ok(summary);
 }
@@ -47,7 +48,8 @@ export async function suggest(
 
   const { thread, comments } = threadResult.value;
   const commentBodies = buildCommentContext(comments);
-  const suggestion = await suggestAnswer(thread.title, commentBodies, llmFn);
+  const allContent = [thread.body.slice(0, MAX_COMMENT_CHARS), ...commentBodies];
+  const suggestion = await suggestAnswer(thread.title, allContent, llmFn);
   if (!suggestion) return err('ai_unavailable');
   return ok(suggestion);
 }
