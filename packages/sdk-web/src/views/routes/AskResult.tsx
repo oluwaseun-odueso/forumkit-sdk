@@ -5,7 +5,7 @@ import Modal from '../components/shared/modal';
 import MascotIcon from '../components/layout/mascot-icon';
 import PillButton from '../components/shared/pill-button';
 import Avatar from '../components/shared/avatar';
-import { ChevronLeftIcon, ChevronRightIcon, SparkleIcon, LinkIcon } from '../components/shared/icons';
+import { ChevronLeftIcon, ChevronRightIcon, SparkleIcon } from '../components/shared/icons';
 import { authorAvatar } from '../lib/author-avatar';
 import { fmtRelativeTime } from '../lib/format-time';
 import { useForum } from '../hooks/use-forum-state';
@@ -63,11 +63,12 @@ function SourcesModal({ sources, onClose, onOpenThread }: {
   );
 }
 
-function TurnView({ turn, onOpenThread, onOpenSources, onSuggest }: {
+function TurnView({ turn, onOpenThread, onOpenSources, onSuggest, isLast }: {
   turn: Turn;
   onOpenThread: (id: string) => void;
   onOpenSources: () => void;
   onSuggest: (p: string) => void;
+  isLast: boolean;
 }) {
   const mediaSources = turn.sources.filter(s => s.imageUrl !== null);
 
@@ -79,8 +80,17 @@ function TurnView({ turn, onOpenThread, onOpenSources, onSuggest }: {
 
       {turn.sources.length > 0 && (
         <button type="button" className="fk-ask-source-pill" onClick={onOpenSources}>
-          <LinkIcon size={12} />
-          {turn.sources.length} source{turn.sources.length !== 1 ? 's' : ''}
+          <div className="fk-ask-source-pill-avatars">
+            {turn.sources.slice(0, 3).map((s, i) => {
+              const av = authorAvatar(s.authorId, s.authorDisplayName);
+              return <Avatar key={i} size={18} gradient={av.gradient} letter={av.letter} imageUrl={s.authorAvatarUrl} />;
+            })}
+          </div>
+          <span className="fk-ask-source-pill-text">
+            From {turn.sources[0]!.title.slice(0, 30)}{turn.sources[0]!.title.length > 30 ? '…' : ''}
+            {turn.sources.length > 1 ? ` +${turn.sources.length - 1} more` : ''}
+          </span>
+          <ChevronRightIcon size={12} />
         </button>
       )}
 
@@ -130,7 +140,7 @@ function TurnView({ turn, onOpenThread, onOpenSources, onSuggest }: {
         </div>
       )}
 
-      {!turn.loading && turn.answer && (
+      {isLast && !turn.loading && turn.answer && (
         <div className="fk-ask-disclaimer">
           Responses are AI-generated from threads and comments and may not be accurate.
         </div>
@@ -239,6 +249,7 @@ export function AskResult() {
               onOpenThread={openThread}
               onOpenSources={() => setSourcesModalTurnIdx(i)}
               onSuggest={handleSuggest}
+              isLast={i === turns.length - 1}
             />
           ))}
         </div>

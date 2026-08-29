@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import TopNav from './top-nav';
 import Sidebar from './sidebar';
 import { useForum } from '../../hooks/use-forum-state';
@@ -30,10 +30,12 @@ export default function Shell({
 }: ShellProps) {
   const {
     state, setView, openComposer, toggleSidebarPin, setFeedScope, openThread,
-    setSearchQuery, closeSearchDropdown, openSearchResults,
+    setSearchQuery, closeSearchDropdown, openSearchResults, openAsk,
     reportScroll, clearPendingScroll, toggleTheme,
   } = useForum();
   const mainRef = useRef<HTMLElement>(null);
+  const [isActivating, setIsActivating] = useState(false);
+  const activatingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // state.profile.themePreference starts null until the profile-init effect
   // resolves it from the backend; fall back to the same localStorage key
@@ -52,6 +54,21 @@ export default function Shell({
     clearPendingScroll();
   }, [state.pendingScrollTop, clearPendingScroll]);
 
+  // If the parent didn't wire up onAsk (Feed, Thread, Profile…), derive a
+  // fallback so the Ask button is always clickable. askActive is skipped
+  // because that flag means "already in AI mode" — the pill's job there is
+  // visual confirmation, not navigation.
+  const baseAskHandler = onAsk ?? (!askActive ? () => openAsk(state.search.query ?? '') : undefined);
+
+  // Wraps the handler to briefly set isActivating so the lightning-sweep
+  // animation fires on click even before the AskResult page mounts.
+  const effectiveAskHandler = baseAskHandler ? () => {
+    setIsActivating(true);
+    if (activatingTimer.current) clearTimeout(activatingTimer.current);
+    activatingTimer.current = setTimeout(() => setIsActivating(false), 1600);
+    baseAskHandler();
+  } : undefined;
+
   return (
     <div className="fk-shell">
       <TopNav
@@ -60,8 +77,8 @@ export default function Shell({
         onViewProfile={() => setView('profile')}
         onOpenNotifications={() => setView('notifications')}
         unreadCount={state.notifications.unreadCount}
-        onAsk={onAsk}
-        askActive={askActive}
+        onAsk={effectiveAskHandler}
+        askActive={askActive || isActivating}
         compact={compactSearch}
         scopeTag={scopeTag}
         avatarUrl={state.profile.avatarUrl}

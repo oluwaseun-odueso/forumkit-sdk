@@ -274,8 +274,15 @@
 
 /* Ask button stays fully visible (not dimmed) when the pill is in ask-active
    mode — on the AskResult page onAsk is undefined (disabled) but we still
-   want it to look alive as a visual cue that you're in AI mode. */
+   want it to look alive as a visual cue that you're in AI mode.
+   Base: accent color (readable on light pill background). Dark-mode override
+   bumps it to white for maximum contrast against the dark surface. */
 .fk-topnav-search--ask-active .fk-topnav-ask {
   opacity: 1;
+  color: var(--accent);
+}
+
+:host(:not([data-theme='light'])) .fk-topnav-search--ask-active .fk-topnav-ask,
+.fk-root:not([data-theme='light']) .fk-topnav-search--ask-active .fk-topnav-ask {
   color: #ffffff;
 }
