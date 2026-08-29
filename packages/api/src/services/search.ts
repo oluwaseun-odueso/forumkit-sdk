@@ -105,7 +105,7 @@ export async function searchThreads(
   // the only source at all when embedding generation fails.
   const keywordPromise = searchRepo.keywordSearch(db, publicApiUrl, forumId, query, fetchOpts);
 
-  if (!vector) {
+  if (!vector || vector.length === 0) {
     const { results, total } = await keywordPromise;
     const offset = (opts.page - 1) * opts.limit;
     const page = results.slice(offset, offset + opts.limit);
@@ -138,7 +138,7 @@ export async function searchComments(
 
   const keywordPromise = searchRepo.keywordSearchComments(db, publicApiUrl, forumId, query, fetchOpts, threadId);
 
-  if (!vector) {
+  if (!vector || vector.length === 0) {
     const { results, total } = await keywordPromise;
     const offset = (opts.page - 1) * opts.limit;
     const page = results.slice(offset, offset + opts.limit);
