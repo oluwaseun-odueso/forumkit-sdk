@@ -46,22 +46,18 @@ export function GradientBorderPill({
               <Stop offset="0.55" stopColor="#7b5cff" />
               <Stop offset="1" stopColor="#37e0e6" />
             </LinearGradient>
-            {filled && (
-              <LinearGradient id={fillId} x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0" stopColor="#3f7ee2" stopOpacity={0.18} />
-                <Stop offset="0.55" stopColor="#7b5cff" stopOpacity={0.18} />
-                <Stop offset="1" stopColor="#37e0e6" stopOpacity={0.18} />
-              </LinearGradient>
-            )}
+            <LinearGradient id={fillId} x1="0%" y1="0%" x2="100%" y2="0%">
+              <Stop offset="0" stopColor="#3f7ee2" stopOpacity={0.18} />
+              <Stop offset="0.55" stopColor="#7b5cff" stopOpacity={0.18} />
+              <Stop offset="1" stopColor="#37e0e6" stopOpacity={0.18} />
+            </LinearGradient>
           </Defs>
-          {filled && (
-            <Rect
-              x={borderWidth / 2} y={borderWidth / 2}
-              width={w - borderWidth} height={height - borderWidth}
-              rx={r} ry={r}
-              fill={`url(#${fillId})`}
-            />
-          )}
+          <Rect
+            x={borderWidth / 2} y={borderWidth / 2}
+            width={w - borderWidth} height={height - borderWidth}
+            rx={r} ry={r}
+            fill={filled ? `url(#${fillId})` : 'none'}
+          />
           <Rect
             x={borderWidth / 2} y={borderWidth / 2}
             width={w - borderWidth} height={height - borderWidth}
