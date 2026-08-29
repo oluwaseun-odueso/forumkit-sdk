@@ -72,7 +72,6 @@ export default function SearchInputScreen() {
   }, [apiUrl, forumId, token]);
 
   function handleAskPress() {
-    if (!query.trim()) return;
     setAiMode(prev => !prev);
   }
 

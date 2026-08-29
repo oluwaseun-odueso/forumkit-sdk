@@ -124,6 +124,7 @@ export default function AskResultScreen() {
         <ScrollView
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={[styles.body, { paddingBottom: 20 }]}
         >
           {turns.map((turn, i) => (
@@ -134,6 +135,7 @@ export default function AskResultScreen() {
               onSourcesPress={() => setSheetTurn(turn)}
               onThreadPress={threadId => navigation.navigate('Thread', { threadId })}
               onSuggest={handleSuggest}
+              isLast={i === turns.length - 1}
             />
           ))}
         </ScrollView>
@@ -209,13 +211,14 @@ export default function AskResultScreen() {
 type Tokens = ReturnType<typeof useTheme>['tokens'];
 
 function TurnView({
-  turn, tokens, onSourcesPress, onThreadPress, onSuggest,
+  turn, tokens, onSourcesPress, onThreadPress, onSuggest, isLast,
 }: {
   turn: Turn;
   tokens: Tokens;
   onSourcesPress: () => void;
   onThreadPress: (id: string) => void;
   onSuggest: (p: string) => void;
+  isLast: boolean;
 }) {
   const mediaSources = turn.sources.filter(s => s.imageUrl);
 
@@ -309,8 +312,8 @@ function TurnView({
               </View>
             )}
 
-            {/* Disclaimer — shown once loading is done */}
-            {!turn.loading && turn.answer && (
+            {/* Disclaimer — shown only on the last turn */}
+            {isLast && !turn.loading && turn.answer && (
               <Text style={[styles.disclaimer, { color: tokens.muted }]}>
                 Responses are AI-generated from threads and comments and may not be accurate.
               </Text>
@@ -519,16 +522,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   mediaThumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
+    width: 120,
+    height: 120,
+    borderRadius: 12,
     marginRight: 8,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
   },
   mediaImage: {
-    width: 80,
-    height: 80,
+    width: 120,
+    height: 120,
   },
 
   disclaimer: {
