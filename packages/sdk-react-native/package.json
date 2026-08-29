@@ -1,6 +1,6 @@
 {
   "name": "@timpel/forumkit-sdk-react-native",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "./index.ts",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -17,8 +17,7 @@
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
-    "@expo-google-fonts/michroma": "^0.4.2",
-    "expo-clipboard": "~57.0.1"
+    "@expo-google-fonts/michroma": "^0.4.2"
   },
   "peerDependencies": {
     "@expensify/react-native-live-markdown": "0.1.336",
@@ -28,6 +27,7 @@
     "expensify-common": ">=2.0.189",
     "expo": "~57.0.16",
     "expo-blur": "~57.0.2",
+    "expo-clipboard": "~57.0.1",
     "expo-file-system": "~57.0.4",
     "expo-font": "~57.0.1",
     "expo-glass-effect": "~57.0.1",
@@ -35,7 +35,7 @@
     "expo-image-picker": "~57.0.11",
     "expo-status-bar": "~57.0.1",
     "expo-video": "~57.0.2",
-    "react": "19.2.3",
+    "react": "19.2.8",
     "react-native": "0.86.2",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -54,6 +54,7 @@
     "expensify-common": ">=2.0.189",
     "expo": "~57.0.16",
     "expo-blur": "~57.0.2",
+    "expo-clipboard": "~57.0.1",
     "expo-file-system": "~57.0.4",
     "expo-font": "~57.0.1",
     "expo-glass-effect": "~57.0.1",
@@ -61,7 +62,7 @@
     "expo-image-picker": "~57.0.11",
     "expo-status-bar": "~57.0.1",
     "expo-video": "~57.0.2",
-    "react": "19.2.3",
+    "react": "19.2.8",
     "react-native": "0.86.2",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
