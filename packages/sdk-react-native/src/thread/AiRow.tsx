@@ -1,9 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Share } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { GradientBorderPill } from '../components/Pill';
 import { SparkleIcon, CloseIcon } from '../components/icons';
-import { checkAiAvailable, callSummarise, callSuggest } from './api-ai';
+import { checkAiAvailable, callSummariseStreaming, callSuggestStreaming } from './api-ai';
 
 // RowState drives the outer sparkle toggle:
 //   closed      → only the "Ask AI" pill is visible
@@ -73,22 +73,34 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
 
   const fetchSummary = async () => {
     setSummaryState('loading');
-    const points = await callSummarise(apiUrl, threadId, token);
-    if (points) {
-      setSummaryPoints(points);
-      setSummaryState('done');
-    } else {
+    setSummaryPoints([]);
+    let received = false;
+    try {
+      await callSummariseStreaming(apiUrl, threadId, (event) => {
+        if (event.type === 'keyPoint' || event.type === 'conclusion' || event.type === 'openQuestion') {
+          received = true;
+          setSummaryPoints(prev => [...prev, event.text]);
+        }
+      }, token);
+      setSummaryState(received ? 'done' : 'error');
+    } catch {
       setSummaryState('error');
     }
   };
 
   const fetchSuggest = async () => {
     setSuggestState('loading');
-    const text = await callSuggest(apiUrl, threadId, token);
-    if (text) {
-      setSuggestText(text);
-      setSuggestState('done');
-    } else {
+    setSuggestText('');
+    let accumulated = '';
+    try {
+      await callSuggestStreaming(apiUrl, threadId, (event) => {
+        if (event.type === 'chunk') {
+          accumulated += event.text;
+          setSuggestText(accumulated);
+        }
+      }, token);
+      setSuggestState(accumulated ? 'done' : 'error');
+    } catch {
       setSuggestState('error');
     }
   };
@@ -147,8 +159,8 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
       {rowState === 'open' && (
         <>
           <View style={[styles.actionRow]}>
-            <AiButton label="Summarise thread" onPress={toggleSummary} />
-            <AiButton label="Suggest reply" onPress={toggleSuggest} />
+            <AiButton label="Summarise thread" onPress={toggleSummary} active={summaryOpen} />
+            <AiButton label="Suggest reply" onPress={toggleSuggest} active={suggestOpen} />
           </View>
 
           {panelOpen && (
@@ -182,12 +194,22 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
               )}
 
               {suggestOpen && (
-                suggestState === 'loading' ? (
-                  <ActivityIndicator size="small" color={tokens.accent} style={{ marginTop: 4 }} />
-                ) : suggestState === 'error' ? (
+                suggestState === 'error' ? (
                   <Text style={[styles.panelBody, { color: tokens.muted }]}>AI service unavailable</Text>
+                ) : suggestText ? (
+                  <View>
+                    <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>{suggestText}</Text>
+                    {suggestState === 'done' && (
+                      <Pressable
+                        style={[styles.copyBtn, { borderColor: tokens.border, backgroundColor: tokens.surface }]}
+                        onPress={() => void Share.share({ message: suggestText })}
+                      >
+                        <Text style={[styles.copyBtnLabel, { color: tokens.text }]}>Copy</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 ) : (
-                  <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>{suggestText}</Text>
+                  <ActivityIndicator size="small" color={tokens.accent} style={{ marginTop: 4 }} />
                 )
               )}
             </View>
@@ -200,11 +222,14 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
 
 export default AiRow;
 
-function AiButton({ label, onPress }: { label: string; onPress: () => void }) {
+function AiButton({ label, onPress, active }: { label: string; onPress: () => void; active?: boolean }) {
   const { tokens } = useTheme();
   return (
     <GradientBorderPill height={34} borderWidth={1.3} style={{ flex: 1 }}>
-      <Pressable onPress={onPress} style={styles.aiBtn}>
+      <Pressable
+        onPress={onPress}
+        style={[styles.aiBtn, active && { backgroundColor: tokens['surface-2'] }]}
+      >
         <SparkleIcon size={14} />
         <Text style={[styles.aiBtnLabel, { color: tokens.text }]}>{label}</Text>
       </Pressable>
@@ -230,4 +255,13 @@ const styles = StyleSheet.create({
   panelBody: { fontSize: 13.5, lineHeight: 19 },
   bulletRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   bullet: { fontSize: 13.5, lineHeight: 19 },
+  copyBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    borderRadius: 100,
+    borderWidth: 1,
+  },
+  copyBtnLabel: { fontSize: 13, fontWeight: '500' },
 });

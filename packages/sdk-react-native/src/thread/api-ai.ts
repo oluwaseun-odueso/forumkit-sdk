@@ -1,3 +1,6 @@
+import { summariseStreaming, suggestStreaming } from '@forumkit/shared';
+export type { SummariseStreamEvent, SuggestStreamEvent } from '@forumkit/shared';
+
 function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -78,4 +81,22 @@ export async function callSuggest(
   } catch {
     return null;
   }
+}
+
+export async function callSummariseStreaming(
+  apiUrl: string,
+  threadId: string,
+  onEvent: Parameters<typeof summariseStreaming>[3],
+  token?: string,
+): Promise<void> {
+  await summariseStreaming(apiUrl, threadId, token, onEvent);
+}
+
+export async function callSuggestStreaming(
+  apiUrl: string,
+  threadId: string,
+  onEvent: Parameters<typeof suggestStreaming>[3],
+  token?: string,
+): Promise<void> {
+  await suggestStreaming(apiUrl, threadId, token, onEvent);
 }
