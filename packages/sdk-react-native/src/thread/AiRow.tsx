@@ -225,10 +225,10 @@ export default AiRow;
 function AiButton({ label, onPress, active }: { label: string; onPress: () => void; active?: boolean }) {
   const { tokens } = useTheme();
   return (
-    <GradientBorderPill height={34} borderWidth={1.3} style={{ flex: 1 }}>
+    <GradientBorderPill height={34} borderWidth={1.3} filled={active} style={{ flex: 1 }}>
       <Pressable
         onPress={onPress}
-        style={[styles.aiBtn, { borderRadius: 17, overflow: 'hidden' }, active && { backgroundColor: tokens['hover-2'] }]}
+        style={styles.aiBtn}
       >
         <SparkleIcon size={14} />
         <Text style={[styles.aiBtnLabel, { color: tokens.text }]}>{label}</Text>

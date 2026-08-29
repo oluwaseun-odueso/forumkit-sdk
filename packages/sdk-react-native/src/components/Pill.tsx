@@ -14,18 +14,20 @@ let gradIdCounter = 0;
 // bar's other buttons) leave on a given screen, which was clipping the
 // search pill on narrower phones.
 export function GradientBorderPill({
-  width, height, borderWidth = 1.4, radius, children, style,
+  width, height, borderWidth = 1.4, radius, filled = false, children, style,
 }: {
   width?: number;
   height: number;
   borderWidth?: number;
   radius?: number;
+  filled?: boolean | undefined;
   children: ReactNode;
   style?: ViewStyle;
 }) {
   const idRef = useRef<string | null>(null);
   if (!idRef.current) idRef.current = `fkGradBorder${++gradIdCounter}`;
   const id = idRef.current;
+  const fillId = `${id}Fill`;
   const r = radius ?? height / 2;
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const w = width ?? measuredWidth;
@@ -44,7 +46,22 @@ export function GradientBorderPill({
               <Stop offset="0.55" stopColor="#7b5cff" />
               <Stop offset="1" stopColor="#37e0e6" />
             </LinearGradient>
+            {filled && (
+              <LinearGradient id={fillId} x1="0%" y1="0%" x2="100%" y2="0%">
+                <Stop offset="0" stopColor="#3f7ee2" stopOpacity={0.18} />
+                <Stop offset="0.55" stopColor="#7b5cff" stopOpacity={0.18} />
+                <Stop offset="1" stopColor="#37e0e6" stopOpacity={0.18} />
+              </LinearGradient>
+            )}
           </Defs>
+          {filled && (
+            <Rect
+              x={borderWidth / 2} y={borderWidth / 2}
+              width={w - borderWidth} height={height - borderWidth}
+              rx={r} ry={r}
+              fill={`url(#${fillId})`}
+            />
+          )}
           <Rect
             x={borderWidth / 2} y={borderWidth / 2}
             width={w - borderWidth} height={height - borderWidth}
