@@ -35,6 +35,7 @@ export type Config = {
   anthropicApiKey: string | null;
   openrouterApiKey: string | null;
   aiModel: string | null;
+  aiAskModel: string | null;
   moderationProvider: ModerationProvider;
   perspectiveApiKey: string | null;
   embeddingProvider: EmbeddingProvider;
@@ -65,6 +66,7 @@ export function loadConfig(): Config {
     anthropicApiKey: process.env['ANTHROPIC_API_KEY'] ?? null,
     openrouterApiKey: process.env['OPENROUTER_API_KEY'] ?? null,
     aiModel: process.env['AI_MODEL'] ?? null,
+    aiAskModel: process.env['AI_ASK_MODEL'] ?? null,
     moderationProvider: optional('MODERATION_PROVIDER', 'local') as ModerationProvider,
     perspectiveApiKey: process.env['PERSPECTIVE_API_KEY'] ?? null,
     embeddingProvider: optional('EMBEDDING_PROVIDER', 'local') as EmbeddingProvider,
