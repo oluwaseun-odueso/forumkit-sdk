@@ -65,6 +65,8 @@ export {
   deleteDraft,
   getModerationQueue,
   resolveModerationItem,
+  askQuestion,
+  askQuestionStreaming,
 } from './api';
 export type {
   CreateSessionResult,
@@ -79,4 +81,9 @@ export type {
   SearchOpts,
   UserSearchListResult,
   ModerationQueueResult,
+  AskBullet,
+  AskCategory,
+  AskAnswer,
+  AskQuestionResult,
+  AskStreamEvent,
 } from './api';

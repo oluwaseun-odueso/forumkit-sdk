@@ -639,6 +639,67 @@ export async function deleteDraft(apiUrl: string, forumId: string, draftId: stri
   return okVoid(res);
 }
 
+// ── AI Ask ────────────────────────────────────────────────────────────
+
+export type AskBullet   = { fact: string; quote: string; sourceIndex: number };
+export type AskCategory = { title: string; bullets: AskBullet[] };
+export type AskAnswer   = { intro: string; categories: AskCategory[] };
+export type AskQuestionResult = { answer: AskAnswer; sources: SearchResult[] };
+
+export type AskStreamEvent =
+  | { type: 'sources'; sources: SearchResult[] }
+  | { type: 'intro'; text: string }
+  | { type: 'category'; title: string; bullets: AskBullet[] }
+  | { type: 'error'; message: string };
+
+export async function askQuestion(
+  apiUrl: string,
+  forumId: string,
+  q: string,
+  token: string,
+): Promise<AskQuestionResult> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/ai/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ q }),
+  });
+  return unwrapJson<AskQuestionResult>(res);
+}
+
+export async function askQuestionStreaming(
+  apiUrl: string,
+  forumId: string,
+  q: string,
+  token: string,
+  onEvent: (event: AskStreamEvent) => void,
+): Promise<void> {
+  const res = await fetch(`${apiUrl}/forums/${forumId}/ai/ask/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify({ q }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'AI request failed' })) as { message?: string };
+    throw new Error(err.message ?? 'AI request failed');
+  }
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') return;
+      try { onEvent(JSON.parse(data) as AskStreamEvent); } catch { /* malformed line */ }
+    }
+  }
+}
+
 // ── Moderation (admin/moderator only; not forum-scoped in the URL — the
 // backend derives the forum from the authenticated session) ──────────
 
