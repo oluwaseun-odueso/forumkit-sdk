@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, Share } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../theme/ThemeContext';
 import { GradientBorderPill } from '../components/Pill';
 import { SparkleIcon, CloseIcon, CopyIcon, CheckIcon } from '../components/icons';
@@ -205,7 +206,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
                       <Pressable
                         style={[styles.copyBtn, { borderColor: suggestCopied ? tokens.accent : tokens.border, backgroundColor: tokens.surface }]}
                         onPress={() => {
-                          void Share.share({ message: suggestText });
+                          void Clipboard.setStringAsync(suggestText);
                           setSuggestCopied(true);
                           setTimeout(() => setSuggestCopied(false), 1500);
                         }}
