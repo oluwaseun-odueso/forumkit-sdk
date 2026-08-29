@@ -397,6 +397,8 @@ export type SearchResponse<T> = {
   page: number;
   limit: number;
   mode: 'hybrid' | 'keyword';
+  suggestedQuery: string | null;
+  isRelated: boolean;
 };
 
 // The `notifications.type` column is plain TEXT in Postgres (not an ENUM,

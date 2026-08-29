@@ -577,7 +577,14 @@ export async function searchThreads(
 }
 
 export type UserSearchListResult = { results: UserSearchResult[]; total: number; page: number; limit: number };
-export type CommentSearchListResult = { results: CommentSearchResult[]; total: number; page: number; limit: number };
+export type CommentSearchListResult = {
+  results: CommentSearchResult[];
+  total: number;
+  page: number;
+  limit: number;
+  suggestedQuery: string | null;
+  isRelated: boolean;
+};
 
 export async function searchComments(
   apiUrl: string,
@@ -643,13 +650,14 @@ export async function deleteDraft(apiUrl: string, forumId: string, draftId: stri
 
 export type AskBullet   = { fact: string; quote: string; sourceIndex: number };
 export type AskCategory = { title: string; bullets: AskBullet[] };
-export type AskAnswer   = { intro: string; categories: AskCategory[] };
+export type AskAnswer   = { intro: string; categories: AskCategory[]; suggestions: string[] };
 export type AskQuestionResult = { answer: AskAnswer; sources: SearchResult[] };
 
 export type AskStreamEvent =
   | { type: 'sources'; sources: SearchResult[] }
   | { type: 'intro'; text: string }
   | { type: 'category'; title: string; bullets: AskBullet[] }
+  | { type: 'suggestions'; prompts: string[] }
   | { type: 'error'; message: string };
 
 export async function askQuestion(
