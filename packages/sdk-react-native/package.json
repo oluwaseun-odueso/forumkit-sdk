@@ -1,6 +1,6 @@
 {
   "name": "@timpel/forumkit-sdk-react-native",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "./index.ts",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -22,8 +22,8 @@
   "peerDependencies": {
     "@expensify/react-native-live-markdown": "0.1.336",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-navigation/native": "^7.3.16",
-    "@react-navigation/native-stack": "^7.18.8",
+    "@react-navigation/native": "^6.1.8 || ^7.3.16",
+    "@react-navigation/native-stack": "^6.9.13 || ^7.18.8",
     "expensify-common": ">=2.0.189",
     "expo": "~57.0.16",
     "expo-blur": "~57.0.2",
