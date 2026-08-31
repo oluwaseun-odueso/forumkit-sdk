@@ -16,7 +16,7 @@ export function useScrollCollapse() {
   const { setBottomBarCollapsed } = useShell();
   const state = useRef({ lastY: 0, downAccum: 0, upAccum: 0, collapsed: false });
 
-  return (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+  return (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
     const y = Math.max(0, e.nativeEvent.contentOffset.y);
     const s = state.current;
     const dy = y - s.lastY;

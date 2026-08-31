@@ -158,7 +158,7 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
       'Connection': 'keep-alive',
     });
 
-    const sendSSE = (data: object) => {
+    const sendSSE = (data: object): void => {
       reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
     };
 
@@ -429,7 +429,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
       });
-      const sendSSE = (data: object) => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
+      const sendSSE = (data: object): void => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
 
       const result = await aiService.summariseStream(
         request.server.db,
@@ -479,7 +479,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
       });
-      const sendSSE = (data: object) => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
+      const sendSSE = (data: object): void => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
 
       const result = await aiService.suggestStream(
         request.server.db,
