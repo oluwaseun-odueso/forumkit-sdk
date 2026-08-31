@@ -43,11 +43,16 @@ FORUM_SECRET_KEY=your-generated-secret-here
 ### 2. Start the stack
 
 ```bash
-docker compose -f deploy/docker-compose.dev.yml up -d
+docker compose --env-file .env -f deploy/docker-compose.dev.yml up -d
 ```
+
+`--env-file .env` matters here — without it, Compose looks for `.env` next to the compose
+file (`deploy/.env`) rather than the one you just created at the project root, and your
+edits above would be silently ignored in favour of the file's local-dev defaults.
 
 This starts:
 - `db` — PostgreSQL 16 + pgvector on port 5433 (host-mapped to avoid conflicts)
+- `minio` — local S3-compatible storage, standing in for a real bucket (see Storage below)
 - `api` — ForumKit API on port 3000
 
 ### 3. Run migrations
@@ -122,6 +127,30 @@ All variables are documented in `.env.example`. Key ones:
 | `DATABASE_URL` | Direct Postgres connection string. Used for migrations only. |
 | `DATABASE_POOL_URL` | Pooled connection string. Used by the application at runtime. Falls back to `DATABASE_URL` if not set. |
 | `FORUM_SECRET_KEY` | Shared secret for signing and verifying JWTs. Must match across all API instances. |
+
+### Storage (required — no local-disk fallback)
+
+Every integrator needs an S3-compatible bucket for image/video uploads: AWS S3,
+Cloudflare R2, Backblaze B2, Supabase Storage, or (for local dev/self-hosting without
+an external account) the bundled MinIO container — `docker-compose.dev.yml` already
+points these at MinIO by default, so you only need to fill these in yourself if you're
+using a real provider instead.
+
+| Variable | Default | Description |
+|---|---|---|
+| `STORAGE_S3_ENDPOINT` | `http://minio:9000` | Leave unset for real AWS S3; set for any other S3-compatible provider (R2, B2, Supabase Storage, or MinIO). |
+| `STORAGE_S3_BUCKET` | `forumkit-dev` | Bucket name. |
+| `STORAGE_S3_REGION` | `us-east-1` | Bucket region. |
+| `STORAGE_S3_ACCESS_KEY_ID` | `forumkit` | — |
+| `STORAGE_S3_SECRET_ACCESS_KEY` | `forumkit-dev` | — |
+| `STORAGE_MAX_FILE_SIZE_BYTES` | `26214400` | 25MB. |
+| `STORAGE_ALLOWED_MIME_TYPES` | `image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm` | Comma-separated. |
+
+### Optional
+
+| Variable | Default | Description |
+|---|---|---|
+| `GIPHY_API_KEY` | — | Powers the comment composer's GIF picker. Left blank, the picker stays a disabled "coming soon" panel instead of erroring — get a key at [developers.giphy.com](https://developers.giphy.com). |
 
 ### AI providers (all optional — every AI feature no-ops gracefully without a key)
 

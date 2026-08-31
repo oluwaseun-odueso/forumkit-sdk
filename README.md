@@ -30,7 +30,7 @@ cd forumkit-sdk
 cp .env.example .env
 
 # 3. Start the database and API
-docker compose -f deploy/docker-compose.dev.yml up
+docker compose --env-file .env -f deploy/docker-compose.dev.yml up
 
 # 4. Run migrations (in a new terminal)
 npm run db:migrate

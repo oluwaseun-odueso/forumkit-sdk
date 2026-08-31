@@ -13,8 +13,8 @@
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-org/forumkit.git
-cd forumkit
+git clone https://github.com/oluwaseun-odueso/forumkit-sdk.git
+cd forumkit-sdk
 npm install
 ```
 
