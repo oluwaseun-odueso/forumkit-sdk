@@ -27,8 +27,8 @@ This starts a PostgreSQL 16 + pgvector database and the ForumKit API together.
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/your-org/forumkit.git
-cd forumkit
+git clone https://github.com/oluwaseun-odueso/forumkit-sdk.git
+cd forumkit-sdk
 cp .env.example .env
 ```
 
@@ -123,16 +123,24 @@ All variables are documented in `.env.example`. Key ones:
 | `DATABASE_POOL_URL` | Pooled connection string. Used by the application at runtime. Falls back to `DATABASE_URL` if not set. |
 | `FORUM_SECRET_KEY` | Shared secret for signing and verifying JWTs. Must match across all API instances. |
 
-### AI providers (all optional — local fallbacks run if absent)
+### AI providers (all optional — every AI feature no-ops gracefully without a key)
+
+Unlike the LLM-backed features, moderation and search currently have **no local/offline
+fallback model** — without a key, they silently degrade (posts publish unscored, search
+falls back to keyword-only) rather than actually running locally, despite `local` still
+being a listed value below for forward-compatibility.
 
 | Variable | Default | Description |
 |---|---|---|
-| `AI_PROVIDER` | `local` | `local` uses the stub LLM. `anthropic` or `openai` enables AI summarise/suggest. |
+| `AI_PROVIDER` | `openrouter` | `openai`, `anthropic`, or `openrouter` — which key below is used for Summarise/Suggest/Ask AI. No `local` option; one of the three keys is required for these features to run at all. |
 | `ANTHROPIC_API_KEY` | — | Required when `AI_PROVIDER=anthropic`. |
 | `OPENAI_API_KEY` | — | Required when `AI_PROVIDER=openai`. Also used for embeddings when `EMBEDDING_PROVIDER=openai`. |
-| `EMBEDDING_PROVIDER` | `local` | `local` uses all-MiniLM-L6-v2 (384 dims). `openai` uses text-embedding-3-small (1536 dims). |
-| `EMBEDDING_DIMENSION` | `384` | Must match the model: 384 for local, 1536 for OpenAI. **Set this before running migrations** — changing it on an existing database requires recreating the embedding columns. |
-| `MODERATION_PROVIDER` | `local` | `local` uses toxic-bert. `perspective` uses Google Perspective API. |
+| `OPENROUTER_API_KEY` | — | Required when `AI_PROVIDER=openrouter` (the default). |
+| `AI_MODEL` | — | Summarise/Suggest model; provider-specific default if unset. |
+| `AI_ASK_MODEL` | — | A cheaper/faster model just for Ask AI; defaults to a smaller model than `AI_MODEL` if unset. |
+| `EMBEDDING_PROVIDER` | `local` | `local` is currently a no-op (no model behind it) — search falls back to keyword-only. `openai` uses text-embedding-3-small (1536 dims) for real semantic search. |
+| `EMBEDDING_DIMENSION` | `1536` | Must match the provider: 384 if you restore a local model, 1536 for OpenAI. **Set this before running migrations** — changing it on an existing database requires recreating the embedding columns. |
+| `MODERATION_PROVIDER` | `local` | `local` is currently a no-op — every post publishes with `toxicity_score: 0` and no flags. `perspective` uses Google's real Perspective API. |
 | `PERSPECTIVE_API_KEY` | — | Required when `MODERATION_PROVIDER=perspective`. |
 
 ### Application
