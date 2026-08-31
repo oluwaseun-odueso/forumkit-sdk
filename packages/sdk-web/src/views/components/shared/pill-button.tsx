@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import './pill-button.css';
 
-export type PillVariant = 'ghost' | 'surface' | 'accent' | 'outline';
+export type PillVariant = 'ghost' | 'surface' | 'accent' | 'outline' | 'danger';
 
 type PillButtonProps = {
   children: ReactNode;
@@ -21,6 +21,7 @@ type PillButtonProps = {
  * - surface: filled with --surface-2 (comment/share pills, Save Draft)
  * - accent: filled with --accent (primary actions like Post, Comment)
  * - outline: bordered, transparent fill (Select Community, Create Post)
+ * - danger: filled with --danger (destructive confirmations, e.g. Delete)
  */
 export default function PillButton({ children, onClick, variant = 'surface', active, disabled, icon, style, type = 'button' }: PillButtonProps) {
   return (

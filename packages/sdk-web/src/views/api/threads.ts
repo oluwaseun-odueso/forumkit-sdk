@@ -1,4 +1,22 @@
-import type { CreateThreadBody, UpdateThreadBody, ErrorResponse, Thread, Comment, TopWindow, RelatedThreadForRail } from '@forumkit/types';
+import type { CreateThreadBody, UpdateThreadBody, Thread, RelatedThreadForRail } from '@forumkit/types';
+import {
+  listThreads as sharedListThreads,
+  saveThread as sharedSaveThread,
+  unsaveThread as sharedUnsaveThread,
+  reportThread as sharedReportThread,
+  getThread as sharedGetThread,
+  createThread as sharedCreateThread,
+  updateThread as sharedUpdateThread,
+  deleteThread as sharedDeleteThread,
+  shareThreadWithUsers as sharedShareThreadWithUsers,
+  type ListThreadsParams,
+  type ListThreadsResult,
+  type GetThreadResult,
+} from '@forumkit/shared';
+
+// ListThreadsParams / ListThreadsResult / GetThreadResult live in
+// @forumkit/shared; re-exported so existing `../api/threads` imports keep working.
+export type { ListThreadsParams, ListThreadsResult, GetThreadResult };
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -8,52 +26,50 @@ function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function unwrapThread(res: Response): Promise<Thread> {
-  if (!res.ok) {
-    const message = await res
-      .json()
-      .then((data: ErrorResponse) => data.message)
-      .catch(() => undefined);
-    throw new Error(message ?? `HTTP ${res.status}`);
-  }
-  return (await res.json()) as Thread;
+// Delegated to the shared client; web signatures unchanged.
+export function listThreads(forumId: string, token?: string, params?: ListThreadsParams): Promise<ListThreadsResult> {
+  return sharedListThreads(API_BASE, forumId, token, params);
 }
 
-export type ListThreadsResult = { threads: Thread[]; total: number; page: number; limit: number };
+export function saveThread(forumId: string, threadId: string, token?: string): Promise<void> {
+  return sharedSaveThread(API_BASE, forumId, threadId, token);
+}
 
-export type ListThreadsParams = {
-  sort?: 'best' | 'hot' | 'new' | 'top' | 'rising' | undefined;
-  tagId?: string | undefined;
-  tagName?: string | undefined;
-  pinned?: boolean | undefined;
-  topWindow?: TopWindow | undefined;
-  limit?: number | undefined;
-  page?: number | undefined;
-};
+export function unsaveThread(forumId: string, threadId: string, token?: string): Promise<void> {
+  return sharedUnsaveThread(API_BASE, forumId, threadId, token);
+}
 
-export async function listThreads(
+export function reportThread(forumId: string, threadId: string, reason: string, token?: string): Promise<void> {
+  return sharedReportThread(API_BASE, forumId, threadId, reason, token);
+}
+
+export function getThread(forumId: string, threadId: string, token?: string): Promise<GetThreadResult> {
+  return sharedGetThread(API_BASE, forumId, threadId, token);
+}
+
+export function createThread(forumId: string, body: CreateThreadBody, token?: string): Promise<Thread> {
+  return sharedCreateThread(API_BASE, forumId, body, token);
+}
+
+export function updateThread(forumId: string, threadId: string, body: UpdateThreadBody, token?: string): Promise<Thread> {
+  return sharedUpdateThread(API_BASE, forumId, threadId, body, token);
+}
+
+export function deleteThread(forumId: string, threadId: string, token?: string): Promise<void> {
+  return sharedDeleteThread(API_BASE, forumId, threadId, token);
+}
+
+export function shareThreadWithUsers(
   forumId: string,
+  threadId: string,
+  recipientUserIds: string[],
+  message: string | undefined,
   token?: string,
-  params?: ListThreadsParams,
-): Promise<ListThreadsResult> {
-  const qs = new URLSearchParams();
-  if (params?.sort) qs.set('sort', params.sort);
-  if (params?.tagId) qs.set('tagId', params.tagId);
-  if (params?.tagName) qs.set('tagName', params.tagName);
-  if (params?.pinned !== undefined) qs.set('pinned', String(params.pinned));
-  if (params?.topWindow) qs.set('topWindow', params.topWindow);
-  if (params?.limit) qs.set('limit', String(params.limit));
-  if (params?.page) qs.set('page', String(params.page));
-  const suffix = qs.toString() ? `?${qs.toString()}` : '';
-
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads${suffix}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as ListThreadsResult;
+): Promise<void> {
+  return sharedShareThreadWithUsers(API_BASE, forumId, threadId, recipientUserIds, message, token);
 }
 
+// Stays local (not part of the shared subset).
 export async function getSimilarThreads(
   forumId: string,
   threadId: string,
@@ -66,54 +82,4 @@ export async function getSimilarThreads(
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as { threads: RelatedThreadForRail[] };
-}
-
-export type GetThreadResult = { thread: Thread; comments: Comment[] };
-
-export async function getThread(forumId: string, threadId: string, token?: string): Promise<GetThreadResult> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as GetThreadResult;
-}
-
-export async function createThread(forumId: string, body: CreateThreadBody, token?: string): Promise<Thread> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify(body),
-  });
-  return unwrapThread(res);
-}
-
-export async function updateThread(
-  forumId: string,
-  threadId: string,
-  body: UpdateThreadBody,
-  token?: string,
-): Promise<Thread> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-    body: JSON.stringify(body),
-  });
-  return unwrapThread(res);
-}
-
-export async function saveThread(forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/save`, {
-    method: 'POST',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
-export async function unsaveThread(forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/threads/${threadId}/save`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

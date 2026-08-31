@@ -1,0 +1,25 @@
+/* Scoped overrides on top of the shared drafts-modal-body/edit-modal-
+   preference-row classes — bigger body padding (the shared 8px default
+   reads as too tight for this modal's content), a lighter row-label
+   weight, a dimmer sub-line, and more breathing room between rows. Scoped
+   to this wrapper so EditProfileModal's own use of the same preference-row
+   classes (Display Mode) is untouched. */
+.fk-notification-settings-body {
+  padding: 22px 24px 26px;
+}
+
+.fk-notification-settings-body .fk-edit-modal-preference-row {
+  margin-bottom: 26px;
+}
+
+.fk-notification-settings-body .fk-edit-modal-preference-row:last-child {
+  margin-bottom: 0;
+}
+
+.fk-notification-settings-body .fk-edit-modal-preference-label {
+  font-weight: 500;
+}
+
+.fk-notification-settings-body .fk-edit-modal-preference-sub {
+  color: var(--muted);
+}

@@ -1,7 +1,7 @@
 import DropdownMenu, { DropdownMenuDivider, DropdownMenuItem } from '../shared/dropdown-menu';
 import Avatar from '../shared/avatar';
 import { authorAvatar } from '../../lib/author-avatar';
-import { ShirtIcon, DraftIcon, SunIcon, MoonIcon, LogoutIcon, GearIcon } from '../shared/icons';
+import { ShirtIcon, DraftIcon, SunIcon, MoonIcon, LogoutIcon, GearIcon, ShieldIcon } from '../shared/icons';
 import { useForum } from '../../hooks/use-forum-state';
 import './account-menu.css';
 
@@ -13,11 +13,12 @@ type AccountMenuProps = {
 };
 
 export default function AccountMenu({ open, onClose, onViewProfile, showViewProfile = true }: AccountMenuProps) {
-  const { state, openSettings, toggleTheme, logOut, canLogOut, openDraftsList } = useForum();
+  const { state, setView, openSettings, toggleTheme, logOut, canLogOut, openDraftsList } = useForum();
   const { profile } = state;
   const username = profile.displayName || 'You';
   const avatar = authorAvatar(profile.id ?? username, username);
   const isDark = profile.themePreference !== 'light';
+  const isModerator = profile.role === 'moderator' || profile.role === 'admin';
 
   const menuItems = [
     { label: 'Edit Avatar', icon: <ShirtIcon />, onClick: () => { openSettings(); onClose(); } },
@@ -28,6 +29,9 @@ export default function AccountMenu({ open, onClose, onViewProfile, showViewProf
       sub: isDark ? 'Dark' : 'Light',
       onClick: () => void toggleTheme(),
     },
+    // Only shown to moderators/admins — mirrors the two-role-OR gate used
+    // everywhere else in this codebase (post-card.tsx, thread-view.tsx).
+    ...(isModerator ? [{ label: 'Moderation', icon: <ShieldIcon />, onClick: () => { setView('moderation'); onClose(); } }] : []),
     // Only shown when the host app opted in via ForumKitConfig.onLogout —
     // ForumKit can't log anyone out itself, so a button with nothing behind
     // it would just look broken for hosts that never wired this up.

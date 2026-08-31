@@ -3,6 +3,12 @@
  * Scoped to :host (the <forum-kit> custom element's shadow root) for the production
  * embed path, and to .fk-root (a light-DOM wrapper div) for the Vite dev harness,
  * which doesn't render inside a shadow root — see main.tsx.
+ *
+ * These values are mirrored in @forumkit/shared's darkTokens/lightTokens
+ * (packages/shared/src/tokens.ts), which packages/sdk-react-native consumes
+ * directly (no CSS there). That package is the source of truth going
+ * forward — if you change a value here, change it there too (or migrate
+ * this file to generate from it) so the two platforms don't drift apart.
  */
 
 :host,
@@ -27,8 +33,13 @@
   --accent-soft: rgba(63, 126, 226, 0.16);
   --up: #ff6a3d;
   --down: #8b6dff;
+  --success: #3fb950;
+  --success-soft: rgba(63, 185, 80, 0.06);
+  --success-soft-strong: rgba(63, 185, 80, 0.16);
+  --danger: #e0463a;
   --ring: rgba(63, 126, 226, 0.55);
   --thumb-shadow: rgba(0, 0, 0, 0.5);
+  --glass: rgba(12, 14, 18, 0.35);
 }
 
 :host([data-theme='light']),
@@ -50,8 +61,13 @@
   --accent-2: #2560c4;
   --accent-soft: rgba(47, 111, 214, 0.12);
   --up: #f0521f;
+  --success: #1f9d3c;
+  --success-soft: rgba(31, 157, 60, 0.06);
+  --success-soft-strong: rgba(31, 157, 60, 0.16);
+  --danger: #d1372b;
   --ring: rgba(47, 111, 214, 0.5);
   --thumb-shadow: rgba(0, 0, 0, 0.18);
+  --glass: rgba(255, 255, 255, 0.10);
 }
 
 @keyframes fkdance {

@@ -1,15 +1,18 @@
 import type { ReactElement } from 'react';
 import { useSidebarHover } from '../../hooks/use-sidebar-hover';
 import type { FeedScope } from '../../hooks/use-forum-state';
-import { HamburgerIcon, HomeIcon, PopularIcon, NewsIcon, ExploreIcon } from '../shared/icons';
+import { HamburgerIcon, HomeIcon, PopularIcon, NewsIcon } from '../shared/icons';
 import './sidebar.css';
 
-const NAV_ITEMS: { label: string; icon: ReactElement; scope: FeedScope | null }[] = [
-  { label: 'Home', icon: <HomeIcon />, scope: 'home' },
-  { label: 'Popular', icon: <PopularIcon />, scope: 'popular' },
-  { label: 'News', icon: <NewsIcon />, scope: 'news' },
-  // No backend concept exists for "Explore" yet — stays inert, consistent with today.
-  { label: 'Explore', icon: <ExploreIcon />, scope: null },
+// icon takes the row's active state — only Home's icon actually varies
+// (outline↔filled), the others just ignore the argument and render the same
+// either way.
+const NAV_ITEMS: { label: string; icon: (active: boolean) => ReactElement; scope: FeedScope | null }[] = [
+  { label: 'Home', icon: active => <HomeIcon active={active} />, scope: 'home' },
+  { label: 'Popular', icon: () => <PopularIcon />, scope: 'popular' },
+  { label: 'News', icon: () => <NewsIcon />, scope: 'news' },
+  // "Explore" (communities) removed for now — no backend concept exists
+  // yet and it's planned as future work, not a stub worth showing today.
 ];
 
 type SidebarProps = {
@@ -50,7 +53,7 @@ export default function Sidebar({ pinned, forceOpen, activeScope, onTogglePin, o
                   onClick={item.scope ? () => onSelectScope(item.scope!) : undefined}
                   className={`fk-sidebar-item${active ? ' fk-sidebar-item--active' : ''}`}
                 >
-                  {item.icon}
+                  {item.icon(active)}
                   {item.label}
                 </button>
               );

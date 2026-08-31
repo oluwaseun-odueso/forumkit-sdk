@@ -7,7 +7,7 @@ export type ModerationStatus = 'pending' | 'approved' | 'removed';
 export type ReactionType = 'like' | 'helpful' | 'insightful' | 'funny';
 export type EmbeddingProvider = 'local' | 'openai';
 export type ModerationProvider = 'local' | 'perspective';
-export type AIProvider = 'local' | 'openai' | 'anthropic';
+export type AIProvider = 'openai' | 'anthropic' | 'openrouter';
 export type AttachmentStatus = 'pending' | 'confirmed' | 'deleted';
 // Chooses which storage path an upload lands under (see buildStorageKey in
 // packages/api/src/services/storage.ts) — avatars, banners, and post/comment
@@ -136,7 +136,13 @@ export type Reaction = {
 
 export type ModerationQueueItem = {
   id: string;
-  commentId: string;
+  // A row targets either a comment or a thread directly, never both (see
+  // migration 015_moderation_thread_reports) — commentId is null for a
+  // thread-level report.
+  commentId: string | null;
+  // Always resolvable: the row's own thread for a thread-level report, or
+  // the flagged comment's parent thread for a comment-level one.
+  threadId: string | null;
   reporterId: string | null;
   reason: string;
   aiScore: number;
@@ -145,6 +151,12 @@ export type ModerationQueueItem = {
   reviewerId: string | null;
   createdAt: Date;
   reviewedAt: Date | null;
+  // Content context so a moderator can see what's being reviewed without a
+  // second fetch. threadTitle is only null if the thread itself was since
+  // hard-deleted; commentBody is null when the item targets a thread
+  // directly, not a specific comment.
+  threadTitle: string | null;
+  commentBody: string | null;
 };
 
 // ── JWT payload (from host application) ───────────────────────────
@@ -316,12 +328,168 @@ export type SearchQuery = {
   limit?: number;
 };
 
+// A single matching thread from GET /forums/:forumId/search — bodySnippet is
+// a truncated preview (not the full body), and rank is whichever score
+// (full-text or fuzzy trigram) matched best for that row, higher = better.
+export type SearchResult = {
+  threadId: string;
+  title: string;
+  bodySnippet: string;
+  // The thread's first image attachment, if it has one — null otherwise.
+  // Lets the search dropdown/results page show a thumbnail, same as the
+  // compact post-card view does on the feed.
+  imageUrl: string | null;
+  // Total image attachments on the thread — lets the Media tab show a
+  // "1/N" counter badge on tiles from a multi-image post, same as a
+  // gallery-post carousel indicator.
+  mediaCount: number;
+  // Lets the results page show "N votes · N comments" under each thread
+  // result, same as the feed's compact PostCard view.
+  voteCounts: VoteCounts;
+  commentCount: number;
+  authorId: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string | null;
+  rank: number;
+  createdAt: Date;
+};
+
+// Same idea for GET /forums/:forumId/search/comments (forum-wide) and
+// GET /threads/:threadId/comments/search (thread-scoped) — threadTitle is
+// included because a bare comment snippet is meaningless without knowing
+// which post it's replying to. imageUrl here is the parent thread's image
+// (a comment can't have its own attachment), for the same reason.
+export type CommentSearchResult = {
+  commentId: string;
+  threadId: string;
+  threadTitle: string;
+  bodySnippet: string;
+  imageUrl: string | null;
+  mediaCount: number;
+  // Who wrote the comment — shown inside the comment's own "card" in the
+  // results-page row.
+  authorId: string;
+  authorDisplayName: string;
+  authorAvatarUrl: string | null;
+  commentVoteCounts: VoteCounts;
+  // The thread's original poster and stats — shown above the comment card,
+  // since a search hit on a comment is presented in the context of "who
+  // started this thread, and how is it doing overall" first.
+  threadAuthorId: string;
+  threadAuthorDisplayName: string;
+  threadAuthorAvatarUrl: string | null;
+  threadVoteCounts: VoteCounts;
+  threadCommentCount: number;
+  rank: number;
+  createdAt: Date;
+};
+
+// mode tells the client which search strategies actually ran: 'hybrid' means
+// semantic (pgvector embedding similarity, matches by meaning) and keyword
+// (full-text + fuzzy trigram, matches by spelling/typo-tolerance) both ran
+// and were merged into one ranked list; 'keyword' means only keyword+fuzzy
+// ran, because generating an embedding for the query failed (e.g. no AI
+// provider configured) — the server decides this automatically, the client
+// doesn't choose.
+export type SearchResponse<T> = {
+  results: T[];
+  total: number;
+  page: number;
+  limit: number;
+  mode: 'hybrid' | 'keyword';
+  suggestedQuery: string | null;
+  isRelated: boolean;
+};
+
+// The `notifications.type` column is plain TEXT in Postgres (not an ENUM,
+// which is annoying to extend) — but that doesn't mean the TypeScript side
+// needs to be a loose `string` too. A real union costs nothing in migration
+// terms and buys typo-catching + exhaustiveness checking wherever a type is
+// mapped to display text; adding a future trigger is one more literal here.
+export type NotificationType = 'share' | 'comment_reply' | 'vote' | 'report';
+
+// One row per event a user should see on the Notifications page.
+export type Notification = {
+  id: string;
+  forumId: string;
+  userId: string;
+  actorId: string | null;
+  actorDisplayName: string | null;
+  actorAvatarUrl: string | null;
+  type: NotificationType;
+  threadId: string | null;
+  commentId: string | null;
+  // Type-specific extra detail: the vote direction ('up'/'down') for
+  // type: 'vote', or the reporter's reason text for type: 'report'. Kept
+  // as a plain nullable string rather than a second typed field, since
+  // it's genuinely just "extra detail for this type," not a first-class
+  // column every notification has an opinion about.
+  message: string | null;
+  readAt: Date | null;
+  createdAt: Date;
+  // Resolved from threadId (or, for comment-only 'report' rows, from
+  // commentId -> comments.thread_id) at read time — never null in practice
+  // since every notification type here always has a resolvable thread, but
+  // typed nullable defensively. threadAuthor* is only actually consumed by
+  // the frontend for type: 'share' (the sharer/thread-author facepile).
+  threadTitle: string | null;
+  threadImageUrl: string | null;
+  threadAuthorId: string | null;
+  threadAuthorDisplayName: string | null;
+  threadAuthorAvatarUrl: string | null;
+};
+
+export type NotificationListResponse = {
+  results: Notification[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export type NotificationPrefs = {
+  commentReply: boolean;
+  share: boolean;
+  vote: boolean;
+  // Only relevant to admins/moderators (whether they get notified when a
+  // new report comes in) — regular members never receive this type
+  // regardless of the setting, since they're never a report's recipient.
+  moderationReport: boolean;
+};
+
+// GET /forums/:forumId/search/users — People section of the search results
+// page. Fuzzy-only (trigram similarity on display_name), no semantic mode:
+// a display name is one short string, not a document worth embedding.
+export type UserSearchResult = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  // Post karma + comment karma combined, shown under the name in the
+  // People section — same "karma" concept as the profile page's two
+  // separate stats, just summed for a compact list row.
+  karma: number;
+};
+
 // ── Error response ─────────────────────────────────────────────────
 
 export type ErrorResponse = {
   error: string;                     // machine-readable e.g. "thread_not_found"
   message: string;                   // human-readable explanation
   statusCode: number;
+};
+
+// ── GIF search (comment composer) ──────────────────────────────────
+
+export type GifResult = {
+  id: string;
+  title: string;
+  previewUrl: string;   // small, for the search results grid
+  url: string;           // full-size, for embedding into a post/comment
+  width: number;
+  height: number;
+};
+
+export type GifSearchResponse = {
+  results: GifResult[];
 };
 
 // ── WebSocket messages ─────────────────────────────────────────────
@@ -383,7 +551,6 @@ export type ThemeTokens = {
   fontSize?: string;
   borderRadius?: string;
   spacing?: string;
-  shadowLevel?: 'none' | 'sm' | 'md' | 'lg';
 };
 
 // ── SDK init config ────────────────────────────────────────────────
@@ -396,4 +563,10 @@ export type ForumKitConfig = {
   onLogout?: () => void;             // host owns the real sign-out flow; if provided, the
                                       // account menu shows a "Log Out" item that calls this.
                                       // Omitted entirely (no dead button) if not provided.
+  // 'web': Share offers both a copyable link and in-app member sharing.
+  // 'native': Share skips the link (nowhere meaningful to paste one inside
+  // a native app shell) and goes straight to in-app member sharing.
+  // Declared explicitly by the host, not auto-detected — there's no
+  // reliable runtime signal for "am I inside a native app" today.
+  platform?: 'web' | 'native';       // defaults to 'web'
 };

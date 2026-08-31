@@ -88,6 +88,41 @@ export async function authenticate(
   }
 }
 
+export async function optionalAuthenticate(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const authHeader = request.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return;
+
+  const token = authHeader.slice(7);
+  const { forumSecretKey } = request.server.config;
+
+  let iss: string | undefined;
+  const parts = token.split('.');
+  if (parts.length === 3) {
+    try {
+      const raw = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString('utf8')) as { iss?: string };
+      iss = raw.iss;
+    } catch { /* ignore */ }
+  }
+
+  if (iss === 'forumkit') {
+    const session = verifySessionToken(token, forumSecretKey);
+    if (!session) {
+      return reply.status(401).send({ error: 'invalid_token', message: 'Token is invalid or has expired', statusCode: 401 });
+    }
+    request.jwtPayload = session;
+  } else {
+    try {
+      const payload = verifyHostJWT(token, forumSecretKey);
+      request.jwtPayload = payload;
+    } catch {
+      return reply.status(401).send({ error: 'invalid_token', message: 'Token is invalid or has expired', statusCode: 401 });
+    }
+  }
+}
+
 export function requireRole(...roles: UserRole[]) {
   return async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const payload = request.jwtPayload as { role: UserRole } | undefined;

@@ -1,5 +1,6 @@
 import type { AISuggestion, SimilarThread } from '@forumkit/types';
-import { SUMMARY_POINTS, SUGGESTED_REPLY } from '../data/fixtures';
+import { askQuestionStreaming, summariseStreaming, suggestStreaming } from '@forumkit/shared';
+export type { AskStreamEvent, SummariseStreamEvent, SuggestStreamEvent } from '@forumkit/shared';
 
 const API_BASE = typeof window !== 'undefined'
   ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
@@ -21,7 +22,7 @@ export async function callSummarise(threadId: string, token?: string): Promise<s
     if (Array.isArray(points) && points.length > 0) return points;
     throw new Error('empty response');
   } catch {
-    return SUMMARY_POINTS;
+    return [];
   }
 }
 
@@ -36,7 +37,7 @@ export async function callSuggest(threadId: string, token?: string): Promise<str
     if (data.suggestion?.suggestion) return data.suggestion.suggestion;
     throw new Error('empty response');
   } catch {
-    return SUGGESTED_REPLY;
+    return '';
   }
 }
 
@@ -56,6 +57,32 @@ export async function callSurfaceRelated(threadId: string, token?: string): Prom
 }
 
 export type SuggestMetadataResult = { title: string | null; tags: string[] };
+
+export async function callSummariseStreaming(
+  threadId: string,
+  onEvent: Parameters<typeof summariseStreaming>[3],
+  token?: string,
+): Promise<void> {
+  await summariseStreaming(API_BASE, threadId, token, onEvent);
+}
+
+export async function callSuggestStreaming(
+  threadId: string,
+  onEvent: Parameters<typeof suggestStreaming>[3],
+  token?: string,
+): Promise<void> {
+  await suggestStreaming(API_BASE, threadId, token, onEvent);
+}
+
+export async function callAskStreaming(
+  forumId: string,
+  q: string,
+  token: string | undefined,
+  onEvent: Parameters<typeof askQuestionStreaming>[4],
+): Promise<void> {
+  if (!token) throw new Error('Not authenticated');
+  await askQuestionStreaming(API_BASE, forumId, q, token, onEvent);
+}
 
 export async function callSuggestMetadata(
   forumId: string,

@@ -5,22 +5,38 @@ services:
       dockerfile: deploy/Dockerfile
     ports:
       - "3000:3000"
+    # Every value below falls back to a working local default so `docker compose up`
+    # still works with no .env at all, but reads from the project-root .env first
+    # (docker compose loads .env from the directory you invoke it from) — so
+    # self-hosting with real secrets/keys via .env actually takes effect here,
+    # rather than being silently ignored in favour of these dev defaults.
     environment:
-      DATABASE_URL: postgresql://forumkit:forumkit@db:5432/forumkit
-      DATABASE_POOL_URL: postgresql://forumkit:forumkit@db:5432/forumkit
-      FORUM_SECRET_KEY: dev-secret-change-in-production
-      AI_PROVIDER: local
-      MODERATION_PROVIDER: local
-      EMBEDDING_PROVIDER: local
-      EMBEDDING_DIMENSION: 384
-      STORAGE_S3_ENDPOINT: http://minio:9000
-      STORAGE_S3_BUCKET: forumkit-dev
-      STORAGE_S3_REGION: us-east-1
-      STORAGE_S3_ACCESS_KEY_ID: forumkit
-      STORAGE_S3_SECRET_ACCESS_KEY: forumkit-dev
-      PORT: 3000
-      LOG_LEVEL: debug
-      NODE_ENV: development
+      DATABASE_URL: ${DATABASE_URL:-postgresql://forumkit:forumkit@db:5432/forumkit}
+      DATABASE_POOL_URL: ${DATABASE_POOL_URL:-postgresql://forumkit:forumkit@db:5432/forumkit}
+      FORUM_SECRET_KEY: ${FORUM_SECRET_KEY:-dev-secret-change-in-production}
+      AI_PROVIDER: ${AI_PROVIDER:-openrouter}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_ASK_MODEL: ${AI_ASK_MODEL:-}
+      MODERATION_PROVIDER: ${MODERATION_PROVIDER:-local}
+      PERSPECTIVE_API_KEY: ${PERSPECTIVE_API_KEY:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
+      STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-http://minio:9000}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-forumkit-dev}
+      STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
+      STORAGE_S3_ACCESS_KEY_ID: ${STORAGE_S3_ACCESS_KEY_ID:-forumkit}
+      STORAGE_S3_SECRET_ACCESS_KEY: ${STORAGE_S3_SECRET_ACCESS_KEY:-forumkit-dev}
+      STORAGE_MAX_FILE_SIZE_BYTES: ${STORAGE_MAX_FILE_SIZE_BYTES:-26214400}
+      STORAGE_ALLOWED_MIME_TYPES: ${STORAGE_ALLOWED_MIME_TYPES:-image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm}
+      GIPHY_API_KEY: ${GIPHY_API_KEY:-}
+      PORT: ${PORT:-3000}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      NODE_ENV: ${NODE_ENV:-development}
+      SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES:-15}
+      MAX_POST_LENGTH: ${MAX_POST_LENGTH:-10000}
     depends_on:
       db:
         condition: service_healthy

@@ -13,6 +13,7 @@ const DEV_CONFIG: ForumKitConfig = {
   forumId: import.meta.env.VITE_DEV_FORUM_ID ?? 'demo',
   token: import.meta.env.VITE_DEV_HOST_TOKEN ?? '',
   apiUrl: import.meta.env.VITE_DEV_API_URL,
+  platform: import.meta.env.VITE_DEV_PLATFORM === 'native' ? 'native' : 'web',
 };
 
 /**

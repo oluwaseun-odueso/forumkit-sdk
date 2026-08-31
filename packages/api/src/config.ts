@@ -33,6 +33,9 @@ export type Config = {
   aiProvider: AIProvider;
   openaiApiKey: string | null;
   anthropicApiKey: string | null;
+  openrouterApiKey: string | null;
+  aiModel: string | null;
+  aiAskModel: string | null;
   moderationProvider: ModerationProvider;
   perspectiveApiKey: string | null;
   embeddingProvider: EmbeddingProvider;
@@ -44,6 +47,7 @@ export type Config = {
   storageS3SecretAccessKey: string;
   storageMaxFileSizeBytes: number;
   storageAllowedMimeTypes: string[];
+  giphyApiKey: string | null;
 };
 
 export function loadConfig(): Config {
@@ -57,9 +61,12 @@ export function loadConfig(): Config {
     nodeEnv: optional('NODE_ENV', 'development'),
     sessionTtlMinutes: optionalNumber('SESSION_TTL_MINUTES', 15),
     maxPostLength: optionalNumber('MAX_POST_LENGTH', 10000),
-    aiProvider: optional('AI_PROVIDER', 'local') as AIProvider,
+    aiProvider: optional('AI_PROVIDER', 'openrouter') as AIProvider,
     openaiApiKey: process.env['OPENAI_API_KEY'] ?? null,
     anthropicApiKey: process.env['ANTHROPIC_API_KEY'] ?? null,
+    openrouterApiKey: process.env['OPENROUTER_API_KEY'] ?? null,
+    aiModel: process.env['AI_MODEL'] ?? null,
+    aiAskModel: process.env['AI_ASK_MODEL'] ?? null,
     moderationProvider: optional('MODERATION_PROVIDER', 'local') as ModerationProvider,
     perspectiveApiKey: process.env['PERSPECTIVE_API_KEY'] ?? null,
     embeddingProvider: optional('EMBEDDING_PROVIDER', 'local') as EmbeddingProvider,
@@ -74,5 +81,6 @@ export function loadConfig(): Config {
       'STORAGE_ALLOWED_MIME_TYPES',
       'image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm',
     ).split(','),
+    giphyApiKey: process.env['GIPHY_API_KEY'] ?? null,
   };
 }

@@ -1,0 +1,14 @@
+{
+  "extends": "../../node_modules/expo/tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@forumkit/shared": ["../shared/src/index.ts"],
+      "@forumkit/types": ["../types/src/index.ts"]
+    }
+  }
+}

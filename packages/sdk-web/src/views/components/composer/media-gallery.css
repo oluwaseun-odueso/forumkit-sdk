@@ -89,13 +89,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.fk-media-carousel-backdrop {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) saturate(1.2);
+  transform: scale(1.2);
+  opacity: 0.55;
+  z-index: 0;
 }
 
 .fk-media-carousel-img {
+  position: relative;
   width: 100%;
   max-height: 440px;
   object-fit: contain;
   display: block;
+  z-index: 1;
 }
 
 .fk-media-carousel-placeholder {
@@ -108,57 +122,52 @@
   text-transform: capitalize;
 }
 
-.fk-media-carousel-bar {
+.fk-media-carousel-topbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+  z-index: 2;
 }
 
-.fk-media-carousel-bar-left {
+.fk-media-carousel-topbar-left {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 14px;
 }
 
-.fk-media-bar-btn {
+.fk-media-overlay-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  height: 34px;
+  padding: 0 14px;
   border-radius: 999px;
   border: none;
-  background: transparent;
-  color: var(--text-2);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   font-family: inherit;
   cursor: pointer;
+  backdrop-filter: blur(4px);
 }
 
-.fk-media-bar-btn:hover {
-  background: var(--hover);
-  color: var(--text);
+.fk-media-overlay-btn:hover {
+  background: rgba(0, 0, 0, 0.75);
 }
 
-.fk-media-bar-delete {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.fk-media-overlay-btn--icon {
   width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
+  padding: 0;
+  justify-content: center;
 }
 
-.fk-media-bar-delete:hover {
-  background: var(--hover);
-  color: var(--danger, #e0463a);
+.fk-media-overlay-btn--icon:hover {
+  background: rgba(200, 40, 30, 0.85);
 }
 
 /* ── Gallery grid ───────────────────────────────────────────────────────── */

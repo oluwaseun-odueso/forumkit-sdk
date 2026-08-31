@@ -1,22 +1,34 @@
-import { createContext, useContext, useReducer, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { fmtRelativeTime, threadToFeedRow, commentsToCommentTree } from '@forumkit/shared';
 import {
   type FeedPost, type CommentNodeData, type RailItem,
 } from '../data/fixtures';
 import type {
   SimilarThread, Thread, Comment, VoteCounts, ForumConfig, RelatedThreadForRail, TopWindow,
   ProfileActivityItem, ProfileActivityScope, ProfileActivitySort, ProfileActivityContentType,
-  Draft, DraftContent,
+  Draft, DraftContent, SearchResult, NotificationPrefs, UserRole,
 } from '@forumkit/types';
+import { searchThreads as apiSearchThreads } from '../api/search';
+import { getUnreadCount as apiGetUnreadCount } from '../api/notifications';
+import { shareThreadWithUsers as apiShareThreadWithUsers, reportThread as apiReportThread } from '../api/threads';
+import { reportComment as apiReportComment } from '../api/comments';
+import type { ReportTarget } from '../components/shared/report-modal';
 import { ThemeHostContext } from './use-theme';
-import { callSummarise, callSuggest, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
-import { requestUploadUrl, putFile, confirmUpload } from '../api/attachments';
-import { getMyProfile, updateMyProfile, updateThemePreference, getProfileActivity } from '../api/profile';
+import { callSummarise, callSuggest, callSummariseStreaming, callSuggestStreaming, callSuggestMetadata, callSurfaceRelated } from '../api/ai';
+import { requestUploadUrl, putFile, confirmUpload, deleteAttachment as apiDeleteAttachment } from '../api/attachments';
+import {
+  getMyProfile, updateMyProfile, updateThemePreference, updateNotificationPrefs as apiUpdateNotificationPrefs, getProfileActivity,
+  getUserProfile, getUserActivity,
+} from '../api/profile';
 import { getForum } from '../api/forums';
 import {
   createThread, updateThread, getThread as apiGetThread, listThreads as apiListThreads,
-  getSimilarThreads, saveThread, unsaveThread, type ListThreadsParams,
+  getSimilarThreads, saveThread, unsaveThread, deleteThread as apiDeleteThread, type ListThreadsParams,
 } from '../api/threads';
-import { createReply, updateReply, saveComment, unsaveComment } from '../api/comments';
+import {
+  createReply, updateReply, saveComment, unsaveComment, acceptAnswer as apiAcceptAnswer, unacceptAnswer as apiUnacceptAnswer,
+  deleteComment as apiDeleteComment,
+} from '../api/comments';
 import { voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment } from '../api/votes';
 import {
   listDrafts as apiListDrafts, createDraft as apiCreateDraft, updateDraft as apiUpdateDraft,
@@ -26,7 +38,7 @@ import { useSession } from './use-session';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type View = 'feed' | 'thread' | 'profile' | 'compose';
+export type View = 'feed' | 'thread' | 'profile' | 'compose' | 'search' | 'notifications' | 'moderation' | 'ask';
 export type FeedView = 'card' | 'compact';
 export type FeedSort = 'Best' | 'Hot' | 'New' | 'Top' | 'Rising';
 export type FeedScope = 'home' | 'popular' | 'news';
@@ -60,6 +72,11 @@ type ComposeState = {
   body: string;
   linkUrl: string;
   attachments: AttachmentFile[];
+  // attachmentIds of images/video uploaded via the Text tab's own inline
+  // toolbar buttons (embedded straight into the body markdown) — tracked
+  // separately from `attachments` above (the "Images & Video" tab's gallery)
+  // purely so closeComposer can clean up orphaned uploads for both paths.
+  inlineAttachmentIds: string[];
   genTitle: boolean;
   genTags: boolean;
   submitting: boolean;
@@ -79,6 +96,7 @@ type AsstState = {
   summarizing: boolean;
   summary: { points: string[]; note: string } | null;
   suggested: boolean;
+  suggestedText: string | null;
   surfacing: boolean;
   related: SimilarThread[] | null;
 };
@@ -124,12 +142,57 @@ type ProfileState = {
   postKarma: number;
   commentKarma: number;
   themePreference: 'light' | 'dark' | null;
+  notificationPrefs: NotificationPrefs;
+  role: UserRole;
   activityItems: ActivityItemView[];
   activityTotal: number;
   activityPage: number;
   activityLoading: boolean;
   activitySort: ProfileActivitySort;
   activityContentType: ProfileActivityContentType;
+};
+
+// Deliberately a separate slice from ProfileState, not a shared one —
+// ProfileState doubles as "my own identity" (TopNav's avatar, the account
+// menu, etc. all read state.profile directly), so overwriting it with
+// someone else's data while viewing their profile would leak their avatar
+// into places that are supposed to show yours. null means "not currently
+// viewing anyone else" — Profile.tsx falls back to state.profile in that
+// case. Derived from ProfileState via Omit/& rather than hand-duplicated:
+// same shape plus userId, minus themePreference (that's a personal setting,
+// meaningless when looking at someone else's profile).
+type ViewedProfileState = Omit<ProfileState, 'themePreference' | 'notificationPrefs' | 'role' | 'id'> & { userId: string };
+
+// Covers both the top-nav live dropdown (query/results/loading/open — open
+// is whether that small dropdown panel is currently visible, separate from
+// resultsSection below) and what seeds the full SearchResults page once
+// "See more results" is clicked (resultsQuery/resultsSection). One slice
+// since both are "the search feature's state," not because they're the
+// same UI — the dropdown and the results page are different components.
+type SearchState = {
+  query: string;
+  results: SearchResult[];
+  loading: boolean;
+  open: boolean;
+  resultsQuery: string;
+  resultsSection: 'all' | 'threads' | 'comments' | 'people' | 'media';
+};
+
+// One entry per past navigation, pushed just before the app switches to a
+// new page (see the nav-triggering reducer cases below, e.g. OPEN_THREAD).
+// Captures just enough to put the user back exactly where they were:
+// which page, which thread/profile/search query was showing on it, and how
+// far down they'd scrolled. Everything else about that page (feed sort,
+// profile tab, etc.) is already preserved for free since navigating away
+// doesn't clear those state slices — only view-identity + scroll position
+// need to be remembered explicitly.
+type NavEntry = {
+  view: View;
+  threadId: string | null;
+  viewedUserId: string | null;
+  searchQuery: string;
+  searchSection: SearchState['resultsSection'];
+  scrollTop: number;
 };
 
 type State = {
@@ -145,15 +208,29 @@ type State = {
   composer: ComposeState;
   asst: AsstState;
   profile: ProfileState;
+  viewedProfile: ViewedProfileState | null;
   settings: { open: boolean };
   draftsModal: DraftsModalState;
+  search: SearchState;
+  notifications: { unreadCount: number };
+  shareModal: { open: boolean; threadId: string | null };
+  reportModal: { open: boolean; target: ReportTarget | null };
+  notificationSettingsModal: { open: boolean };
+  ask: { query: string };
+  history: NavEntry[];
+  // Set by GO_BACK to the scroll position the previous page was at; Shell
+  // applies it to the scrollable main column then clears it via
+  // CLEAR_PENDING_SCROLL — it's a one-shot instruction, not steady state.
+  pendingScrollTop: number | null;
 };
 
 // ─── Actions ────────────────────────────────────────────────────────────────
 
 type Action =
-  | { type: 'SET_VIEW'; view: View }
-  | { type: 'OPEN_THREAD'; postId: string }
+  | { type: 'SET_VIEW'; view: View; fromScrollTop: number }
+  | { type: 'OPEN_THREAD'; postId: string; fromScrollTop: number }
+  | { type: 'GO_BACK' }
+  | { type: 'CLEAR_PENDING_SCROLL' }
   | { type: 'TOGGLE_SIDEBAR_PIN' }
   | { type: 'SET_ACCOUNT_MENU'; open: boolean }
   | { type: 'SET_FEED_VIEW'; view: FeedView }
@@ -167,6 +244,13 @@ type Action =
   | { type: 'SET_SIMILAR_RAIL'; items: RailItem[] }
   | { type: 'SET_FEATURED_RAIL'; items: RailItem[] }
   | { type: 'SET_FORUM_CONFIG'; config: ForumConfig }
+  | { type: 'SET_UNREAD_COUNT'; count: number }
+  | { type: 'OPEN_SHARE_MODAL'; threadId: string }
+  | { type: 'CLOSE_SHARE_MODAL' }
+  | { type: 'OPEN_REPORT_MODAL'; target: ReportTarget }
+  | { type: 'CLOSE_REPORT_MODAL' }
+  | { type: 'OPEN_NOTIFICATION_SETTINGS_MODAL' }
+  | { type: 'CLOSE_NOTIFICATION_SETTINGS_MODAL' }
   | { type: 'TOGGLE_SORT_MENU' }
   | { type: 'TOGGLE_VIEW_MENU' }
   | { type: 'TOGGLE_TOP_WINDOW_MENU' }
@@ -174,6 +258,9 @@ type Action =
   | { type: 'SET_POST_MENU'; postId: string | null }
   | { type: 'SET_POST_SAVED'; postId: string; saved: boolean }
   | { type: 'SET_COMMENT_SAVED'; commentId: string; saved: boolean }
+  | { type: 'SET_ACCEPTED_ANSWER'; commentId: string | null }
+  | { type: 'POST_DELETED'; postId: string }
+  | { type: 'COMMENT_DELETED'; commentId: string }
   | { type: 'SET_POST_VOTE'; postId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_VOTE'; commentId: string; voteCounts: VoteCounts; myVote: 1 | -1 | null }
   | { type: 'SET_COMMENT_SORT'; sort: CommentSort }
@@ -183,7 +270,7 @@ type Action =
   | { type: 'REPLY_SUBMITTED'; parentId: string | null; comment: CommentNodeData }
   | { type: 'COMMENT_EDITED'; commentId: string; body: string }
   | { type: 'POST_EDITED'; postId: string; title: string; body: string }
-  | { type: 'OPEN_COMPOSER' }
+  | { type: 'OPEN_COMPOSER'; fromScrollTop: number }
   | { type: 'CLOSE_COMPOSER' }
   | { type: 'OPEN_SETTINGS' }
   | { type: 'CLOSE_SETTINGS' }
@@ -191,6 +278,7 @@ type Action =
   | { type: 'SET_COMPOSER_FIELD'; field: 'title' | 'tags' | 'body' | 'linkUrl'; value: string }
   | { type: 'SET_COMPOSER_GEN'; field: 'genTitle' | 'genTags'; value: boolean }
   | { type: 'ADD_FILE'; file: AttachmentFile }
+  | { type: 'ADD_INLINE_ATTACHMENT'; attachmentId: string }
   | { type: 'UPDATE_FILE_URL'; id: number; url: string }
   | { type: 'UPDATE_ATTACHMENT_META'; id: number; caption: string; attachmentUrl: string }
   | { type: 'SET_ATTACHMENT_UPLOAD'; id: number; status: AttachmentFile['uploadStatus']; attachmentId?: string | null; attachmentUrl?: string }
@@ -208,6 +296,12 @@ type Action =
   | { type: 'SET_DRAFTS_LIST'; items: Draft[] }
   | { type: 'SET_DRAFTS_LOADING'; loading: boolean }
   | { type: 'REMOVE_DRAFT_FROM_LIST'; draftId: string }
+  | { type: 'SET_SEARCH_QUERY'; query: string }
+  | { type: 'SET_SEARCH_RESULTS'; results: SearchResult[] }
+  | { type: 'SET_SEARCH_LOADING'; loading: boolean }
+  | { type: 'SET_SEARCH_OPEN'; open: boolean }
+  | { type: 'OPEN_SEARCH_RESULTS'; query: string; fromScrollTop: number }
+  | { type: 'SET_SEARCH_RESULTS_SECTION'; section: SearchState['resultsSection']; fromScrollTop: number }
   | { type: 'SET_POSTS'; posts: FeedPost[]; hasMore: boolean }
   | { type: 'SET_PROFILE_TAB'; tab: string }
   | {
@@ -216,13 +310,35 @@ type Action =
       commentKarma: number; themePreference: 'light' | 'dark' | null;
     }
   | { type: 'SET_THEME_PREFERENCE'; themePreference: 'light' | 'dark' | null }
+  | { type: 'SET_NOTIFICATION_PREFS'; prefs: NotificationPrefs }
+  | { type: 'SET_ROLE'; role: UserRole }
   | { type: 'SET_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
   | { type: 'APPEND_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
   | { type: 'SET_PROFILE_ACTIVITY_LOADING'; loading: boolean }
   | { type: 'SET_PROFILE_SORT'; sort: ProfileActivitySort }
   | { type: 'SET_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
+  // Opens someone else's profile — resets viewedProfile to a fresh (empty)
+  // record for that userId; the profile-init/activity effects (keyed on
+  // viewedProfile.userId) then fill it in, same "dispatch empty, effect
+  // fills it" pattern OPEN_THREAD already uses for state.thread.
+  | { type: 'OPEN_USER_PROFILE'; userId: string; fromScrollTop: number }
+  | {
+      type: 'SET_VIEWED_PROFILE_DATA'; displayName: string; bio: string; socialLinks: SocialLink[];
+      avatarUrl: string | null; bannerUrl: string | null; joinedAt: string | null;
+      postKarma: number; commentKarma: number;
+    }
+  | { type: 'SET_VIEWED_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
+  | { type: 'APPEND_VIEWED_PROFILE_ACTIVITY'; items: ActivityItemView[]; total: number; page: number }
+  | { type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING'; loading: boolean }
+  | { type: 'SET_VIEWED_PROFILE_TAB'; tab: string }
+  | { type: 'SET_VIEWED_PROFILE_SORT'; sort: ProfileActivitySort }
+  | { type: 'SET_VIEWED_PROFILE_CONTENT_TYPE'; contentType: ProfileActivityContentType }
+  | { type: 'OPEN_ASK'; query: string; fromScrollTop: number }
   | { type: 'ASST_SUMMARIZING' }
+  | { type: 'ASST_SUMMARY_POINT'; point: string }
+  | { type: 'ASST_SUMMARY_DONE'; note: string }
   | { type: 'ASST_SUMMARY'; points: string[]; note: string }
+  | { type: 'ASST_SUGGEST_CHUNK'; text: string }
   | { type: 'ASST_SUGGEST'; text: string }
   | { type: 'ASST_SURFACING' }
   | { type: 'ASST_RELATED'; threads: SimilarThread[] };
@@ -241,6 +357,27 @@ function mapComment(
   });
 }
 
+// Removing a comment can remove it from anywhere in the tree, not just the
+// top level — filters out the matching id at every depth, recursing into
+// whatever replies are left (mirrors mapComment's recursion shape above).
+function removeComment(list: CommentNodeData[], id: string): CommentNodeData[] {
+  return list
+    .filter(c => c.id !== id)
+    .map(c => ({ ...c, replies: removeComment(c.replies, id) }));
+}
+
+// Only one comment per thread can be the accepted answer, so setting one
+// requires clearing the flag everywhere else in the same pass rather than
+// just flipping the target comment (see mapComment above, which only
+// touches a single id).
+function setAcceptedInTree(list: CommentNodeData[], acceptedId: string | null): CommentNodeData[] {
+  return list.map(c => ({
+    ...c,
+    isAcceptedAnswer: c.id === acceptedId,
+    replies: setAcceptedInTree(c.replies, acceptedId),
+  }));
+}
+
 // Profile activity items live in a separate array from the main feed
 // (state.profile.activityItems vs. state.posts) — a thread can appear in
 // both at once (e.g. your own post, shown in both the feed and your
@@ -256,6 +393,12 @@ function mapActivityThread(
     : item);
 }
 
+// Same threadId-keyed matching as mapActivityThread above, but for removal
+// (deleting a post) rather than an in-place field update.
+function removeActivityThread(items: ActivityItemView[], threadId: string): ActivityItemView[] {
+  return items.filter(item => !(item.kind === 'thread' && item.thread.id === threadId));
+}
+
 // Recursively inserts a new reply into the tree at parentId, or prepends it
 // to the top level when parentId is null.
 function insertReply(list: CommentNodeData[], parentId: string | null, node: CommentNodeData): CommentNodeData[] {
@@ -267,6 +410,16 @@ function insertReply(list: CommentNodeData[], parentId: string | null, node: Com
 
 function nextVote(current: VoteDir, clicked: VoteDir): VoteDir {
   return current === clicked ? 0 : clicked;
+}
+
+// Adjusts up/down counts for a vote transition (old -> new) — the web
+// equivalent of packages/sdk-react-native/src/lib/vote.ts's applyVote, so
+// both platforms compute the same optimistic swing.
+function applyVoteDelta(vc: VoteCounts, oldDir: VoteDir, newDir: VoteDir): VoteCounts {
+  return {
+    up: vc.up - (oldDir === 1 ? 1 : 0) + (newDir === 1 ? 1 : 0),
+    down: vc.down - (oldDir === -1 ? 1 : 0) + (newDir === -1 ? 1 : 0),
+  };
 }
 
 function netVotes(v?: VoteCounts): number {
@@ -291,43 +444,22 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-function fmtRelativeTime(iso: string | Date): string {
-  const then = new Date(iso).getTime();
-  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
-  if (seconds < 60) return 'now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
-
-// Backend Thread -> frontend FeedPost.
+// Backend Thread -> frontend FeedPost. Composes the shared threadToFeedRow for
+// the common fields and layers on the web-only extras (full image list + video
+// for the carousel/lightbox, gradient placeholder, domain, net-votes count).
 function threadToFeedPost(thread: Thread): FeedPost {
   const imageUrls = (thread.attachments ?? [])
     .filter(a => a.mimeType.startsWith('image/'))
     .map(a => a.downloadUrl);
   const videoUrl = (thread.attachments ?? []).find(a => a.mimeType.startsWith('video/'))?.downloadUrl ?? null;
-  const voteCounts = thread.voteCounts ?? { up: 0, down: 0 };
+  const core = threadToFeedRow(thread);
   return {
-    id: thread.id,
-    authorId: thread.authorId,
-    author: thread.authorDisplayName ?? 'Member',
-    authorAvatarUrl: thread.authorAvatarUrl ?? null,
-    time: fmtRelativeTime(thread.createdAt),
-    title: thread.title,
-    body: thread.body,
+    ...core,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
-    imageUrl: imageUrls[0] ?? null,
     imageUrls,
     videoUrl,
     domain: null,
-    votes: netVotes(voteCounts),
-    voteCounts,
-    myVote: thread.myVote ?? null,
-    commentCount: thread.commentCount ?? 0,
-    saved: thread.isSaved ?? false,
+    votes: netVotes(core.voteCounts),
   };
 }
 
@@ -359,6 +491,7 @@ function threadToRailItem(thread: Thread): RailItem {
     authorAvatarUrl: thread.authorAvatarUrl ?? null,
     time: fmtRelativeTime(thread.createdAt),
     votes: netVotes(voteCounts),
+    voteCounts,
     commentCount: thread.commentCount ?? 0,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
     imageUrl: firstImage?.downloadUrl ?? null,
@@ -375,45 +508,15 @@ function relatedToRailItem(t: RelatedThreadForRail): RailItem {
     authorAvatarUrl: t.authorAvatarUrl,
     time: fmtRelativeTime(t.createdAt),
     votes: netVotes(t.voteCounts),
+    voteCounts: t.voteCounts,
     commentCount: t.commentCount,
     thumbGradient: 'linear-gradient(135deg,#3f7ee2,#7b5cff)',
     imageUrl: t.imageUrl,
   };
 }
 
-// Backend flat Comment[] (already created_at ASC) -> a nested CommentNodeData
-// tree, built from parentCommentId. The server never builds this tree itself.
-function commentsToCommentTree(comments: Comment[]): CommentNodeData[] {
-  const byId = new Map<string, CommentNodeData>();
-  const roots: CommentNodeData[] = [];
-
-  for (const p of comments) {
-    const voteCounts = p.voteCounts ?? { up: 0, down: 0 };
-    byId.set(p.id, {
-      id: p.id,
-      authorId: p.authorId,
-      author: p.authorDisplayName ?? 'Member',
-      authorAvatarUrl: p.authorAvatarUrl ?? null,
-      time: fmtRelativeTime(p.createdAt),
-      body: p.body,
-      votes: netVotes(voteCounts),
-      voteCounts,
-      myVote: p.myVote ?? null,
-      isSaved: p.isSaved ?? false,
-      replies: [],
-    });
-  }
-
-  for (const p of comments) {
-    const node = byId.get(p.id);
-    if (!node) continue;
-    const parent = p.parentCommentId ? byId.get(p.parentCommentId) : undefined;
-    if (parent) parent.replies.push(node);
-    else roots.push(node);
-  }
-
-  return roots;
-}
+// commentsToCommentTree now lives in @forumkit/shared (imported above) —
+// flat Comment[] -> nested CommentNodeData tree by parentCommentId.
 
 // Threads-per-page for the main feed list (both the initial fetch and each
 // "load more" page). Reddit's own default Top window when first selected.
@@ -455,33 +558,112 @@ const initialState: State = {
   },
   composer: {
     open: false, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
-    attachments: [], genTitle: false, genTags: false, submitting: false, error: null,
+    attachments: [], inlineAttachmentIds: [], genTitle: false, genTags: false, submitting: false, error: null,
     draftId: null, savingDraft: false,
   },
-  asst: { summarizing: false, summary: null, suggested: false, surfacing: false, related: null },
+  asst: { summarizing: false, summary: null, suggested: false, suggestedText: null, surfacing: false, related: null },
   profile: {
     activeTab: 'Overview', id: null, displayName: '', bio: '', socialLinks: [], avatarUrl: null, bannerUrl: null,
     joinedAt: null, postKarma: 0, commentKarma: 0, themePreference: null,
+    notificationPrefs: { commentReply: true, share: true, vote: true, moderationReport: true },
+    role: 'member',
     activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
     activitySort: 'new', activityContentType: 'all',
   },
+  viewedProfile: null,
   settings: { open: false },
   draftsModal: { open: false, items: [], loading: false, highlightedDraftId: null },
+  ask: { query: '' },
+  search: { query: '', results: [], loading: false, open: false, resultsQuery: '', resultsSection: 'all' },
+  notifications: { unreadCount: 0 },
+  shareModal: { open: false, threadId: null },
+  reportModal: { open: false, target: null },
+  notificationSettingsModal: { open: false },
+  history: [],
+  pendingScrollTop: null,
 };
+
+// Snapshots "where we are right now" into a NavEntry just before a
+// navigating action switches to a new page — used by every nav-triggering
+// reducer case below (OPEN_THREAD, OPEN_USER_PROFILE, etc.) so GO_BACK has
+// something to restore. scrollTop comes from the caller (a ref outside
+// React state, since scroll position isn't itself part of the reducer's
+// state) rather than from `state`.
+function buildNavEntry(state: State, scrollTop: number): NavEntry {
+  return {
+    view: state.view,
+    threadId: state.thread.activePostId,
+    viewedUserId: state.viewedProfile?.userId ?? null,
+    searchQuery: state.search.resultsQuery,
+    searchSection: state.search.resultsSection,
+    scrollTop,
+  };
+}
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
+    // Resets viewedProfile on every generic navigation — the only way
+    // viewedProfile gets set is OPEN_USER_PROFILE below, so any other
+    // SET_VIEW (including "go to my own profile" from the account menu)
+    // means we're not looking at someone else's anymore.
     case 'SET_VIEW':
-      return { ...state, view: action.view, accountMenu: { open: false } };
+      return {
+        ...state,
+        view: action.view,
+        accountMenu: { open: false },
+        viewedProfile: null,
+        // Skip the push if this isn't actually going anywhere (e.g. hitting
+        // "home" while already on the feed) — nothing to come back to.
+        history: action.view === state.view ? state.history : [...state.history, buildNavEntry(state, action.fromScrollTop)],
+      };
     case 'OPEN_THREAD':
       return {
         ...state,
         view: 'thread',
         accountMenu: { open: false },
-        thread: { ...state.thread, activePostId: action.postId },
+        thread: { ...state.thread, activePostId: action.postId, commentInput: '' },
+        asst: { summarizing: false, summary: null, suggested: false, suggestedText: null, surfacing: false, related: null },
+        history: state.view === 'thread' && state.thread.activePostId === action.postId
+          ? state.history
+          : [...state.history, buildNavEntry(state, action.fromScrollTop)],
       };
+    // Pops the most recent nav entry and restores that page's identity
+    // (which thread/profile/search query it was showing) plus a one-shot
+    // pendingScrollTop that Shell applies then clears. Everything else
+    // about that page (feed sort, profile tab, loaded items, etc.) was
+    // never cleared in the first place, so it's already exactly as it was.
+    case 'GO_BACK': {
+      if (state.history.length === 0) return state;
+      const entry = state.history[state.history.length - 1]!;
+      const nextViewedProfile = entry.view !== 'profile'
+        ? null
+        : entry.viewedUserId
+          ? {
+              userId: entry.viewedUserId, activeTab: 'Overview', displayName: '', bio: '', socialLinks: [],
+              avatarUrl: null, bannerUrl: null, joinedAt: null, postKarma: 0, commentKarma: 0,
+              activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
+              activitySort: 'new' as const, activityContentType: 'all' as const,
+            }
+          : null;
+      return {
+        ...state,
+        history: state.history.slice(0, -1),
+        view: entry.view,
+        accountMenu: { open: false },
+        thread: entry.view === 'thread' && entry.threadId
+          ? { ...state.thread, activePostId: entry.threadId }
+          : state.thread,
+        viewedProfile: nextViewedProfile,
+        search: entry.view === 'search'
+          ? { ...state.search, resultsQuery: entry.searchQuery, resultsSection: entry.searchSection }
+          : state.search,
+        pendingScrollTop: entry.scrollTop,
+      };
+    }
+    case 'CLEAR_PENDING_SCROLL':
+      return { ...state, pendingScrollTop: null };
     case 'TOGGLE_SIDEBAR_PIN':
       return { ...state, sidebar: { pinned: !state.sidebar.pinned } };
     case 'SET_ACCOUNT_MENU':
@@ -524,6 +706,20 @@ function reducer(state: State, action: Action): State {
       return { ...state, rail: { ...state.rail, featured: action.items } };
     case 'SET_FORUM_CONFIG':
       return { ...state, forumConfig: action.config };
+    case 'SET_UNREAD_COUNT':
+      return { ...state, notifications: { unreadCount: action.count } };
+    case 'OPEN_SHARE_MODAL':
+      return { ...state, shareModal: { open: true, threadId: action.threadId } };
+    case 'CLOSE_SHARE_MODAL':
+      return { ...state, shareModal: { open: false, threadId: null } };
+    case 'OPEN_REPORT_MODAL':
+      return { ...state, reportModal: { open: true, target: action.target } };
+    case 'CLOSE_REPORT_MODAL':
+      return { ...state, reportModal: { open: false, target: null } };
+    case 'OPEN_NOTIFICATION_SETTINGS_MODAL':
+      return { ...state, notificationSettingsModal: { open: true } };
+    case 'CLOSE_NOTIFICATION_SETTINGS_MODAL':
+      return { ...state, notificationSettingsModal: { open: false } };
     case 'TOGGLE_SORT_MENU':
       return { ...state, feed: { ...state.feed, sortMenuOpen: !state.feed.sortMenuOpen, viewMenuOpen: false, topWindowMenuOpen: false } };
     case 'TOGGLE_VIEW_MENU':
@@ -547,6 +743,25 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         comments: mapComment(state.comments, action.commentId, c => ({ ...c, isSaved: action.saved })),
+      };
+    case 'SET_ACCEPTED_ANSWER':
+      return {
+        ...state,
+        comments: setAcceptedInTree(state.comments, action.commentId),
+      };
+    case 'POST_DELETED':
+      return {
+        ...state,
+        posts: state.posts.filter(p => p.id !== action.postId),
+        profile: {
+          ...state.profile,
+          activityItems: removeActivityThread(state.profile.activityItems, action.postId),
+        },
+      };
+    case 'COMMENT_DELETED':
+      return {
+        ...state,
+        comments: removeComment(state.comments, action.commentId),
       };
     case 'SET_POST_VOTE':
       return {
@@ -608,9 +823,10 @@ function reducer(state: State, action: Action): State {
         sidebar: { pinned: true },
         composer: {
           open: true, activeTab: 'text', title: '', tags: '', body: '', linkUrl: '',
-          attachments: [], genTitle: false, genTags: false,
+          attachments: [], inlineAttachmentIds: [], genTitle: false, genTags: false,
           submitting: false, error: null, draftId: null, savingDraft: false,
         },
+        history: state.view === 'compose' ? state.history : [...state.history, buildNavEntry(state, action.fromScrollTop)],
       };
     case 'CLOSE_COMPOSER':
       return { ...state, view: 'feed', composer: { ...state.composer, open: false } };
@@ -626,6 +842,11 @@ function reducer(state: State, action: Action): State {
       return { ...state, composer: { ...state.composer, [action.field]: action.value } };
     case 'ADD_FILE':
       return { ...state, composer: { ...state.composer, attachments: [...state.composer.attachments, action.file] } };
+    case 'ADD_INLINE_ATTACHMENT':
+      return {
+        ...state,
+        composer: { ...state.composer, inlineAttachmentIds: [...state.composer.inlineAttachmentIds, action.attachmentId] },
+      };
     case 'UPDATE_FILE_URL':
       return {
         ...state,
@@ -718,6 +939,7 @@ function reducer(state: State, action: Action): State {
             attachmentId: a.attachmentId,
             uploadStatus: 'uploaded' as const,
           })),
+          inlineAttachmentIds: [],
           genTitle: false, genTags: false, submitting: false, error: null,
           draftId: action.draft.id, savingDraft: false,
         },
@@ -735,6 +957,44 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         draftsModal: { ...state.draftsModal, items: state.draftsModal.items.filter((d) => d.id !== action.draftId) },
+      };
+    case 'SET_SEARCH_QUERY':
+      return { ...state, search: { ...state.search, query: action.query } };
+    case 'SET_SEARCH_RESULTS':
+      return { ...state, search: { ...state.search, results: action.results } };
+    case 'SET_SEARCH_LOADING':
+      return { ...state, search: { ...state.search, loading: action.loading } };
+    case 'SET_SEARCH_OPEN':
+      return { ...state, search: { ...state.search, open: action.open } };
+    // "See more results" / pressing Enter — seeds the SearchResults page
+    // with the current query and always starts it on the 'all' (sectioned)
+    // view, closing the dropdown since we're navigating away from it.
+    case 'OPEN_SEARCH_RESULTS':
+      return {
+        ...state,
+        view: 'search',
+        search: { ...state.search, open: false, resultsQuery: action.query, resultsSection: 'all' },
+        history: [...state.history, buildNavEntry(state, action.fromScrollTop)],
+      };
+    case 'OPEN_ASK':
+      return {
+        ...state,
+        view: 'ask',
+        ask: { query: action.query },
+        search: { ...state.search, open: false },
+        history: [...state.history, buildNavEntry(state, action.fromScrollTop)],
+        pendingScrollTop: 0,
+      };
+    // "Show all →" on a section, or GO_BACK returning into one — pushes
+    // history too so the back button can step from a drilled-into section
+    // back to the 'all' preview instead of leaving the results page.
+    case 'SET_SEARCH_RESULTS_SECTION':
+      return {
+        ...state,
+        search: { ...state.search, resultsSection: action.section },
+        history: action.section === state.search.resultsSection
+          ? state.history
+          : [...state.history, buildNavEntry(state, action.fromScrollTop)],
       };
     case 'SET_POSTS':
       // Always the "sort/scope/filter changed" path (or the very first
@@ -762,6 +1022,10 @@ function reducer(state: State, action: Action): State {
       };
     case 'SET_THEME_PREFERENCE':
       return { ...state, profile: { ...state.profile, themePreference: action.themePreference } };
+    case 'SET_NOTIFICATION_PREFS':
+      return { ...state, profile: { ...state.profile, notificationPrefs: action.prefs } };
+    case 'SET_ROLE':
+      return { ...state, profile: { ...state.profile, role: action.role } };
     case 'SET_PROFILE_ACTIVITY':
       return {
         ...state,
@@ -786,12 +1050,78 @@ function reducer(state: State, action: Action): State {
         ...state,
         profile: { ...state.profile, activityContentType: action.contentType, activityPage: 1 },
       };
+    case 'OPEN_USER_PROFILE':
+      return {
+        ...state,
+        view: 'profile',
+        accountMenu: { open: false },
+        viewedProfile: {
+          userId: action.userId, activeTab: 'Overview', displayName: '', bio: '', socialLinks: [],
+          avatarUrl: null, bannerUrl: null, joinedAt: null, postKarma: 0, commentKarma: 0,
+          activityItems: [], activityTotal: 0, activityPage: 1, activityLoading: false,
+          activitySort: 'new', activityContentType: 'all',
+        },
+        history: state.view === 'profile' && state.viewedProfile?.userId === action.userId
+          ? state.history
+          : [...state.history, buildNavEntry(state, action.fromScrollTop)],
+      };
+    case 'SET_VIEWED_PROFILE_DATA':
+      // No-op if viewedProfile got cleared (e.g. the user navigated away)
+      // before this fetch resolved — nothing to write the data into.
+      if (!state.viewedProfile) return state;
+      return {
+        ...state,
+        viewedProfile: {
+          ...state.viewedProfile, displayName: action.displayName, bio: action.bio,
+          socialLinks: action.socialLinks, avatarUrl: action.avatarUrl, bannerUrl: action.bannerUrl,
+          joinedAt: action.joinedAt, postKarma: action.postKarma, commentKarma: action.commentKarma,
+        },
+      };
+    case 'SET_VIEWED_PROFILE_ACTIVITY':
+      if (!state.viewedProfile) return state;
+      return {
+        ...state,
+        viewedProfile: {
+          ...state.viewedProfile, activityItems: action.items, activityTotal: action.total, activityPage: action.page,
+        },
+      };
+    case 'APPEND_VIEWED_PROFILE_ACTIVITY':
+      if (!state.viewedProfile) return state;
+      return {
+        ...state,
+        viewedProfile: {
+          ...state.viewedProfile,
+          activityItems: [...state.viewedProfile.activityItems, ...action.items],
+          activityTotal: action.total,
+          activityPage: action.page,
+        },
+      };
+    case 'SET_VIEWED_PROFILE_ACTIVITY_LOADING':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activityLoading: action.loading } };
+    case 'SET_VIEWED_PROFILE_TAB':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activeTab: action.tab, activityPage: 1 } };
+    case 'SET_VIEWED_PROFILE_SORT':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activitySort: action.sort, activityPage: 1 } };
+    case 'SET_VIEWED_PROFILE_CONTENT_TYPE':
+      if (!state.viewedProfile) return state;
+      return { ...state, viewedProfile: { ...state.viewedProfile, activityContentType: action.contentType, activityPage: 1 } };
     case 'ASST_SUMMARIZING':
       return { ...state, asst: { ...state.asst, summarizing: true, summary: null } };
+    case 'ASST_SUMMARY_POINT': {
+      const prev = state.asst.summary;
+      return { ...state, asst: { ...state.asst, summary: { points: [...(prev?.points ?? []), action.point], note: prev?.note ?? '' } } };
+    }
+    case 'ASST_SUMMARY_DONE':
+      return { ...state, asst: { ...state.asst, summarizing: false, summary: { points: state.asst.summary?.points ?? [], note: action.note } } };
     case 'ASST_SUMMARY':
       return { ...state, asst: { ...state.asst, summarizing: false, summary: { points: action.points, note: action.note } } };
+    case 'ASST_SUGGEST_CHUNK':
+      return { ...state, asst: { ...state.asst, suggestedText: action.text } };
     case 'ASST_SUGGEST':
-      return { ...state, thread: { ...state.thread, commentInput: action.text }, asst: { ...state.asst, suggested: true } };
+      return { ...state, asst: { ...state.asst, suggested: true, suggestedText: action.text } };
     case 'ASST_SURFACING':
       return { ...state, asst: { ...state.asst, surfacing: true, related: null } };
     case 'ASST_RELATED':
@@ -815,8 +1145,17 @@ function useForumStateInternal() {
   const sessionToken = session.sessionToken ?? undefined;
   const themeHost = useContext(ThemeHostContext);
 
-  const setView = useCallback((view: View) => dispatch({ type: 'SET_VIEW', view }), []);
-  const openThread = useCallback((postId: string) => dispatch({ type: 'OPEN_THREAD', postId }), []);
+  // The scrollable main column's current scrollTop, kept outside React
+  // state (see reportScroll below) purely so navigating actions can read
+  // "how far down was the user scrolled" at the moment they navigate away,
+  // without needing a re-render on every scroll event.
+  const scrollTopRef = useRef(0);
+  const reportScroll = useCallback((y: number) => { scrollTopRef.current = y; }, []);
+  const goBack = useCallback(() => dispatch({ type: 'GO_BACK' }), []);
+  const clearPendingScroll = useCallback(() => dispatch({ type: 'CLEAR_PENDING_SCROLL' }), []);
+
+  const setView = useCallback((view: View) => dispatch({ type: 'SET_VIEW', view, fromScrollTop: scrollTopRef.current }), []);
+  const openThread = useCallback((postId: string) => dispatch({ type: 'OPEN_THREAD', postId, fromScrollTop: scrollTopRef.current }), []);
   const toggleSidebarPin = useCallback(() => dispatch({ type: 'TOGGLE_SIDEBAR_PIN' }), []);
   const setAccountMenu = useCallback((open: boolean) => dispatch({ type: 'SET_ACCOUNT_MENU', open }), []);
   const setFeedView = useCallback((view: FeedView) => dispatch({ type: 'SET_FEED_VIEW', view }), []);
@@ -886,6 +1225,12 @@ function useForumStateInternal() {
     const previousVoteCounts = post.voteCounts ?? { up: 0, down: 0 };
     const previousMyVote = post.myVote ?? null;
     const newMyVote = nextVote(previousMyVote ?? 0, dir) || null;
+    dispatch({
+      type: 'SET_POST_VOTE',
+      postId,
+      voteCounts: applyVoteDelta(previousVoteCounts, previousMyVote ?? 0, newMyVote ?? 0),
+      myVote: newMyVote,
+    });
 
     try {
       const result = newMyVote === null
@@ -914,6 +1259,12 @@ function useForumStateInternal() {
     const previousVoteCounts = comment.voteCounts ?? { up: 0, down: 0 };
     const previousMyVote = comment.myVote ?? null;
     const newMyVote = nextVote(previousMyVote ?? 0, dir) || null;
+    dispatch({
+      type: 'SET_COMMENT_VOTE',
+      commentId,
+      voteCounts: applyVoteDelta(previousVoteCounts, previousMyVote ?? 0, newMyVote ?? 0),
+      myVote: newMyVote,
+    });
 
     try {
       const result = newMyVote === null
@@ -950,15 +1301,50 @@ function useForumStateInternal() {
     }
   }, [state.thread.activePostId, state.comments, sessionToken]);
 
+  const toggleAcceptedAnswer = useCallback(async (commentId: string) => {
+    const threadId = state.thread.activePostId;
+    if (!threadId) return;
+
+    function findComment(list: CommentNodeData[]): CommentNodeData | undefined {
+      for (const c of list) {
+        if (c.id === commentId) return c;
+        const found = findComment(c.replies);
+        if (found) return found;
+      }
+      return undefined;
+    }
+    const comment = findComment(state.comments);
+    if (!comment) return;
+    const wasAccepted = comment.isAcceptedAnswer;
+    const previousAcceptedId = wasAccepted
+      ? null
+      : (function find(list: CommentNodeData[]): string | null {
+          for (const c of list) {
+            if (c.isAcceptedAnswer) return c.id;
+            const found = find(c.replies);
+            if (found) return found;
+          }
+          return null;
+        })(state.comments);
+
+    dispatch({ type: 'SET_ACCEPTED_ANSWER', commentId: wasAccepted ? null : commentId });
+    try {
+      if (wasAccepted) await apiUnacceptAnswer(threadId, commentId, sessionToken);
+      else await apiAcceptAnswer(threadId, commentId, sessionToken);
+    } catch {
+      dispatch({ type: 'SET_ACCEPTED_ANSWER', commentId: previousAcceptedId });
+    }
+  }, [state.thread.activePostId, state.comments, sessionToken]);
+
   const setCommentSort = useCallback((sort: CommentSort) => dispatch({ type: 'SET_COMMENT_SORT', sort }), []);
   const toggleCommentCollapsed = useCallback((commentId: string) => dispatch({ type: 'TOGGLE_COMMENT_COLLAPSED', commentId }), []);
   const setCommentInput = useCallback((value: string) => dispatch({ type: 'SET_COMMENT_INPUT', value }), []);
 
-  const submitReply = useCallback(async (parentId: string | null, body: string): Promise<void> => {
+  const submitReply = useCallback(async (parentId: string | null, body: string, attachmentIds?: string[]): Promise<void> => {
     const threadId = state.thread.activePostId;
     const trimmed = body.trim();
     if (!threadId || !trimmed) return;
-    const raw = await createReply(threadId, { body: trimmed, parentCommentId: parentId ?? undefined }, sessionToken);
+    const raw = await createReply(threadId, { body: trimmed, parentCommentId: parentId ?? undefined, attachmentIds }, sessionToken);
     const voteCounts = raw.voteCounts ?? { up: 0, down: 0 };
     const comment: CommentNodeData = {
       id: raw.id,
@@ -971,17 +1357,17 @@ function useForumStateInternal() {
       voteCounts,
       myVote: raw.myVote ?? null,
       isSaved: raw.isSaved ?? false,
+      isAcceptedAnswer: raw.isAcceptedAnswer,
       replies: [],
     };
     dispatch({ type: 'REPLY_SUBMITTED', parentId, comment });
   }, [state.thread.activePostId, sessionToken]);
 
-  const submitComment = useCallback(async () => {
-    const body = state.thread.commentInput;
+  const submitComment = useCallback(async (body: string, attachmentIds?: string[]) => {
     if (!body.trim()) return;
-    await submitReply(null, body);
+    await submitReply(null, body, attachmentIds);
     dispatch({ type: 'SET_COMMENT_INPUT', value: '' });
-  }, [state.thread.commentInput, submitReply]);
+  }, [submitReply]);
 
   const editComment = useCallback(async (commentId: string, body: string): Promise<void> => {
     const threadId = state.thread.activePostId;
@@ -997,8 +1383,45 @@ function useForumStateInternal() {
     dispatch({ type: 'POST_EDITED', postId: threadId, title: thread.title, body: thread.body });
   }, [state.thread.activePostId, forumId, sessionToken]);
 
-  const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER' }), []);
-  const closeComposer = useCallback(() => dispatch({ type: 'CLOSE_COMPOSER' }), []);
+  // Used from both the feed card's ellipsis menu and the thread page's own
+  // Delete button, so it takes postId explicitly rather than only reading
+  // state.thread.activePostId — navigates back to the feed only if the
+  // deleted post was the one currently open.
+  const deletePost = useCallback(async (postId: string): Promise<void> => {
+    await apiDeleteThread(forumId, postId, sessionToken);
+    dispatch({ type: 'POST_DELETED', postId });
+    if (state.thread.activePostId === postId) setView('feed');
+  }, [forumId, sessionToken, state.thread.activePostId, setView]);
+
+  const deleteComment = useCallback(async (commentId: string): Promise<void> => {
+    const threadId = state.thread.activePostId;
+    if (!threadId) return;
+    await apiDeleteComment(threadId, commentId, sessionToken);
+    dispatch({ type: 'COMMENT_DELETED', commentId });
+  }, [state.thread.activePostId, sessionToken]);
+
+  const openComposer = useCallback(() => dispatch({ type: 'OPEN_COMPOSER', fromScrollTop: scrollTopRef.current }), []);
+  // Closing the composer without ever saving a draft means every uploaded-
+  // but-never-submitted attachment is now orphaned in storage — clean those
+  // up. If a draft WAS saved, its content already references these same
+  // attachmentIds, so deleting them here would break the draft; leave them
+  // for the draft to own instead.
+  const closeComposer = useCallback(() => {
+    if (!state.composer.draftId) {
+      for (const a of state.composer.attachments) {
+        if (a.attachmentId) apiDeleteAttachment(forumId, a.attachmentId, sessionToken).catch(() => {});
+      }
+      // Images/video inserted via the Text tab's own toolbar buttons, not
+      // the "Images & Video" tab — same orphaned-upload risk, tracked
+      // separately since they're embedded straight into the body markdown
+      // rather than living in the attachments array above.
+      for (const attachmentId of state.composer.inlineAttachmentIds) {
+        apiDeleteAttachment(forumId, attachmentId, sessionToken).catch(() => {});
+      }
+    }
+    dispatch({ type: 'CLOSE_COMPOSER' });
+  }, [state.composer.draftId, state.composer.attachments, state.composer.inlineAttachmentIds, forumId, sessionToken]);
+  const addInlineAttachment = useCallback((attachmentId: string) => dispatch({ type: 'ADD_INLINE_ATTACHMENT', attachmentId }), []);
   const openSettings = useCallback(() => dispatch({ type: 'OPEN_SETTINGS' }), []);
   const closeSettings = useCallback(() => dispatch({ type: 'CLOSE_SETTINGS' }), []);
   const setComposerTab = useCallback((tab: ComposerTab) => dispatch({ type: 'SET_COMPOSER_TAB', tab }), []);
@@ -1006,7 +1429,15 @@ function useForumStateInternal() {
     (field: 'title' | 'tags' | 'body' | 'linkUrl', value: string) => dispatch({ type: 'SET_COMPOSER_FIELD', field, value }),
     [],
   );
-  const removeFile = useCallback((id: number) => dispatch({ type: 'REMOVE_FILE', id }), []);
+  // Best-effort, fire-and-forget: the UI removal is what matters immediately
+  // (REMOVE_FILE below), storage cleanup shouldn't block or fail visibly on it.
+  const removeFile = useCallback((id: number) => {
+    const attachment = state.composer.attachments.find(a => a.id === id);
+    dispatch({ type: 'REMOVE_FILE', id });
+    if (attachment?.attachmentId) {
+      apiDeleteAttachment(forumId, attachment.attachmentId, sessionToken).catch(() => {});
+    }
+  }, [state.composer.attachments, forumId, sessionToken]);
   const updateAttachmentMeta = useCallback((id: number, caption: string, attachmentUrl: string) =>
     dispatch({ type: 'UPDATE_ATTACHMENT_META', id, caption, attachmentUrl }), []);
   const submitComposer = useCallback(async () => {
@@ -1115,6 +1546,47 @@ function useForumStateInternal() {
     return () => { cancelled = true; };
   }, [state.draftsModal.open, forumId, sessionToken]);
 
+  const setSearchQuery = useCallback((query: string) => dispatch({ type: 'SET_SEARCH_QUERY', query }), []);
+  const closeSearchDropdown = useCallback(() => dispatch({ type: 'SET_SEARCH_OPEN', open: false }), []);
+  const openSearchResults = useCallback(
+    (query: string) => dispatch({ type: 'OPEN_SEARCH_RESULTS', query, fromScrollTop: scrollTopRef.current }),
+    [],
+  );
+  const openSearchResultsSection = useCallback(
+    (section: SearchState['resultsSection']) => dispatch({ type: 'SET_SEARCH_RESULTS_SECTION', section, fromScrollTop: scrollTopRef.current }),
+    [],
+  );
+  const openAsk = useCallback(
+    (query: string) => dispatch({ type: 'OPEN_ASK', query, fromScrollTop: scrollTopRef.current }),
+    [],
+  );
+
+  // Live top-nav dropdown: waits 300ms after the user stops typing before
+  // firing the request, so we're not hitting the API on every keystroke.
+  // An empty query just clears the results locally with no network call.
+  useEffect(() => {
+    const query = state.search.query.trim();
+    if (!query || !sessionToken || !forumId) {
+      dispatch({ type: 'SET_SEARCH_RESULTS', results: [] });
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      dispatch({ type: 'SET_SEARCH_LOADING', loading: true });
+      apiSearchThreads(forumId, query, { limit: 5 }, sessionToken)
+        .then((res) => {
+          dispatch({ type: 'SET_SEARCH_RESULTS', results: res.results });
+          dispatch({ type: 'SET_SEARCH_OPEN', open: true });
+        })
+        .catch((err: unknown) => {
+          console.error('[useForum] search fetch failed', err);
+        })
+        .finally(() => {
+          dispatch({ type: 'SET_SEARCH_LOADING', loading: false });
+        });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [state.search.query, sessionToken, forumId]);
+
   // Periodic autosave while the composer is open — silent on failure so a
   // transient network blip doesn't interrupt someone mid-sentence.
   useEffect(() => {
@@ -1141,6 +1613,14 @@ function useForumStateInternal() {
     try { localStorage.setItem('fk_theme', next); } catch { /* storage unavailable */ }
     if (forumId) await updateThemePreference(forumId, next, sessionToken);
   }, [state.profile.themePreference, themeHost, forumId, sessionToken]);
+
+  // Same "fires immediately, not gated behind Save" pattern as toggleTheme
+  // above — each Settings switch calls this directly on click.
+  const setNotificationPref = useCallback(async (type: keyof NotificationPrefs, enabled: boolean) => {
+    const next = { ...state.profile.notificationPrefs, [type]: enabled };
+    dispatch({ type: 'SET_NOTIFICATION_PREFS', prefs: next });
+    if (forumId) await apiUpdateNotificationPrefs(forumId, next, sessionToken);
+  }, [state.profile.notificationPrefs, forumId, sessionToken]);
 
   // ForumKit never owns credentials (JWT identity delegation — see
   // CLAUDE.md); it can't log anyone out itself. The host app opts in by
@@ -1263,15 +1743,39 @@ function useForumStateInternal() {
   const summarize = useCallback(async () => {
     if (state.asst.summarizing || state.thread.activePostId === null) return;
     dispatch({ type: 'ASST_SUMMARIZING' });
-    const points = await callSummarise(state.thread.activePostId, sessionToken);
-    const note = `Synthesized from ${state.comments.length} comment${state.comments.length !== 1 ? 's' : ''}`;
-    dispatch({ type: 'ASST_SUMMARY', points, note });
+    const threadId = state.thread.activePostId;
+    let pointCount = 0;
+    try {
+      await callSummariseStreaming(threadId, (event) => {
+        if (event.type === 'keyPoint' || event.type === 'conclusion' || event.type === 'openQuestion') {
+          pointCount++;
+          dispatch({ type: 'ASST_SUMMARY_POINT', point: event.text });
+        }
+      }, sessionToken);
+    } catch {
+      // fallthrough to note
+    }
+    const note = pointCount > 0
+      ? `Synthesized from ${state.comments.length} comment${state.comments.length !== 1 ? 's' : ''}`
+      : 'AI service unavailable';
+    dispatch({ type: 'ASST_SUMMARY_DONE', note });
   }, [state.asst.summarizing, state.thread.activePostId, state.comments.length, sessionToken]);
 
   const suggest = useCallback(async () => {
     if (state.thread.activePostId === null) return;
-    const text = await callSuggest(state.thread.activePostId, sessionToken);
-    dispatch({ type: 'ASST_SUGGEST', text });
+    const threadId = state.thread.activePostId;
+    let finalText = '';
+    try {
+      await callSuggestStreaming(threadId, (event) => {
+        if (event.type === 'chunk') {
+          finalText += event.text;
+          dispatch({ type: 'ASST_SUGGEST_CHUNK', text: finalText });
+        }
+      }, sessionToken);
+    } catch {
+      // fallthrough
+    }
+    dispatch({ type: 'ASST_SUGGEST', text: finalText });
   }, [state.thread.activePostId, sessionToken]);
 
   const surfaceRelated = useCallback(async () => {
@@ -1322,6 +1826,8 @@ function useForumStateInternal() {
         commentKarma: profile.commentKarma,
         themePreference: profile.themePreference,
       });
+      dispatch({ type: 'SET_NOTIFICATION_PREFS', prefs: profile.notificationPrefs });
+      dispatch({ type: 'SET_ROLE', role: profile.role });
       // A saved server preference overrides whatever the host app initialised
       // ForumKit with — same localStorage key use-theme.ts already reads, so
       // top-nav's own theme toggle picks this up on its next mount too.
@@ -1373,6 +1879,91 @@ function useForumStateInternal() {
     state.profile.activitySort, state.profile.activityContentType,
   ]);
 
+  const openUserProfile = useCallback(
+    (userId: string) => dispatch({ type: 'OPEN_USER_PROFILE', userId, fromScrollTop: scrollTopRef.current }),
+    [],
+  );
+  const setViewedProfileTab = useCallback((tab: string) => dispatch({ type: 'SET_VIEWED_PROFILE_TAB', tab }), []);
+  const setViewedProfileSort = useCallback(
+    (sort: ProfileActivitySort) => dispatch({ type: 'SET_VIEWED_PROFILE_SORT', sort }),
+    [],
+  );
+  const setViewedProfileContentType = useCallback(
+    (contentType: ProfileActivityContentType) => dispatch({ type: 'SET_VIEWED_PROFILE_CONTENT_TYPE', contentType }),
+    [],
+  );
+
+  // ─── Viewed-profile init: fetch a public profile whenever userId changes ────
+  // Same "dispatch on the resolved response" shape as the my-profile effect
+  // above, but no theme-preference side effect (that's a personal setting,
+  // never applicable when looking at someone else) and no localStorage.
+  useEffect(() => {
+    const userId = state.viewedProfile?.userId;
+    if (!userId || !sessionToken || !forumId) return;
+    void getUserProfile(forumId, userId, sessionToken).then(profile => {
+      if (!profile) return;
+      dispatch({
+        type: 'SET_VIEWED_PROFILE_DATA',
+        displayName: profile.displayName,
+        bio: profile.bio ?? '',
+        socialLinks: profile.socialLinks.map((l, i) => ({
+          id: Date.now() + i,
+          platform: l.platform as SocialLink['platform'],
+          url: l.url,
+        })),
+        avatarUrl: profile.avatarUrl,
+        bannerUrl: profile.bannerUrl,
+        joinedAt: profile.joinedAt as unknown as string,
+        postKarma: profile.postKarma,
+        commentKarma: profile.commentKarma,
+      });
+    }).catch(err => {
+      console.error('[useForum] viewed profile fetch failed', err);
+    });
+  }, [state.viewedProfile?.userId, sessionToken, forumId]);
+
+  // ─── Viewed-profile activity: same reload-on-change pattern as my own ───────
+  useEffect(() => {
+    const viewed = state.viewedProfile;
+    if (!viewed || !sessionToken || !forumId || state.view !== 'profile') return;
+    const scope = PROFILE_TAB_TO_SCOPE[viewed.activeTab];
+    // 'saved' is never offered as a tab when viewing someone else (see
+    // Profile.tsx), but guard here too rather than trust the UI alone —
+    // the backend would 400 it anyway (publicActivityQuerySchema).
+    if (!scope || scope === 'saved') return;
+    dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: true });
+    void getUserActivity(
+      forumId, viewed.userId, scope, 1, PROFILE_ACTIVITY_PAGE_SIZE, viewed.activitySort, viewed.activityContentType, sessionToken,
+    ).then(result => {
+      dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY', items: result.items.map(toActivityItemView), total: result.total, page: 1 });
+    }).catch(err => {
+      console.error('[useForum] viewed profile activity fetch failed', err);
+    }).finally(() => {
+      dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: false });
+    });
+  }, [
+    state.viewedProfile?.userId, sessionToken, forumId, state.view, state.viewedProfile?.activeTab,
+    state.viewedProfile?.activitySort, state.viewedProfile?.activityContentType,
+  ]);
+
+  const loadMoreViewedProfileActivity = useCallback(async () => {
+    const viewed = state.viewedProfile;
+    if (!viewed || !sessionToken || !forumId) return;
+    const scope = PROFILE_TAB_TO_SCOPE[viewed.activeTab];
+    if (!scope || scope === 'saved') return;
+    const nextPage = viewed.activityPage + 1;
+    dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: true });
+    try {
+      const result = await getUserActivity(
+        forumId, viewed.userId, scope, nextPage, PROFILE_ACTIVITY_PAGE_SIZE,
+        viewed.activitySort, viewed.activityContentType, sessionToken,
+      );
+      dispatch({ type: 'APPEND_VIEWED_PROFILE_ACTIVITY', items: result.items.map(toActivityItemView), total: result.total, page: nextPage });
+    } finally {
+      dispatch({ type: 'SET_VIEWED_PROFILE_ACTIVITY_LOADING', loading: false });
+    }
+  }, [state.viewedProfile, sessionToken, forumId]);
+
   // ─── Feed init: (re)load real threads whenever the sort/scope/window changes ─
   // Ranking is now computed server-side (see repositories/thread.ts
   // SORT_CLAUSES) — this always fetches page 1 and replaces state.posts;
@@ -1408,6 +1999,85 @@ function useForumStateInternal() {
       console.error('[useForum] forum config fetch failed', err);
     });
   }, [sessionToken, forumId]);
+
+  // ─── Notifications: unread count for the bell dot ───────────────────────────
+  // Pull-based, not push (see Notifications backend plan) — fetched once the
+  // session is ready, and again whenever refreshUnreadCount is called
+  // explicitly (Notifications.tsx does this after any mark-read action).
+
+  const refreshUnreadCount = useCallback(() => {
+    if (!sessionToken || !forumId) return;
+    void apiGetUnreadCount(forumId, sessionToken).then(count => {
+      dispatch({ type: 'SET_UNREAD_COUNT', count });
+    }).catch(err => {
+      console.error('[useForum] unread notification count fetch failed', err);
+    });
+  }, [sessionToken, forumId]);
+
+  useEffect(() => {
+    refreshUnreadCount();
+  }, [refreshUnreadCount]);
+
+  // ─── Share ────────────────────────────────────────────────────────────────
+  // Web mode offers both a link and in-app member sharing; native mode offers
+  // only member sharing (see ForumKitConfig.platform's own doc comment for
+  // why there's no reliable way to auto-detect this instead).
+
+  const openShareModal = useCallback((threadId: string) => dispatch({ type: 'OPEN_SHARE_MODAL', threadId }), []);
+  const closeShareModal = useCallback(() => dispatch({ type: 'CLOSE_SHARE_MODAL' }), []);
+
+  // Builds a URL that, when loaded, auto-opens this thread (see the fk_thread
+  // bootstrap effect below) — the current location's own params are kept so
+  // sharing a link doesn't drop whatever other query state a host page has.
+  const copyShareLink = useCallback((threadId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('fk_thread', threadId);
+    const shareUrl = url.toString();
+    if (navigator.share) {
+      navigator.share({ url: shareUrl }).catch(() => {});
+    } else {
+      void navigator.clipboard.writeText(shareUrl);
+    }
+  }, []);
+
+  const shareThreadWithMembers = useCallback(async (recipientUserIds: string[], message: string | undefined) => {
+    const threadId = state.shareModal.threadId;
+    if (!threadId) throw new Error('No thread selected to share');
+    await apiShareThreadWithUsers(forumId, threadId, recipientUserIds, message, sessionToken);
+  }, [state.shareModal.threadId, forumId, sessionToken]);
+
+  // One-shot: a shared link lands here with ?fk_thread=<id> in the URL, and
+  // this opens that thread automatically once the session is ready. Guarded
+  // by a ref (not state) so it fires exactly once and doesn't re-trigger on
+  // use-session's own 80%-TTL refresh cycle.
+  const firedThreadBootstrap = useRef(false);
+  useEffect(() => {
+    if (firedThreadBootstrap.current || !sessionToken || !forumId) return;
+    const threadId = new URLSearchParams(window.location.search).get('fk_thread');
+    if (!threadId) return;
+    firedThreadBootstrap.current = true;
+    openThread(threadId);
+  }, [sessionToken, forumId, openThread]);
+
+  // ─── Report ───────────────────────────────────────────────────────────────
+
+  const openReportModal = useCallback((target: ReportTarget) => dispatch({ type: 'OPEN_REPORT_MODAL', target }), []);
+  const closeReportModal = useCallback(() => dispatch({ type: 'CLOSE_REPORT_MODAL' }), []);
+
+  const submitReport = useCallback(async (reason: string) => {
+    const target = state.reportModal.target;
+    if (!target) throw new Error('No report target selected');
+    if (target.type === 'thread') {
+      await apiReportThread(forumId, target.threadId, reason, sessionToken);
+    } else {
+      await apiReportComment(target.threadId, target.commentId, reason, sessionToken);
+    }
+  }, [state.reportModal.target, forumId, sessionToken]);
+
+  // ─── Notification settings modal ─────────────────────────────────────────
+
+  const openNotificationSettingsModal = useCallback(() => dispatch({ type: 'OPEN_NOTIFICATION_SETTINGS_MODAL' }), []);
+  const closeNotificationSettingsModal = useCallback(() => dispatch({ type: 'CLOSE_NOTIFICATION_SETTINGS_MODAL' }), []);
 
   // ─── Featured rail: pinned threads, admin-curated so it rarely changes ──────
 
@@ -1471,6 +2141,13 @@ function useForumStateInternal() {
     if (mode === 'Best' || mode === 'Top') sorted.sort((a, b) => netVotes(b.voteCounts) - netVotes(a.voteCounts));
     else if (mode === 'Controversial') sorted.sort((a, b) => controversyScore(b.voteCounts) - controversyScore(a.voteCounts));
     else sorted.reverse();
+    // The accepted answer (if any) always floats to the top, on top of
+    // whichever sort mode is active — Array.sort is spec-stable, so this
+    // second pass only moves the accepted comment and otherwise preserves
+    // the ordering the mode-based sort above just established. Only
+    // top-level comments can ever be accepted, so this is a no-op once
+    // recursed into replies below.
+    sorted.sort((a, b) => (b.isAcceptedAnswer ? 1 : 0) - (a.isAcceptedAnswer ? 1 : 0));
     return sorted.map(c => ({ ...c, replies: sortComments(c.replies, mode) }));
   }
   const sortedComments = sortComments(state.comments, state.thread.commentSort);
@@ -1501,6 +2178,7 @@ function useForumStateInternal() {
     votePost,
     voteComment,
     toggleSaveComment,
+    toggleAcceptedAnswer,
     setCommentSort,
     toggleCommentCollapsed,
     setCommentInput,
@@ -1508,6 +2186,8 @@ function useForumStateInternal() {
     submitReply,
     editComment,
     editPost,
+    deletePost,
+    deleteComment,
     openComposer,
     closeComposer,
     openSettings,
@@ -1516,6 +2196,7 @@ function useForumStateInternal() {
     setComposerField,
     addFiles,
     removeFile,
+    addInlineAttachment,
     updateAttachmentMeta,
     submitComposer,
     saveDraft,
@@ -1523,10 +2204,20 @@ function useForumStateInternal() {
     openDraftsList,
     closeDraftsList,
     deleteDraftFromList,
+    setSearchQuery,
+    closeSearchDropdown,
+    openSearchResults,
+    openSearchResultsSection,
+    openAsk,
     setProfileTab,
     setProfileSort,
     setProfileContentType,
     loadMoreProfileActivity,
+    openUserProfile,
+    setViewedProfileTab,
+    setViewedProfileSort,
+    setViewedProfileContentType,
+    loadMoreViewedProfileActivity,
     toggleTheme,
     logOut,
     canLogOut,
@@ -1537,6 +2228,20 @@ function useForumStateInternal() {
     suggestComposeMeta,
     forumId,
     sessionToken,
+    reportScroll,
+    goBack,
+    clearPendingScroll,
+    refreshUnreadCount,
+    openShareModal,
+    closeShareModal,
+    copyShareLink,
+    shareThreadWithMembers,
+    openReportModal,
+    closeReportModal,
+    submitReport,
+    setNotificationPref,
+    openNotificationSettingsModal,
+    closeNotificationSettingsModal,
   };
 }
 

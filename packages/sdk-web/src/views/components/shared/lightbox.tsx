@@ -1,21 +1,21 @@
 import { useState } from 'react';
-import Carousel from './carousel';
+import Carousel, { type MediaItem } from './carousel';
 import { CloseIcon } from './icons';
 import './lightbox.css';
 
 type LightboxProps = {
-  images: string[];
+  items: MediaItem[];
   startIndex: number;
   onClose: () => void;
 };
 
 /**
- * Full-viewport overlay for viewing image(s) in place, without navigating
+ * Full-viewport overlay for viewing media in place, without navigating
  * away. Closes on backdrop click or the close button; the stage itself
- * stops click propagation so interacting with the image/arrows/dots
+ * stops click propagation so interacting with the media/arrows/dots
  * doesn't also close it.
  */
-export default function Lightbox({ images, startIndex, onClose }: LightboxProps) {
+export default function Lightbox({ items, startIndex, onClose }: LightboxProps) {
   const [index, setIndex] = useState(startIndex);
 
   return (
@@ -24,7 +24,7 @@ export default function Lightbox({ images, startIndex, onClose }: LightboxProps)
         <CloseIcon size={20} />
       </button>
       <div className="fk-lightbox-stage" onClick={e => e.stopPropagation()}>
-        <Carousel images={images} index={index} onIndexChange={setIndex} />
+        <Carousel items={items} index={index} onIndexChange={setIndex} />
       </div>
     </div>
   );

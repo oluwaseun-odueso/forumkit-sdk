@@ -1,6 +1,7 @@
 import type { DB } from '../db';
 import type { ForumConfig, Comment, ReactionType, Thread, VoteCounts, VoteDirection } from '@forumkit/types';
 import { COMMENT_VOTE_COUNTS_SUBQUERY } from './vote';
+import { resolveMediaUrl } from '../lib/attachment-url';
 
 type CommentRow = {
   id: string;
@@ -42,13 +43,13 @@ const REACTION_COUNTS_SUBQUERY = `
   )::json AS reaction_counts
 `;
 
-function toComment(row: CommentRow): Comment {
+function toComment(row: CommentRow, publicApiUrl: string): Comment {
   return {
     id: row.id,
     threadId: row.thread_id,
     authorId: row.author_id,
     authorDisplayName: row.author_display_name,
-    authorAvatarUrl: row.author_avatar_url,
+    authorAvatarUrl: resolveMediaUrl(publicApiUrl, row.author_avatar_url),
     parentCommentId: row.parent_comment_id,
     body: row.body,
     status: row.status,
@@ -65,6 +66,7 @@ function toComment(row: CommentRow): Comment {
 
 export async function getCommentById(
   db: DB,
+  publicApiUrl: string,
   commentId: string,
   requesterId?: string | undefined,
 ): Promise<Comment | null> {
@@ -84,10 +86,26 @@ export async function getCommentById(
       AND p.status != 'deleted'
   `;
   const row = rows[0];
-  return row ? toComment(row) : null;
+  return row ? toComment(row, publicApiUrl) : null;
 }
 
-export async function createComment(db: DB, input: CreateCommentInput): Promise<Comment> {
+// Lightweight existence/ownership check — no avatar join, no publicApiUrl
+// needed. Used everywhere a caller only needs to validate a comment exists
+// and who owns it (permission checks, notification targets), not render it
+// back to a client. Mirrors repositories/thread.ts's getThreadInfo.
+export async function getCommentInfo(
+  db: DB,
+  commentId: string,
+): Promise<{ authorId: string; threadId: string; status: Comment['status'] } | null> {
+  const rows = await db<{ author_id: string; thread_id: string; status: Comment['status'] }[]>`
+    SELECT author_id, thread_id, status FROM comments
+    WHERE id = ${commentId} AND status != 'deleted'
+  `;
+  const row = rows[0];
+  return row ? { authorId: row.author_id, threadId: row.thread_id, status: row.status } : null;
+}
+
+export async function createComment(db: DB, publicApiUrl: string, input: CreateCommentInput): Promise<Comment> {
   const [row] = await db<[{ id: string }]>`
     INSERT INTO comments (thread_id, author_id, parent_comment_id, body)
     VALUES (
@@ -99,14 +117,14 @@ export async function createComment(db: DB, input: CreateCommentInput): Promise<
     RETURNING id
   `;
   if (!row) throw new Error('Comment insert returned no row');
-  const comment = await getCommentById(db, row.id);
+  const comment = await getCommentById(db, publicApiUrl, row.id);
   if (!comment) throw new Error('Comment not found after create');
   return comment;
 }
 
-export async function updateComment(db: DB, commentId: string, body: string): Promise<Comment | null> {
+export async function updateComment(db: DB, publicApiUrl: string, commentId: string, body: string): Promise<Comment | null> {
   await db`UPDATE comments SET body = ${body} WHERE id = ${commentId}`;
-  return getCommentById(db, commentId);
+  return getCommentById(db, publicApiUrl, commentId);
 }
 
 export async function softDeleteComment(db: DB, commentId: string): Promise<void> {
@@ -171,6 +189,7 @@ export async function insertReport(
 
 export async function setAcceptedAnswer(
   db: DB,
+  publicApiUrl: string,
   commentId: string,
   threadId: string,
 ): Promise<Comment> {
@@ -183,10 +202,17 @@ export async function setAcceptedAnswer(
       UPDATE comments SET is_accepted_answer = TRUE
       WHERE id = ${commentId}
     `;
-    return getCommentById(sql as unknown as DB, commentId);
+    return getCommentById(sql as unknown as DB, publicApiUrl, commentId);
   });
   if (!comment) throw new Error('Comment not found after setAcceptedAnswer');
   return comment;
+}
+
+export async function clearAcceptedAnswer(db: DB, threadId: string): Promise<void> {
+  await db`
+    UPDATE comments SET is_accepted_answer = FALSE
+    WHERE thread_id = ${threadId} AND is_accepted_answer = TRUE
+  `;
 }
 
 export async function updateCommentEmbedding(
@@ -231,6 +257,7 @@ export async function insertModerationQueueItem(
 
 export async function listCommentsByThread(
   db: DB,
+  publicApiUrl: string,
   threadId: string,
   requesterId?: string | undefined,
 ): Promise<Comment[]> {
@@ -250,7 +277,7 @@ export async function listCommentsByThread(
       AND p.status != 'deleted'
     ORDER BY p.created_at ASC
   `;
-  return rows.map(toComment);
+  return rows.map(r => toComment(r, publicApiUrl));
 }
 
 // Extra context a bare Comment doesn't carry, needed for the profile's Comments
@@ -270,9 +297,9 @@ type CommentContextRow = CommentRow & {
   parent_body_snippet: string | null;
 };
 
-function toCommentWithThreadContext(row: CommentContextRow): CommentWithThreadContext {
+function toCommentWithThreadContext(row: CommentContextRow, publicApiUrl: string): CommentWithThreadContext {
   return {
-    ...toComment(row),
+    ...toComment(row, publicApiUrl),
     threadId: row.thread_id,
     threadTitle: row.thread_title,
     replyingTo: row.parent_author_display_name && row.parent_body_snippet
@@ -305,6 +332,7 @@ const COMMENT_CONTEXT_JOINS = `
 // newest first.
 export async function listCommentsByAuthor(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   authorId: string,
   page: number,
@@ -334,7 +362,7 @@ export async function listCommentsByAuthor(
     `,
   ]);
 
-  return { comments: rows.map(toCommentWithThreadContext), total: Number(countRows[0]?.total ?? 0) };
+  return { comments: rows.map(r => toCommentWithThreadContext(r, publicApiUrl)), total: Number(countRows[0]?.total ?? 0) };
 }
 
 // Batch fetch by id, same shape as listCommentsByAuthor — used to hydrate
@@ -342,6 +370,7 @@ export async function listCommentsByAuthor(
 // votes/saves) rather than an author-scoped query.
 export async function getCommentsByIds(
   db: DB,
+  publicApiUrl: string,
   ids: string[],
   requesterId?: string | undefined,
 ): Promise<CommentWithThreadContext[]> {
@@ -357,7 +386,7 @@ export async function getCommentsByIds(
       AND p.status != 'deleted'
   `;
 
-  return rows.map(toCommentWithThreadContext);
+  return rows.map(r => toCommentWithThreadContext(r, publicApiUrl));
 }
 
 // Comment karma: sum(upvotes) - sum(downvotes) across every reply the user
@@ -390,10 +419,10 @@ export async function getForumConfigByThreadId(
 export async function getThreadInfo(
   db: DB,
   threadId: string,
-): Promise<{ status: Thread['status']; authorId: string } | null> {
-  const rows = await db<[{ status: Thread['status']; author_id: string }]>`
-    SELECT status, author_id FROM threads WHERE id = ${threadId}
+): Promise<{ status: Thread['status']; authorId: string; forumId: string } | null> {
+  const rows = await db<[{ status: Thread['status']; author_id: string; forum_id: string }]>`
+    SELECT status, author_id, forum_id FROM threads WHERE id = ${threadId}
   `;
   const row = rows[0];
-  return row ? { status: row.status, authorId: row.author_id } : null;
+  return row ? { status: row.status, authorId: row.author_id, forumId: row.forum_id } : null;
 }

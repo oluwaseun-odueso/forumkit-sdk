@@ -19,6 +19,7 @@ jest.unstable_mockModule('../../src/repositories/thread', () => ({
 
 jest.unstable_mockModule('../../src/repositories/comment', () => ({
   listCommentsByThread: jest.fn(),
+  getThreadInfo: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../src/repositories/attachment', () => ({
@@ -52,6 +53,7 @@ const svc = await import('../../src/services/thread');
 const db = {} as DB;
 const embedFn = jest.fn<EmbedFn>();
 const llmFn = jest.fn<LLMFn>();
+const publicApiUrl = 'http://localhost:3001';
 
 const mockThread = {
   id: 'thread-1',
@@ -63,6 +65,7 @@ const mockThread = {
   pinned: false,
   viewCount: 0,
   postCount: 0,
+  commentCount: 0,
   reactionCount: 0,
   tags: [],
   embedding: null,
@@ -77,8 +80,8 @@ beforeEach(() => {
 describe('listThreads', () => {
   it('delegates to the repo with default pagination', async () => {
     jest.mocked(threadRepo.listThreads).mockResolvedValue({ threads: [], total: 0 });
-    await svc.listThreads(db, 'http://localhost:3001', 'forum-1', {});
-    expect(threadRepo.listThreads).toHaveBeenCalledWith(db, 'forum-1', expect.objectContaining({
+    await svc.listThreads(db, publicApiUrl, 'forum-1', {});
+    expect(threadRepo.listThreads).toHaveBeenCalledWith(db, publicApiUrl, 'forum-1', expect.objectContaining({
       sort: 'best',
       page: 1,
       limit: 20,
@@ -87,14 +90,14 @@ describe('listThreads', () => {
 
   it('clamps limit to MAX_LIMIT=50', async () => {
     jest.mocked(threadRepo.listThreads).mockResolvedValue({ threads: [], total: 0 });
-    await svc.listThreads(db, 'http://localhost:3001', 'forum-1', { limit: 999 });
-    const call = jest.mocked(threadRepo.listThreads).mock.calls[0]?.[2];
+    await svc.listThreads(db, publicApiUrl, 'forum-1', { limit: 999 });
+    const call = jest.mocked(threadRepo.listThreads).mock.calls[0]?.[3];
     expect(call?.limit).toBe(50);
   });
 
   it('returns page and limit in the response', async () => {
     jest.mocked(threadRepo.listThreads).mockResolvedValue({ threads: [], total: 5 });
-    const result = await svc.listThreads(db, 'http://localhost:3001', 'forum-1', { page: 2, limit: 10 });
+    const result = await svc.listThreads(db, publicApiUrl, 'forum-1', { page: 2, limit: 10 });
     expect(result.page).toBe(2);
     expect(result.limit).toBe(10);
   });
@@ -106,7 +109,7 @@ describe('getThread', () => {
     jest.mocked(commentRepo.listCommentsByThread).mockResolvedValue([]);
     jest.mocked(threadRepo.incrementViewCount).mockResolvedValue(undefined);
 
-    const result = await svc.getThread(db, 'forum-1', 'thread-1');
+    const result = await svc.getThread(db, publicApiUrl, 'forum-1', 'thread-1');
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.thread.id).toBe('thread-1');
@@ -116,47 +119,47 @@ describe('getThread', () => {
 
   it('returns err when thread not found', async () => {
     jest.mocked(threadRepo.getThreadById).mockResolvedValue(null);
-    const result = await svc.getThread(db, 'forum-1', 'missing');
+    const result = await svc.getThread(db, publicApiUrl, 'forum-1', 'missing');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('thread_not_found');
   });
 
   it('returns err when thread belongs to a different forum', async () => {
     jest.mocked(threadRepo.getThreadById).mockResolvedValue({ ...mockThread, forumId: 'other-forum' });
-    const result = await svc.getThread(db, 'forum-1', 'thread-1');
+    const result = await svc.getThread(db, publicApiUrl, 'forum-1', 'thread-1');
     expect(result.ok).toBe(false);
   });
 });
 
 describe('updateThread', () => {
   it('allows the author to update their thread', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(mockThread);
     jest.mocked(threadRepo.updateThread).mockResolvedValue({ ...mockThread, title: 'New title' });
 
-    const result = await svc.updateThread(db, 'forum-1', 'thread-1', 'user-1', 'member', { title: 'New title' });
+    const result = await svc.updateThread(db, publicApiUrl, 'forum-1', 'thread-1', 'user-1', 'member', { title: 'New title' });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.title).toBe('New title');
   });
 
   it('allows a moderator to update any thread', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(mockThread);
     jest.mocked(threadRepo.updateThread).mockResolvedValue(mockThread);
 
-    const result = await svc.updateThread(db, 'forum-1', 'thread-1', 'mod-1', 'moderator', { title: 'x' });
+    const result = await svc.updateThread(db, publicApiUrl, 'forum-1', 'thread-1', 'mod-1', 'moderator', { title: 'x' });
     expect(result.ok).toBe(true);
   });
 
   it('returns forbidden when a non-author member tries to edit', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(mockThread);
 
-    const result = await svc.updateThread(db, 'forum-1', 'thread-1', 'other-user', 'member', { title: 'x' });
+    const result = await svc.updateThread(db, publicApiUrl, 'forum-1', 'thread-1', 'other-user', 'member', { title: 'x' });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('forbidden');
   });
 
   it('returns thread_not_found when thread does not exist', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(null);
-    const result = await svc.updateThread(db, 'forum-1', 'missing', 'user-1', 'member', {});
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(null);
+    const result = await svc.updateThread(db, publicApiUrl, 'forum-1', 'missing', 'user-1', 'member', {});
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('thread_not_found');
   });
@@ -164,7 +167,7 @@ describe('updateThread', () => {
 
 describe('deleteThread', () => {
   it('allows the author to delete their thread', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(mockThread);
     jest.mocked(threadRepo.softDeleteThread).mockResolvedValue(undefined);
 
     const result = await svc.deleteThread(db, 'forum-1', 'thread-1', 'user-1', 'member');
@@ -172,7 +175,7 @@ describe('deleteThread', () => {
   });
 
   it('returns forbidden for a non-author non-moderator', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(mockThread);
     const result = await svc.deleteThread(db, 'forum-1', 'thread-1', 'stranger', 'member');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('forbidden');
@@ -181,26 +184,26 @@ describe('deleteThread', () => {
 
 describe('lockThread / pinThread', () => {
   it('locks a thread', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(mockThread);
     jest.mocked(threadRepo.setThreadLocked).mockResolvedValue({ ...mockThread, status: 'locked' });
 
-    const result = await svc.lockThread(db, 'forum-1', 'thread-1', true);
+    const result = await svc.lockThread(db, publicApiUrl, 'forum-1', 'thread-1', true);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.status).toBe('locked');
   });
 
   it('pins a thread', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(mockThread);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(mockThread);
     jest.mocked(threadRepo.setThreadPinned).mockResolvedValue({ ...mockThread, pinned: true });
 
-    const result = await svc.pinThread(db, 'forum-1', 'thread-1', true);
+    const result = await svc.pinThread(db, publicApiUrl, 'forum-1', 'thread-1', true);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.pinned).toBe(true);
   });
 
   it('returns thread_not_found when thread does not exist', async () => {
-    jest.mocked(threadRepo.getThreadById).mockResolvedValue(null);
-    const result = await svc.lockThread(db, 'forum-1', 'missing', true);
+    jest.mocked(commentRepo.getThreadInfo).mockResolvedValue(null);
+    const result = await svc.lockThread(db, publicApiUrl, 'forum-1', 'missing', true);
     expect(result.ok).toBe(false);
   });
 });
@@ -231,7 +234,7 @@ describe('createThread', () => {
     jest.mocked(threadRepo.createThread).mockResolvedValue(mockThread);
     jest.mocked(ai.embedOne).mockResolvedValue(null);
 
-    const result = await svc.createThread(db, embedFn, llmFn, 'http://localhost:3001', 'forum-1', 'user-1', {
+    const result = await svc.createThread(db, embedFn, llmFn, publicApiUrl, 'forum-1', 'user-1', {
       title: 'Test',
       body: 'Body',
       tagIds: [],

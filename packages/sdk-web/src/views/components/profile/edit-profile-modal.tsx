@@ -1,48 +1,36 @@
 import { useState, useRef } from 'react';
+import { SOCIAL_PLATFORMS, socialToSuffix, socialToUrl, socialPlaceholder, socialPrefix, type SocialPlatform } from '@forumkit/shared';
 import type { SocialLink } from '../../hooks/use-forum-state';
-import { resizeImage } from '../../utils/resize-image';
 import PillButton from '../shared/pill-button';
 import Modal from '../shared/modal';
+import ImageEditorModal from './image-editor-modal';
+import Lightbox from '../shared/lightbox';
 import {
   CloseIcon, TrashIcon, CameraIcon, ChevronDownIcon, SunIcon, MoonIcon,
   GitHubIcon, LinkedInIcon, TwitterXIcon, BehanceIcon, DribbbleIcon, GlobeIcon, LinkIcon,
 } from '../shared/icons';
+import { IMAGE_ACCEPT } from '../../lib/accepted-media-types';
 import './edit-profile-modal.css';
 
 // ─── Platform config ──────────────────────────────────────────────────────────
+// The platform list + prefix/placeholder data + url<->suffix helpers live in
+// @forumkit/shared (socialToSuffix/socialToUrl/etc.); only the per-platform icon
+// mapping is web-specific and stays here.
 
-type PlatformConfig = {
-  prefix: string;
-  placeholder: string;
-  Icon: React.ComponentType<{ size?: number }>;
+const PLATFORMS = SOCIAL_PLATFORMS;
+const toSuffix = socialToSuffix;
+const toUrl = socialToUrl;
+
+const PLATFORM_ICON: Record<SocialPlatform, React.ComponentType<{ size?: number }>> = {
+  'Website': GlobeIcon,
+  'Portfolio': GlobeIcon,
+  'GitHub': GitHubIcon,
+  'LinkedIn': LinkedInIcon,
+  'Twitter/X': TwitterXIcon,
+  'Behance': BehanceIcon,
+  'Dribbble': DribbbleIcon,
+  'Other': LinkIcon,
 };
-
-const PLATFORM_CONFIG: Record<SocialLink['platform'], PlatformConfig> = {
-  'Website':   { prefix: '',                         placeholder: 'https://yoursite.com', Icon: GlobeIcon },
-  'Portfolio': { prefix: '',                         placeholder: 'https://portfolio.io', Icon: GlobeIcon },
-  'GitHub':    { prefix: 'https://github.com/',      placeholder: 'username',             Icon: GitHubIcon },
-  'LinkedIn':  { prefix: 'https://linkedin.com/in/', placeholder: 'your-name',            Icon: LinkedInIcon },
-  'Twitter/X': { prefix: 'https://x.com/',           placeholder: 'username',             Icon: TwitterXIcon },
-  'Behance':   { prefix: 'https://behance.net/',     placeholder: 'username',             Icon: BehanceIcon },
-  'Dribbble':  { prefix: 'https://dribbble.com/',    placeholder: 'username',             Icon: DribbbleIcon },
-  'Other':     { prefix: '',                         placeholder: 'https://',             Icon: LinkIcon },
-};
-
-const PLATFORMS = Object.keys(PLATFORM_CONFIG) as SocialLink['platform'][];
-
-function toSuffix(platform: SocialLink['platform'], url: string): string {
-  const { prefix } = PLATFORM_CONFIG[platform];
-  return prefix && url.startsWith(prefix) ? url.slice(prefix.length) : url;
-}
-
-function toUrl(platform: SocialLink['platform'], suffix: string): string {
-  const { prefix } = PLATFORM_CONFIG[platform];
-  const trimmed = suffix.trim().replace(/^\/+|\/+$/g, '');
-  if (!prefix) {
-    return trimmed && !/^https?:\/\//i.test(trimmed) ? `https://${trimmed}` : trimmed;
-  }
-  return `${prefix}${trimmed}`;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,7 +66,8 @@ type EditProfileModalProps = {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EditProfileModal({
-  displayName, bio, socialLinks, avatarUrl, bannerUrl, themePreference, onToggleTheme, onSave, onClose,
+  displayName, bio, socialLinks, avatarUrl, bannerUrl, themePreference, onToggleTheme,
+  onSave, onClose,
 }: EditProfileModalProps) {
   const isDark = themePreference !== 'light';
   const [draftName, setDraftName] = useState(displayName);
@@ -96,35 +85,41 @@ export default function EditProfileModal({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Picking a file opens the editor instead of immediately auto-cropping —
+  // resizeImage/handleXFile below only run once the user confirms inside it.
+  const [editingImage, setEditingImage] = useState<{ kind: 'avatar' | 'banner'; file: File } | null>(null);
+  // Clicking the banner/avatar *image* (as opposed to the camera icon) shows
+  // it full-size in place, rather than navigating away — see the Lightbox
+  // render below.
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleBannerFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    try {
-      const blob = await resizeImage(file, 1200, 300);
-      const url = URL.createObjectURL(blob);
-      setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
-      setBannerBlob(blob);
-    } catch {
-      setSaveError('That image could not be used — try a different file.');
-    }
+    setEditingImage({ kind: 'banner', file });
   }
 
-  async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    try {
-      const blob = await resizeImage(file, 400, 400);
-      const url = URL.createObjectURL(blob);
+    setEditingImage({ kind: 'avatar', file });
+  }
+
+  function handleImageEditorConfirm(blob: Blob) {
+    const url = URL.createObjectURL(blob);
+    if (editingImage?.kind === 'banner') {
+      setBannerPreview(prev => { if (prev && prev !== bannerUrl) URL.revokeObjectURL(prev); return url; });
+      setBannerBlob(blob);
+    } else {
       setAvatarPreview(prev => { if (prev && prev !== avatarUrl) URL.revokeObjectURL(prev); return url; });
       setAvatarBlob(blob);
-    } catch {
-      setSaveError('That image could not be used — try a different file.');
     }
+    setEditingImage(null);
   }
 
   function addLink() {
@@ -167,11 +162,12 @@ export default function EditProfileModal({
   }
 
   return (
+    <>
     <Modal onClose={onClose} maxWidth={600}>
       <div
         className="fk-edit-modal-banner"
         style={bannerPreview ? { backgroundImage: `url(${bannerPreview})`, cursor: 'zoom-in' } : undefined}
-        onClick={bannerPreview ? () => window.open(bannerPreview!, '_blank') : undefined}
+        onClick={bannerPreview ? () => setLightboxImage(bannerPreview) : undefined}
       >
         <button
           type="button"
@@ -181,16 +177,42 @@ export default function EditProfileModal({
           <CameraIcon size={13} />
           Change Banner
         </button>
-        <input ref={bannerInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleBannerFile} />
+        {/* Calling input.click() programmatically (above) dispatches its own
+            fresh click event that bubbles from the input itself — a sibling
+            of this button, both children of .fk-edit-modal-banner — straight
+            to the banner's onClick, completely bypassing the button's own
+            stopPropagation (which only ever applied to the *original* click
+            on the button). Stopping propagation here, on the input's own
+            click, is what actually prevents that. */}
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          className="fk-edit-modal-file-input"
+          onChange={handleBannerFile}
+          onClick={e => e.stopPropagation()}
+        />
 
         <div
           className="fk-edit-modal-avatar"
-          onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
+          onClick={avatarPreview ? e => { e.stopPropagation(); setLightboxImage(avatarPreview); } : undefined}
         >
           {avatarPreview ? <img src={avatarPreview} alt="Avatar preview" className="fk-edit-modal-avatar-img" /> : null}
-          <span className="fk-edit-modal-avatar-badge"><CameraIcon size={13} /></span>
+          <span
+            className="fk-edit-modal-avatar-badge"
+            onClick={e => { e.stopPropagation(); avatarInputRef.current?.click(); }}
+          >
+            <CameraIcon size={13} />
+          </span>
         </div>
-        <input ref={avatarInputRef} type="file" accept="image/*" className="fk-edit-modal-file-input" onChange={handleAvatarFile} />
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          className="fk-edit-modal-file-input"
+          onChange={handleAvatarFile}
+          onClick={e => e.stopPropagation()}
+        />
       </div>
 
       <div className="fk-edit-modal-body">
@@ -236,8 +258,8 @@ export default function EditProfileModal({
           ) : (
             <div className="fk-edit-modal-links-list">
               {draftLinks.map(link => {
-                const cfg = PLATFORM_CONFIG[link.platform];
-                const Icon = cfg.Icon;
+                const Icon = PLATFORM_ICON[link.platform];
+                const prefix = socialPrefix(link.platform);
                 return (
                   <div key={link.id} className="fk-edit-modal-link-row">
                     <div className="fk-edit-modal-platform-picker">
@@ -253,7 +275,7 @@ export default function EditProfileModal({
                       {openPickerId === link.id && (
                         <div className="fk-edit-modal-platform-dropdown">
                           {PLATFORMS.map(p => {
-                            const PIcon = PLATFORM_CONFIG[p].Icon;
+                            const PIcon = PLATFORM_ICON[p];
                             return (
                               <button
                                 key={p}
@@ -271,16 +293,16 @@ export default function EditProfileModal({
                     </div>
 
                     <div className="fk-edit-modal-link-url-wrap">
-                      {cfg.prefix && (
+                      {prefix && (
                         <span className="fk-edit-modal-link-prefix">
-                          {cfg.prefix.replace('https://', '')}
+                          {prefix.replace('https://', '')}
                         </span>
                       )}
                       <input
                         className="fk-edit-modal-link-suffix"
                         value={link.suffix}
                         onChange={e => updateLinkSuffix(link.id, e.target.value)}
-                        placeholder={cfg.placeholder}
+                        placeholder={socialPlaceholder(link.platform)}
                       />
                     </div>
 
@@ -317,5 +339,21 @@ export default function EditProfileModal({
         </PillButton>
       </div>
     </Modal>
+
+    {editingImage && (
+      <ImageEditorModal
+        file={editingImage.file}
+        aspect={editingImage.kind === 'avatar' ? 1 : 4}
+        targetWidth={editingImage.kind === 'avatar' ? 400 : 1200}
+        targetHeight={editingImage.kind === 'avatar' ? 400 : 300}
+        onCancel={() => setEditingImage(null)}
+        onConfirm={handleImageEditorConfirm}
+      />
+    )}
+
+    {lightboxImage && (
+      <Lightbox items={[{ type: 'image', url: lightboxImage }]} startIndex={0} onClose={() => setLightboxImage(null)} />
+    )}
+    </>
   );
 }

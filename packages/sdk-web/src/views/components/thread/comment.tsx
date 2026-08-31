@@ -1,21 +1,43 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import type { CommentNodeData, VoteDir } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import VotePill from '../shared/vote-pill';
 import RenderedBody from '../shared/rendered-body';
+import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
+import { ShareIcon, LinkIcon, EllipsisIcon, ReportIcon, CheckIcon, TrashIcon, SaveIcon } from '../shared/icons';
+import { useShare } from '../../hooks/use-share';
+import { useForum } from '../../hooks/use-forum-state';
+import CommentComposer from './comment-composer';
+import ConfirmDialog from '../shared/confirm-dialog';
+// Reuses post-card's ellipsis/menu-anchor classes (generic circular icon
+// button + positioned dropdown) rather than a parallel set of near-identical
+// rules just for comments.
+import '../feed/post-card.css';
 import './comment.css';
+
+const RichTextEditor = lazy(() => import('../composer/rich-text-editor'));
 
 type CommentProps = {
   comment: CommentNodeData;
+  // Comments don't have their own shareable target — Share on a comment
+  // shares the parent thread, same as clicking Share anywhere else on that
+  // thread would.
+  threadId: string;
   depth?: number;
   collapsed: Record<string, boolean>;
   currentUserId: string | null;
   onToggleCollapsed: (id: string) => void;
   onVote: (id: string, dir: VoteDir) => void;
-  onReply: (parentId: string, body: string) => Promise<void>;
+  onReply: (parentId: string, body: string, attachmentIds?: string[]) => Promise<void>;
   onEdit: (commentId: string, body: string) => Promise<void>;
   onSave: (commentId: string) => void;
+  // Present only when the current user is the thread author or a
+  // moderator/admin — only top-level comments (depth === 0) ever show the
+  // button, mirroring Share's existing depth === 0 gating.
+  onAcceptAnswer?: ((commentId: string) => void) | undefined;
+  onDelete: (commentId: string) => Promise<void>;
+  isModerator: boolean;
 };
 
 /**
@@ -23,38 +45,25 @@ type CommentProps = {
  * "link chain" connector line with a +/− toggle sitting on the line itself.
  */
 export default function Comment({
-  comment, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave,
+  comment, threadId, depth = 0, collapsed, currentUserId, onToggleCollapsed, onVote, onReply, onEdit, onSave, onAcceptAnswer,
+  onDelete, isModerator,
 }: CommentProps) {
   const isCollapsed = collapsed[comment.id] ?? false;
   const size = depth === 0 ? 'md' : 'sm';
   const isMine = currentUserId !== null && comment.authorId === currentUserId;
+  const canDelete = isMine || isModerator;
   const avatar = authorAvatar(comment.authorId, comment.author);
+  const share = useShare(threadId);
+  const { openReportModal, forumId, sessionToken } = useForum();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const [replyOpen, setReplyOpen] = useState(false);
-  const [replyText, setReplyText] = useState('');
-  const [replySubmitting, setReplySubmitting] = useState(false);
-  const [replyError, setReplyError] = useState<string | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(comment.body);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-
-  async function handleSubmitReply() {
-    const body = replyText.trim();
-    if (!body || replySubmitting) return;
-    setReplySubmitting(true);
-    setReplyError(null);
-    try {
-      await onReply(comment.id, body);
-      setReplyText('');
-      setReplyOpen(false);
-    } catch (err) {
-      setReplyError(err instanceof Error ? err.message : 'Failed to post reply');
-    } finally {
-      setReplySubmitting(false);
-    }
-  }
 
   async function handleSaveEdit() {
     const body = editText.trim();
@@ -72,7 +81,7 @@ export default function Comment({
   }
 
   return (
-    <div className={`fk-comment fk-comment--${size}`}>
+    <div className={`fk-comment fk-comment--${size}${comment.isAcceptedAnswer ? ' fk-comment--accepted' : ''}`}>
       <div className="fk-comment-head">
         <Avatar
           size={depth === 0 ? 26 : 24}
@@ -82,6 +91,12 @@ export default function Comment({
         />
         <span className="fk-comment-author">{comment.author}</span>
         <span className="fk-comment-time">· {comment.time}</span>
+        {comment.isAcceptedAnswer && (
+          <span className="fk-comment-accepted-badge">
+            <CheckIcon size={12} />
+            Answer
+          </span>
+        )}
         {isCollapsed && (
           <>
             <button
@@ -110,12 +125,9 @@ export default function Comment({
 
           {editOpen ? (
             <div className="fk-comment-edit">
-              <textarea
-                className="fk-comment-edit-input"
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
-                rows={3}
-              />
+              <Suspense fallback={<textarea className="fk-comment-edit-input" value={editText} onChange={e => setEditText(e.target.value)} rows={3} />}>
+                <RichTextEditor content={editText} onChange={setEditText} forumId={forumId} sessionToken={sessionToken} onInlineUpload={() => {}} />
+              </Suspense>
               {editError && <p className="fk-comment-error">{editError}</p>}
               <div className="fk-comment-edit-actions">
                 <button type="button" className="fk-comment-action" onClick={handleSaveEdit} disabled={editSubmitting}>
@@ -137,7 +149,7 @@ export default function Comment({
 
           <div className="fk-comment-actions">
             <VotePill
-              votes={comment.votes}
+              voteCounts={comment.voteCounts}
               dir={comment.myVote ?? 0}
               onVote={dir => onVote(comment.id, dir)}
               variant="inline"
@@ -147,42 +159,77 @@ export default function Comment({
             {isMine && !editOpen && (
               <button type="button" className="fk-comment-action" onClick={() => setEditOpen(true)}>Edit</button>
             )}
-            <button type="button" className="fk-comment-action" onClick={() => onSave(comment.id)}>
-              {comment.isSaved ? 'Saved' : 'Save'}
-            </button>
-            {depth === 0 && <span className="fk-comment-action">Share</span>}
+            <div className="fk-post-card-menu-anchor" style={{ marginLeft: 'auto' }}>
+              <button
+                type="button"
+                className={`fk-post-card-ellipsis${menuOpen ? ' fk-post-card-ellipsis--open' : ''}`}
+                style={{ width: 26, height: 26 }}
+                onClick={() => setMenuOpen(o => !o)}
+                aria-label="More actions"
+              >
+                <EllipsisIcon />
+              </button>
+              <DropdownMenu open={menuOpen} onClose={() => setMenuOpen(false)} style={{ top: 30, right: 0, width: 200, padding: 6 }}>
+                <DropdownMenuItem
+                  icon={<SaveIcon size={16} filled={comment.isSaved} />}
+                  label={comment.isSaved ? 'Saved' : 'Save'}
+                  onClick={() => { setMenuOpen(false); onSave(comment.id); }}
+                />
+                {depth === 0 && onAcceptAnswer && (
+                  <DropdownMenuItem
+                    icon={<CheckIcon size={16} />}
+                    label={comment.isAcceptedAnswer ? 'Unmark answer' : 'Mark as answer'}
+                    onClick={() => { setMenuOpen(false); onAcceptAnswer(comment.id); }}
+                  />
+                )}
+                {depth === 0 && (
+                  <>
+                    <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={() => { setMenuOpen(false); share.handleCopyLink(); }} />
+                    <DropdownMenuItem icon={<ShareIcon size={16} />} label="Share with a member" onClick={() => { setMenuOpen(false); share.handleShareWithMember(); }} />
+                  </>
+                )}
+                <DropdownMenuItem
+                  icon={<ReportIcon />}
+                  label="Report"
+                  onClick={() => { setMenuOpen(false); openReportModal({ type: 'comment', threadId, commentId: comment.id }); }}
+                />
+                {canDelete && (
+                  <DropdownMenuItem
+                    icon={<TrashIcon />}
+                    label="Delete"
+                    onClick={() => { setMenuOpen(false); setDeleteConfirmOpen(true); }}
+                  />
+                )}
+              </DropdownMenu>
+            </div>
           </div>
 
+          {deleteConfirmOpen && (
+            <ConfirmDialog
+              title="Delete comment?"
+              message="This can't be undone."
+              onCancel={() => setDeleteConfirmOpen(false)}
+              onConfirm={() => onDelete(comment.id)}
+            />
+          )}
+
           {replyOpen && (
-            <div className="fk-comment-reply">
-              <input
-                className="fk-comment-reply-input"
-                placeholder={`Reply to ${comment.author}`}
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') void handleSubmitReply(); }}
-              />
-              {replyError && <p className="fk-comment-error">{replyError}</p>}
-              <div className="fk-comment-edit-actions">
-                <button type="button" className="fk-comment-action" onClick={handleSubmitReply} disabled={replySubmitting}>
-                  {replySubmitting ? 'Posting…' : 'Reply'}
-                </button>
-                <button
-                  type="button"
-                  className="fk-comment-action"
-                  onClick={() => { setReplyOpen(false); setReplyText(''); setReplyError(null); }}
-                  disabled={replySubmitting}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+            <CommentComposer
+              forumId={forumId}
+              sessionToken={sessionToken}
+              placeholder={`Reply to ${comment.author}`}
+              submitLabel="Reply"
+              autoFocus
+              onSubmit={async (body, attachmentIds) => { await onReply(comment.id, body, attachmentIds); setReplyOpen(false); }}
+              onCancel={() => setReplyOpen(false)}
+            />
           )}
 
           {comment.replies.map(reply => (
             <Comment
               key={reply.id}
               comment={reply}
+              threadId={threadId}
               depth={depth + 1}
               collapsed={collapsed}
               currentUserId={currentUserId}
@@ -191,6 +238,9 @@ export default function Comment({
               onReply={onReply}
               onEdit={onEdit}
               onSave={onSave}
+              onAcceptAnswer={onAcceptAnswer}
+              onDelete={onDelete}
+              isModerator={isModerator}
             />
           ))}
         </div>

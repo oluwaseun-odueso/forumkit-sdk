@@ -12,25 +12,15 @@ export type FeedPost = {
   videoUrl?: string | null;
   domain: string | null;
   votes: number;
-  voteCounts?: { up: number; down: number };
+  voteCounts: { up: number; down: number };
   myVote?: 1 | -1 | null;
   commentCount: number;
   saved: boolean;
 };
 
-export type CommentNodeData = {
-  id: string;
-  authorId?: string;
-  author: string;
-  authorAvatarUrl?: string | null;
-  time: string;
-  body: string;
-  votes: number;
-  voteCounts?: { up: number; down: number };
-  myVote?: 1 | -1 | null;
-  isSaved: boolean;
-  replies: CommentNodeData[];
-};
+// The nested comment shape now lives in @forumkit/shared (CommentNode);
+// aliased here so existing `CommentNodeData` references keep working.
+export type { CommentNode as CommentNodeData } from '@forumkit/shared';
 
 export type RailItem = {
   id: string;
@@ -40,6 +30,7 @@ export type RailItem = {
   authorAvatarUrl?: string | null;
   time: string;
   votes: number;
+  voteCounts: { up: number; down: number };
   commentCount: number;
   thumbGradient: string;
   imageUrl: string | null;
@@ -55,11 +46,3 @@ export type ProfilePost = {
 
 export const PROFILE_POSTS: ProfilePost[] = [];
 
-export const SUMMARY_POINTS = [
-  'Warmth is specificity, not adjectives — name the cause, not the feeling.',
-  'Use the read-aloud test: copy you would be embarrassed to say out loud is too precious.',
-  'Give every warm line a job — reduce anxiety or clarify the next step, or cut it.',
-];
-
-export const SUGGESTED_REPLY =
-  'Building on Idris and Priya — a quick rule we could adopt: keep a warm line only if deleting it makes the next step less clear. Warmth that fails that test is ornament.';

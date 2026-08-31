@@ -41,6 +41,11 @@
   background: transparent;
   border: 1px solid var(--border-strong);
   color: var(--muted);
+  transition: border-color 0.15s ease;
+}
+
+.fk-comment-search:focus-within {
+  border-color: var(--accent);
 }
 
 .fk-comment-search-input {

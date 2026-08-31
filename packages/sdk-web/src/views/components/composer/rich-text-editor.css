@@ -11,20 +11,45 @@
 
 .fk-rte-content {
   min-height: 180px;
+  /* `resize` only takes effect on a box with overflow other than the
+     default `visible` — this is what draws the native diagonal-dash drag
+     handle in the bottom-right corner and lets the user drag the field
+     taller to see more of what they've typed. */
+  resize: vertical;
+  overflow-y: auto;
 }
 
 .fk-rte-content .ProseMirror {
   padding: 16px 18px;
   color: var(--text);
   font-size: 15px;
+  font-weight: 100;
   line-height: 1.6;
   outline: none;
   min-height: 180px;
+  /* Fills whatever height the user drags fk-rte-content to, rather than
+     staying sized to its own (shorter) content and leaving dead space. */
+  height: 100%;
   border-radius: 0 0 22px 22px;
 }
 
 .fk-rte-content .ProseMirror p {
   margin: 0 0 0.7em;
+}
+
+/* The Placeholder extension marks the empty first paragraph with this class
+   and a data-placeholder attribute rather than rendering real text — this
+   is TipTap's standard recipe for showing it. */
+.fk-rte-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  /* Matches .fk-composer-title-label's own empty-state color (composer-
+     modal.css) — the Title field's placeholder is actually a floating
+     label styled with --faint, not a real placeholder attribute, so this
+     is the color to match, not --muted. */
+  color: var(--faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
 }
 
 .fk-rte-content .ProseMirror h2 {

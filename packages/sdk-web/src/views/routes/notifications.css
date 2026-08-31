@@ -1,0 +1,162 @@
+/* Header: "Notifications" title left, "Mark all as read" + settings gear
+   right-aligned. */
+.fk-notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.fk-notifications-heading {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fk-notifications-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* A teeny bit bigger than the shared fk-search-results-goto-link class's
+   own 12.5px default — scoped to this header only, not a change to that
+   class itself, which is also reused elsewhere (SearchResults' "Go to
+   Thread" link). */
+.fk-notifications-header-actions .fk-search-results-goto-link {
+  font-size: 13.5px;
+}
+
+.fk-notifications-header-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+}
+
+/* Single rounded card containing every notification row — no dividers
+   between rows, just the card's own background carrying the grouping. */
+.fk-notifications-card {
+  background: var(--elev);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.fk-notification-row-v2 {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.fk-notification-row-v2:hover {
+  background: var(--hover);
+}
+
+.fk-notification-row-v2--unread {
+  background: var(--surface-2);
+}
+
+.fk-notification-row-v2-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 44px 14px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Hidden until the row is hovered, so the compact list doesn't show a
+   delete affordance on every row at rest. */
+.fk-notification-delete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.fk-notification-row-v2:hover .fk-notification-delete {
+  opacity: 1;
+}
+
+.fk-notification-delete:hover {
+  background: var(--hover-2);
+  color: var(--text);
+}
+
+.fk-notification-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Share facepile — sharer + thread-author avatars at equal size, the
+   second diagonally offset over the first with a card-colored ring so
+   both stay individually legible instead of one dwarfing the other. */
+.fk-notification-facepile {
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+}
+
+/* Type-icon badge, positioned like Avatar's own .fk-avatar-online dot
+   (bottom-right corner, ringed so it reads as "cut out" from the avatar
+   behind it) but sized to hold a small icon. */
+.fk-notification-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border: 2px solid var(--elev);
+}
+
+/* A touch darker than full-brightness --text, same reasoning
+   SearchResults' own title color-mix already documents: a page full of
+   stacked full-white titles against the dark background reads as too
+   sharp a contrast. */
+.fk-notification-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text), var(--text-2));
+}
+
+.fk-notification-time {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.fk-notification-row-v2 .fk-profile-comment-card-context {
+  font-size: 13px;
+}
+
+/* Dulled down from the shared class's own var(--text-2)/weight-600 default
+   — scoped to notification rows only, since profile-comment-card.css's
+   class is also used by the (unrelated) profile activity feed. */
+.fk-notification-row-v2 .fk-profile-comment-card-thread-title {
+  color: var(--muted);
+  font-weight: 500;
+}

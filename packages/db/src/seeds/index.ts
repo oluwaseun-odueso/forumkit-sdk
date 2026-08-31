@@ -1,6 +1,6 @@
 /**
  * Development seed script.
- * Creates a sample forum, tags, users, threads, and posts for local testing.
+ * Creates a sample forum, tags, users, threads, and comments for local testing.
  * Run: npm run seed --workspace=packages/db
  */
 import pg from 'pg';
@@ -102,7 +102,7 @@ async function seed(): Promise<void> {
       const replyAuthorId = userIds[(i + 1) % userIds.length];
       if (replyAuthorId) {
         await client.query(
-          `INSERT INTO posts (thread_id, author_id, body)
+          `INSERT INTO comments (thread_id, author_id, body)
            VALUES ($1, $2, $3)`,
           [threadId, replyAuthorId, `Thanks for posting this! I have been wondering about this too.`],
         );

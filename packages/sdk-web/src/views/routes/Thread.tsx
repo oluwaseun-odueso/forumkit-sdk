@@ -7,7 +7,7 @@ import { useForum } from '../hooks/use-forum-state';
 
 export function Thread() {
   const forum = useForum();
-  const { state, setView, openThread, summarize, suggest, surfaceRelated } = forum;
+  const { state, openThread, summarize, suggest, surfaceRelated, goBack } = forum;
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   return (
@@ -32,7 +32,7 @@ export function Thread() {
         </>
       }
     >
-      <ThreadView forum={forum} onBack={() => setView('feed')} />
+      <ThreadView forum={forum} onBack={goBack} />
     </Shell>
   );
 }

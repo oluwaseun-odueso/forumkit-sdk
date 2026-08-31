@@ -10,7 +10,7 @@ import MascotIcon from '../components/layout/mascot-icon';
 import IconButton from '../components/shared/icon-button';
 import PillButton from '../components/shared/pill-button';
 import DropdownMenu, { DropdownMenuItem } from '../components/shared/dropdown-menu';
-import { EyeIcon, ChevronDownIcon, PlusIcon, FilterIcon } from '../components/shared/icons';
+import { EyeIcon, ChevronDownIcon, ChevronLeftIcon, PlusIcon, FilterIcon } from '../components/shared/icons';
 import { useForum } from '../hooks/use-forum-state';
 import { useInfiniteScroll } from '../hooks/use-infinite-scroll';
 import './profile.css';
@@ -45,15 +45,29 @@ function ProfileFilterLabel({ label, showChevron, onClick }: { label: string; sh
 export function Profile() {
   const {
     state, setProfileTab, setProfileSort, setProfileContentType, loadMoreProfileActivity,
-    openComposer, openThread, openSettings, votePost, toggleSavePost, setPostMenu,
+    setViewedProfileTab, setViewedProfileSort, setViewedProfileContentType, loadMoreViewedProfileActivity,
+    openComposer, openThread, openSettings, votePost, toggleSavePost, setPostMenu, goBack,
   } = useForum();
   const [contentMenuOpen, setContentMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
-  const { profile } = state;
-  const username = profile.displayName || 'You';
+  // viewedProfile is non-null exactly when we're looking at someone else's
+  // profile (set by openUserProfile, e.g. clicking a People search result)
+  // — everything below reads from whichever of the two is active instead
+  // of hard-coding "always my own profile," but the two are genuinely
+  // different state slices (see the ViewedProfileState comment in
+  // use-forum-state.tsx for why state.profile can't just be reused/
+  // overwritten for this).
+  const isOwnProfile = state.viewedProfile === null;
+  const profile = state.viewedProfile ?? state.profile;
+  const setActiveTab = isOwnProfile ? setProfileTab : setViewedProfileTab;
+  const setActivitySort = isOwnProfile ? setProfileSort : setViewedProfileSort;
+  const setActivityContentType = isOwnProfile ? setProfileContentType : setViewedProfileContentType;
+  const loadMoreActivity = isOwnProfile ? loadMoreProfileActivity : loadMoreViewedProfileActivity;
+
+  const username = isOwnProfile ? (profile.displayName || 'You') : (profile.displayName || 'Member');
   const hasMore = profile.activityItems.length < profile.activityTotal;
-  const sentinelRef = useInfiniteScroll(loadMoreProfileActivity, hasMore && !profile.activityLoading);
+  const sentinelRef = useInfiniteScroll(loadMoreActivity, hasMore && !profile.activityLoading);
   const showContentFilter = MIXED_TABS.has(profile.activeTab);
 
   return (
@@ -65,12 +79,23 @@ export function Profile() {
           handle={username}
           postKarma={profile.postKarma}
           commentKarma={profile.commentKarma}
+          socialLinks={profile.socialLinks}
+          isOwnProfile={isOwnProfile}
         />
       }
     >
       <div className="fk-profile">
-        <ProfileHeader username={username} handle={username} avatarUrl={profile.avatarUrl} bannerUrl={profile.bannerUrl} onEditAvatar={openSettings} onEditBanner={openSettings} />
-        <ProfileTabs active={profile.activeTab} onSelect={setProfileTab} />
+        {state.history.length > 0 && (
+          <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
+        )}
+        <ProfileHeader
+          username={username}
+          handle={username}
+          avatarUrl={profile.avatarUrl}
+          bannerUrl={profile.bannerUrl}
+          isOwnProfile={isOwnProfile}
+        />
+        <ProfileTabs active={profile.activeTab} onSelect={setActiveTab} showSaved={isOwnProfile} />
 
         <div className="fk-profile-filter-row">
           {showContentFilter ? (
@@ -81,9 +106,9 @@ export function Profile() {
                 onClick={() => setContentMenuOpen(o => !o)}
               />
               <DropdownMenu open={contentMenuOpen} onClose={() => setContentMenuOpen(false)} style={{ top: 40, left: 0, width: 220, padding: 6 }}>
-                <DropdownMenuItem label="All content" onClick={() => { setProfileContentType('all'); setContentMenuOpen(false); }} />
-                <DropdownMenuItem label="Posts only" onClick={() => { setProfileContentType('posts'); setContentMenuOpen(false); }} />
-                <DropdownMenuItem label="Comments only" onClick={() => { setProfileContentType('comments'); setContentMenuOpen(false); }} />
+                <DropdownMenuItem label="All content" onClick={() => { setActivityContentType('all'); setContentMenuOpen(false); }} />
+                <DropdownMenuItem label="Posts only" onClick={() => { setActivityContentType('posts'); setContentMenuOpen(false); }} />
+                <DropdownMenuItem label="Comments only" onClick={() => { setActivityContentType('comments'); setContentMenuOpen(false); }} />
               </DropdownMenu>
             </div>
           ) : (
@@ -91,17 +116,19 @@ export function Profile() {
           )}
         </div>
         <div className="fk-profile-actions-row">
-          <PillButton variant="outline" icon={<PlusIcon size={18} />} onClick={openComposer}>Create Post</PillButton>
+          {isOwnProfile && (
+            <PillButton variant="outline" icon={<PlusIcon size={18} />} onClick={openComposer}>Create Post</PillButton>
+          )}
           <div style={{ position: 'relative' }}>
             <IconButton label="Filter and sort" size={38} onClick={() => setSortMenuOpen(o => !o)}><FilterIcon /></IconButton>
             <DropdownMenu open={sortMenuOpen} onClose={() => setSortMenuOpen(false)} style={{ top: 42, right: 0, width: 140, padding: 6 }}>
               <DropdownMenuItem
                 label="New"
-                onClick={() => { setProfileSort('new'); setSortMenuOpen(false); }}
+                onClick={() => { setActivitySort('new'); setSortMenuOpen(false); }}
               />
               <DropdownMenuItem
                 label="Top"
-                onClick={() => { setProfileSort('top'); setSortMenuOpen(false); }}
+                onClick={() => { setActivitySort('top'); setSortMenuOpen(false); }}
               />
             </DropdownMenu>
           </div>

@@ -1,0 +1,266 @@
+import { useEffect, useState } from 'react';
+import type { Notification, NotificationType } from '@forumkit/types';
+import Shell from '../components/layout/shell';
+import Avatar from '../components/shared/avatar';
+import Thumbnail from '../components/shared/thumbnail';
+import PillButton from '../components/shared/pill-button';
+import IconButton from '../components/shared/icon-button';
+import MascotIcon from '../components/layout/mascot-icon';
+import {
+  ChevronLeftIcon, UpvoteIcon, DownvoteIcon, CommentIcon, ShareIcon, ReportIcon, GearIcon, TrashIcon,
+} from '../components/shared/icons';
+import { fmtRelativeTime } from '../lib/format-time';
+import { authorAvatar } from '../lib/author-avatar';
+import { describeNotification as describe } from '@forumkit/shared';
+import {
+  listNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification,
+} from '../api/notifications';
+import { useForum } from '../hooks/use-forum-state';
+import { useInfiniteScroll } from '../hooks/use-infinite-scroll';
+// Reuses the feed post-card's "text left, thumbnail right" row shape
+// (fk-post-card-row etc.) and the profile activity feed's "on {thread
+// title}" context line (fk-profile-comment-card-context/-thread-title)
+// rather than parallel stylesheets — only the card/row/badge/facepile
+// rules in notifications.css are new.
+import '../components/layout/search-results-dropdown.css';
+import '../components/feed/post-card.css';
+import '../components/profile/profile-comment-card.css';
+import './profile.css';
+import './notifications.css';
+
+const PAGE_SIZE = 20;
+
+// Builds the human-readable line for a notification row from its type +
+// (for 'vote') the message field carrying direction. commentId set on a
+// 'vote'/'report' notification means it targets a comment, not the thread.
+// describe() now lives in @forumkit/shared (imported as describe above).
+
+// Icon + accent color for the small corner badge — everything except
+// 'share' (which gets its own facepile treatment, see AvatarCluster below)
+// and 'vote' (which splits into up/down based on the message field, not
+// just the type) maps directly.
+// Deliberately distinct hues per type (not just the existing --up/--down
+// tokens reused everywhere else) so the badges read as a clear color-coded
+// system at a glance — each blended with black so it sits at a lower,
+// deeper saturation than the raw hue, which otherwise reads as too sharp/
+// glowing against the card's dark background.
+function dim(hex: string): string {
+  return `color-mix(in srgb, ${hex} 65%, black)`;
+}
+
+const TYPE_BADGE: Partial<Record<NotificationType, { Icon: typeof CommentIcon; color: string }>> = {
+  comment_reply: { Icon: CommentIcon, color: dim('#3f7ee2') },  // blue
+  share: { Icon: ShareIcon, color: dim('#2ec16a') },             // green
+  report: { Icon: ReportIcon, color: dim('#ef4444') },           // red
+};
+
+function getBadge(n: Notification): { Icon: typeof CommentIcon; color: string } {
+  if (n.type === 'vote') {
+    return n.message === 'down'
+      ? { Icon: DownvoteIcon, color: dim('#a855f7') }  // purple
+      : { Icon: UpvoteIcon, color: dim('#f0521f') };   // orange
+  }
+  return TYPE_BADGE[n.type] ?? { Icon: CommentIcon, color: 'var(--accent)' };
+}
+
+// The avatar side of a notification row: for a share where the sharer isn't
+// the thread's own author, overlaps the sharer's avatar with the thread
+// author's (a small facepile) so the row reads "X shared Y's thread with
+// you" at a glance — falls back to the plain icon-badge (same as every
+// other type) when someone shares their own thread, since two identical
+// overlapping avatars would look like a bug, not a feature.
+function AvatarCluster({ n }: { n: Notification }) {
+  const actorAvatarData = authorAvatar(n.actorId ?? undefined, n.actorDisplayName ?? 'Someone');
+
+  const isSharedByOthers = n.type === 'share' && n.threadAuthorId && n.threadAuthorId !== n.actorId;
+  if (isSharedByOthers) {
+    const authorAvatarData = authorAvatar(n.threadAuthorId ?? undefined, n.threadAuthorDisplayName ?? 'Someone');
+    return (
+      <div className="fk-notification-facepile">
+        <Avatar size={36} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+        <Avatar
+          size={36}
+          gradient={authorAvatarData.gradient}
+          letter={authorAvatarData.letter}
+          imageUrl={n.threadAuthorAvatarUrl}
+          style={{ position: 'absolute', top: 16, left: 16, border: '2px solid var(--elev)' }}
+        />
+      </div>
+    );
+  }
+
+  const badge = getBadge(n);
+  return (
+    <div className="fk-notification-avatar-wrap">
+      <Avatar size={40} gradient={actorAvatarData.gradient} letter={actorAvatarData.letter} imageUrl={n.actorAvatarUrl} />
+      <span className="fk-notification-badge" style={{ background: badge.color }}>
+        <badge.Icon size={11} />
+      </span>
+    </div>
+  );
+}
+
+function NotificationRow({ n, onOpen, onDelete }: { n: Notification; onOpen: () => void; onDelete: () => void }) {
+  const unread = !n.readAt;
+  return (
+    <div className={`fk-notification-row-v2${unread ? ' fk-notification-row-v2--unread' : ''}`}>
+      <button type="button" className="fk-notification-row-v2-main" onClick={onOpen}>
+        <AvatarCluster n={n} />
+        <div className="fk-post-card-row" style={{ flex: 1, minWidth: 0 }}>
+          <div className="fk-post-card-row-text">
+            <span className="fk-notification-title">{describe(n)}</span>
+            {n.threadTitle && (
+              <div className="fk-profile-comment-card-context" style={{ marginTop: 2, marginBottom: 0 }}>
+                on <span className="fk-profile-comment-card-thread-title">{n.threadTitle}</span>
+              </div>
+            )}
+            <span className="fk-notification-time">{fmtRelativeTime(n.createdAt)}</span>
+          </div>
+          {n.threadTitle && (
+            <div className="fk-post-card-row-img">
+              <Thumbnail gradient="linear-gradient(135deg,#3f7ee2,#7b5cff)" imageUrl={n.threadImageUrl} width={56} height={56} radius={10} />
+            </div>
+          )}
+        </div>
+      </button>
+      <button
+        type="button"
+        className="fk-notification-delete"
+        aria-label="Delete notification"
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+      >
+        <TrashIcon size={13} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Reached via the top-nav bell. Paginated, newest-first list of everything
+ * that's ever notified this user (read rows stay visible, just un-highlighted
+ * — same "read inbox" convention as email). Clicking a row is a combined
+ * mark-read + navigate action, mirroring how opening a thread elsewhere in
+ * the app is a single click too. Hovering a row reveals a delete button;
+ * the settings gear opens the same notification-preferences toggles
+ * already in the profile Settings modal, not a separate duplicate UI.
+ */
+export function Notifications() {
+  const {
+    state, goBack, openThread, openNotificationSettingsModal, forumId: fid, sessionToken: token, refreshUnreadCount,
+  } = useForum();
+
+  const [items, setItems] = useState<Notification[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!fid) return;
+    // Guards against a stale response clobbering state set in the
+    // meantime (e.g. React StrictMode's dev-only double-invoke firing this
+    // effect twice — the first call's now-irrelevant response can otherwise
+    // land after a mark-read/mark-all-read/delete action and silently
+    // overwrite the optimistic update with the old, still-unread data).
+    let cancelled = false;
+    setLoading(true);
+    listNotifications(fid, { page: 1, limit: PAGE_SIZE }, token)
+      .then(r => { if (!cancelled) { setItems(r.results); setTotal(r.total); setPage(1); } })
+      .catch(() => { if (!cancelled) { setItems([]); setTotal(0); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [fid, token]);
+
+  const hasMore = items.length < total;
+  const sentinelRef = useInfiniteScroll(() => {
+    if (!fid || loading) return;
+    const nextPage = page + 1;
+    setLoading(true);
+    listNotifications(fid, { page: nextPage, limit: PAGE_SIZE }, token)
+      .then(r => { setItems(prev => [...prev, ...r.results]); setTotal(r.total); setPage(nextPage); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, hasMore && !loading);
+
+  async function handleOpen(n: Notification) {
+    if (!fid) return;
+    if (!n.readAt) {
+      setItems(prev => prev.map(item => item.id === n.id ? { ...item, readAt: new Date() } : item));
+      try {
+        await markNotificationRead(fid, n.id, token);
+      } catch {
+        // Best-effort — the row still navigates even if the read-mark call fails.
+      }
+      refreshUnreadCount();
+    }
+    if (n.threadId) openThread(n.threadId);
+  }
+
+  async function handleMarkAllRead() {
+    if (!fid) return;
+    setItems(prev => prev.map(item => item.readAt ? item : { ...item, readAt: new Date() }));
+    try {
+      await markAllNotificationsRead(fid, token);
+    } catch {
+      // Best-effort, same as individual mark-read above.
+    }
+    refreshUnreadCount();
+  }
+
+  async function handleDelete(n: Notification) {
+    if (!fid) return;
+    const wasUnread = !n.readAt;
+    setItems(prev => prev.filter(item => item.id !== n.id));
+    setTotal(t => Math.max(0, t - 1));
+    try {
+      await deleteNotification(fid, n.id, token);
+    } catch {
+      // Best-effort — if the delete failed server-side, the row simply
+      // reappears next time the list is fetched; not worth a rollback.
+    }
+    if (wasUnread) refreshUnreadCount();
+  }
+
+  const hasUnread = items.some(n => !n.readAt);
+
+  return (
+    <Shell mainAlign="start">
+      <div className="fk-profile fk-notifications-left">
+        {state.history.length > 0 && (
+          <PillButton variant="surface" icon={<ChevronLeftIcon />} onClick={goBack} style={{ marginBottom: 14 }}>Back</PillButton>
+        )}
+
+        <div className="fk-notifications-header">
+          <h2 className="fk-notifications-heading">Notifications</h2>
+          <div className="fk-notifications-header-actions">
+            {hasUnread && (
+              <button type="button" className="fk-search-results-goto-link" onClick={handleMarkAllRead}>
+                Mark all as read
+              </button>
+            )}
+            <span className="fk-notifications-header-divider" />
+            <IconButton label="Notification settings" size={34} onClick={openNotificationSettingsModal}>
+              <GearIcon size={18} />
+            </IconButton>
+          </div>
+        </div>
+
+        {loading && items.length === 0 ? (
+          <div className="fk-search-dropdown-status"><MascotIcon size={32} /></div>
+        ) : items.length === 0 ? (
+          <div className="fk-search-dropdown-status">No notifications yet</div>
+        ) : (
+          <div className="fk-notifications-card">
+            {items.map(n => (
+              <NotificationRow key={n.id} n={n} onOpen={() => handleOpen(n)} onDelete={() => handleDelete(n)} />
+            ))}
+          </div>
+        )}
+
+        {hasMore && <div ref={sentinelRef} />}
+        {loading && items.length > 0 && (
+          <div className="fk-search-dropdown-status"><MascotIcon size={32} /></div>
+        )}
+      </div>
+    </Shell>
+  );
+}

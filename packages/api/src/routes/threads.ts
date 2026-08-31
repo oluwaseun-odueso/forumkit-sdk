@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { authenticate, requireRole } from '../middleware/auth';
+import { authenticate, optionalAuthenticate, requireRole } from '../middleware/auth';
 import * as threadService from '../services/thread';
 import * as voteService from '../services/vote';
 import * as saveService from '../services/save';
@@ -24,7 +24,7 @@ const similarQuerySchema = z.object({
 
 const createBodySchema = z.object({
   title: z.string().min(1).max(300),
-  body: z.string().min(1),
+  body: z.string().min(1, 'Write something in the body before posting.'),
   tagIds: z.array(z.string().uuid()).max(5).default([]),
   tagNames: z.array(z.string().min(2).max(40)).max(5).optional(),
   attachmentIds: z.array(z.string().uuid()).max(10).optional(),
@@ -32,7 +32,7 @@ const createBodySchema = z.object({
 
 const updateBodySchema = z.object({
   title: z.string().min(1).max(300).optional(),
-  body: z.string().min(1).optional(),
+  body: z.string().min(1, 'Write something in the body before saving.').optional(),
   tagIds: z.array(z.string().uuid()).max(5).optional(),
 });
 
@@ -44,6 +44,14 @@ const duplicatesQuerySchema = z.object({
 const lockBodySchema = z.object({ locked: z.boolean() });
 const pinBodySchema = z.object({ pinned: z.boolean() });
 const voteBodySchema = z.object({ direction: z.union([z.literal(1), z.literal(-1)]) });
+// Same bounds as comments.ts's reportBodySchema.
+const reportBodySchema = z.object({ reason: z.string().min(1).max(500) });
+
+// max(20) matches the ShareModal's own recipient cap on the frontend.
+const shareBodySchema = z.object({
+  recipientUserIds: z.array(z.string()).min(1).max(20),
+  message: z.string().max(500).optional(),
+});
 
 type UserRow = { id: string };
 
@@ -105,7 +113,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
    * Public — passes requesterId for personalised vote/save state when a
    * valid session token is present, otherwise serves anonymous results.
    */
-  app.get('/:forumId/threads', async (request, reply) => {
+  app.get('/:forumId/threads', { preHandler: optionalAuthenticate }, async (request, reply) => {
     const { forumId } = request.params as { forumId: string };
 
     const parsed = listQuerySchema.safeParse(request.query);
@@ -241,7 +249,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
    * Public — passes requesterId for personalised vote/save/accepted-answer
    * state when a valid session token is present.
    */
-  app.get('/:forumId/threads/:threadId', async (request, reply) => {
+  app.get('/:forumId/threads/:threadId', { preHandler: optionalAuthenticate }, async (request, reply) => {
     const { forumId, threadId } = request.params as { forumId: string; threadId: string };
 
     const userId = request.jwtPayload ? (await resolveUser(request, forumId))?.id : undefined;
@@ -328,6 +336,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await threadService.updateThread(
         request.server.db,
+        request.server.config.publicApiUrl,
         forumId,
         threadId,
         user.id,
@@ -383,6 +392,68 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * POST /forums/:forumId/threads/:threadId/report
+   */
+  app.post(
+    '/:forumId/threads/:threadId/report',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const parsed = reportBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'invalid_body',
+          message: parsed.error.issues.map((i) => i.message).join(', '),
+          statusCode: 400,
+        });
+      }
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await threadService.reportThread(request.server.db, forumId, threadId, user.id, parsed.data.reason);
+      if (!result.ok) {
+        sendThreadError(result.code, reply);
+        return;
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  /**
+   * POST /forums/:forumId/threads/:threadId/share
+   */
+  app.post(
+    '/:forumId/threads/:threadId/share',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const { forumId, threadId } = request.params as { forumId: string; threadId: string };
+
+      const parsed = shareBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'invalid_body',
+          message: parsed.error.issues.map((i) => i.message).join(', '),
+          statusCode: 400,
+        });
+      }
+
+      const user = await resolveUser(request, forumId);
+      if (!user) return sendSessionRequired(reply);
+
+      const result = await threadService.shareThread(
+        request.server.db, forumId, threadId, user.id, parsed.data.recipientUserIds, parsed.data.message ?? null,
+      );
+      if (!result.ok) {
+        sendThreadError(result.code, reply);
+        return;
+      }
+      return reply.status(204).send();
+    },
+  );
+
+  /**
    * POST /forums/:forumId/threads/:threadId/lock
    * Admin or moderator only.
    */
@@ -403,6 +474,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await threadService.lockThread(
         request.server.db,
+        request.server.config.publicApiUrl,
         forumId,
         threadId,
         parsed.data.locked,
@@ -436,6 +508,7 @@ export async function threadsRoutes(app: FastifyInstance): Promise<void> {
 
       const result = await threadService.pinThread(
         request.server.db,
+        request.server.config.publicApiUrl,
         forumId,
         threadId,
         parsed.data.pinned,

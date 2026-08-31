@@ -111,6 +111,7 @@ export async function commentsRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await commentService.createComment(
       request.server.db,
+      request.server.config.publicApiUrl,
       request.server.ai.embed,
       request.server.ai.moderate,
       {
@@ -148,9 +149,10 @@ export async function commentsRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await commentService.updateComment(
       request.server.db,
+      request.server.config.publicApiUrl,
       cid,
       user.id,
-      user.role as Parameters<typeof commentService.updateComment>[3],
+      user.role as Parameters<typeof commentService.updateComment>[4],
       parsed.data.body,
     );
     if (!result.ok) return sendCommentError(result.code, reply);
@@ -322,11 +324,31 @@ export async function commentsRoutes(app: FastifyInstance): Promise<void> {
     const user = await resolveUser(request);
     if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
 
-    const result = await commentService.acceptAnswer(request.server.db, {
+    const result = await commentService.acceptAnswer(request.server.db, request.server.config.publicApiUrl, {
       commentId: cid,
       threadId: tid,
       requesterId: user.id,
-      requesterRole: user.role as Parameters<typeof commentService.acceptAnswer>[1]['requesterRole'],
+      requesterRole: user.role as Parameters<typeof commentService.acceptAnswer>[2]['requesterRole'],
+    });
+    if (!result.ok) return sendCommentError(result.code, reply);
+
+    return reply.status(200).send(result.value);
+  });
+
+  /**
+   * DELETE /threads/:tid/comments/:cid/accept
+   */
+  app.delete('/:tid/comments/:cid/accept', { preHandler: authenticate }, async (request, reply) => {
+    const { tid, cid } = request.params as { tid: string; cid: string };
+
+    const user = await resolveUser(request);
+    if (!user) return reply.status(401).send({ error: 'session_not_initialised', message: 'Call POST /auth/session first', statusCode: 401 });
+
+    const result = await commentService.unacceptAnswer(request.server.db, request.server.config.publicApiUrl, {
+      commentId: cid,
+      threadId: tid,
+      requesterId: user.id,
+      requesterRole: user.role as Parameters<typeof commentService.unacceptAnswer>[2]['requesterRole'],
     });
     if (!result.ok) return sendCommentError(result.code, reply);
 

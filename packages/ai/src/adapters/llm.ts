@@ -1,4 +1,4 @@
-import type { LLMFn } from '../index';
+import type { LLMFn, LLMStreamFn } from '../index';
 import type { AISummary, AISuggestion } from '@forumkit/types';
 
 /**
@@ -12,10 +12,104 @@ async function safeLLMCall(
   llmFn: LLMFn,
 ): Promise<string | null> {
   try {
-    return await llmFn(systemPrompt, userPrompt);
+    const raw = await llmFn(systemPrompt, userPrompt);
+    return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
   } catch (err) {
     console.error('[ai/llm] LLM call failed:', err);
     return null;
+  }
+}
+
+export type AskBullet   = { fact: string; quote: string; sourceIndex: number };
+export type AskCategory = { title: string; bullets: AskBullet[] };
+export type AskAnswer   = { intro: string; categories: AskCategory[]; suggestions: string[] };
+
+export type AskStreamEvent =
+  | { type: 'intro'; text: string }
+  | { type: 'category'; title: string; bullets: AskBullet[] }
+  | { type: 'suggestions'; prompts: string[] }
+  | { type: 'error'; message: string };
+
+/**
+ * Summarises search results into categorised bullet points, each attributed
+ * to a specific source thread by 0-based index. Returns null on LLM failure.
+ */
+export async function askSearchQuestion(
+  question: string,
+  context: Array<{ title: string; bodySnippet: string }>,
+  llmFn: LLMFn,
+): Promise<AskAnswer | null> {
+  const systemPrompt = [
+    'You are a helpful assistant that summarises forum discussions.',
+    'Return ONLY valid JSON matching this exact schema:',
+    '{"intro":string,"categories":[{"title":string,"bullets":[{"fact":string,"quote":string,"sourceIndex":number}]}]}.',
+    '"intro" is a one-sentence general summary.',
+    '"categories" are 2-4 thematic groupings you derive from the content',
+    '(e.g. "What people say about X today", "Why users think Y", "Signs that Z").',
+    '"fact" is the key insight for that bullet (1 sentence).',
+    '"quote" is a short direct quote or paraphrase from that thread.',
+    '"sourceIndex" is the 0-based index of the thread the bullet came from.',
+    'Each category should have 1-3 bullets. No markdown outside the JSON.',
+  ].join(' ');
+  const contextText = context
+    .map((c, i) => `[${i}] "${c.title}": ${c.bodySnippet}`)
+    .join('\n\n');
+  const userPrompt = `Search query: "${question}"\n\nThreads (0-indexed):\n${contextText}`;
+  const raw = await safeLLMCall(systemPrompt, userPrompt, llmFn);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AskAnswer;
+  } catch {
+    console.error('[ai/llm] Failed to parse askSearchQuestion JSON:', raw);
+    return null;
+  }
+}
+
+/**
+ * Streams a categorised answer from the LLM as NDJSON events.
+ * Calls onEvent once per parsed line; ignores malformed lines.
+ */
+export async function askSearchQuestionStream(
+  question: string,
+  context: Array<{ title: string; bodySnippet: string }>,
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: AskStreamEvent) => void,
+): Promise<void> {
+  const systemPrompt = [
+    'You are a helpful assistant that summarises forum discussions.',
+    'Output ONLY newline-delimited JSON. Each line must be a complete JSON object. No other text.',
+    'Line 1: {"type":"intro","text":"<one-sentence summary of the overall discussion>"}',
+    'Lines 2-N (2 to 4 lines): {"type":"category","title":"<thematic heading>","bullets":[{"fact":"<key insight>","quote":"<short direct quote or paraphrase>","sourceIndex":<0-based thread index>}]}',
+    'Each category should have 1-3 bullets. sourceIndex is the 0-based index of the source thread.',
+    'Output exactly 2-4 category lines.',
+    'Final line: {"type":"suggestions","prompts":["<follow-up question 1>","<follow-up question 2>","<follow-up question 3>"]}',
+    'These are 2-3 short follow-up questions a user might ask next, grounded in what was discussed. Keep each under 60 characters.',
+    'No markdown, no explanation, no prose outside the JSON.',
+  ].join(' ');
+
+  const contextText = context
+    .map((c, i) => `[${i}] "${c.title}": ${c.bodySnippet}`)
+    .join('\n\n');
+  const userPrompt = `Search query: "${question}"\n\nThreads (0-indexed):\n${contextText}`;
+
+  let buffer = '';
+  await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        onEvent(JSON.parse(trimmed) as AskStreamEvent);
+      } catch { /* malformed line — skip */ }
+    }
+  });
+  // Flush anything remaining in the buffer after the stream ends.
+  if (buffer.trim()) {
+    try {
+      onEvent(JSON.parse(buffer.trim()) as AskStreamEvent);
+    } catch { /* ignore */ }
   }
 }
 
@@ -84,6 +178,17 @@ export async function suggestTitle(
   return safeLLMCall(systemPrompt, userPrompt, llmFn);
 }
 
+export type SummariseStreamEvent =
+  | { type: 'keyPoint'; text: string }
+  | { type: 'conclusion'; text: string }
+  | { type: 'openQuestion'; text: string }
+  | { type: 'error'; message: string };
+
+export type SuggestStreamEvent =
+  | { type: 'chunk'; text: string }
+  | { type: 'meta'; confidence: string; caveats: string[] }
+  | { type: 'error'; message: string };
+
 /**
  * Summarises a forum thread.
  * Returns null if the LLM is unavailable.
@@ -129,7 +234,7 @@ export async function suggestAnswer(
     'You are a knowledgeable forum member writing a genuine reply to a discussion.',
     'Write in a natural, conversational tone — the way a real person would write, not an AI assistant.',
     'Be direct and specific. Avoid filler phrases like "Great question!", "Certainly!", or "I hope this helps".',
-    'Do not use em dashes (—) or double hyphens (--); use commas, conjunctions, or separate sentences instead.',
+    'Do not use em dashes (—) or en dashes (–) or double hyphens (--); use commas, conjunctions, or separate sentences instead.',
     'Respond ONLY with a JSON object matching this exact shape, no markdown:',
     '{"suggestion":"...","confidence":"high"|"medium"|"low","caveats":["..."]}',
   ].join(' ');
@@ -147,10 +252,110 @@ export async function suggestAnswer(
     const parsed = JSON.parse(raw) as AISuggestion;
     parsed.suggestion = parsed.suggestion
       .replace(/\s*--\s*/g, ', ')
-      .replace(/—/g, ',');
+      .replace(/[–—]/g, ',');
     return parsed;
   } catch {
     console.error('[ai/llm] Failed to parse suggestion JSON:', raw);
     return null;
+  }
+}
+
+/**
+ * Streams a thread summary as NDJSON events via LLMStreamFn.
+ * Emits keyPoint / conclusion / openQuestion events as they are generated.
+ */
+export async function summariseThreadStream(
+  threadTitle: string,
+  posts: string[],
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: SummariseStreamEvent) => void,
+): Promise<void> {
+  const systemPrompt = [
+    'You are a helpful assistant that summarises forum thread discussions.',
+    'Output ONLY newline-delimited JSON. Each line must be a complete, valid JSON object. No other text.',
+    'Lines 1-5: {"type":"keyPoint","text":"<one key insight from the discussion>"}',
+    'Output 2-5 keyPoint lines depending on the content depth.',
+    'Next line: {"type":"conclusion","text":"<overall conclusion or takeaway>"}',
+    'Optional lines (0-2): {"type":"openQuestion","text":"<unanswered question raised by the discussion>"}',
+    'No markdown, no explanation, no prose outside the JSON lines.',
+  ].join(' ');
+
+  const userPrompt = [
+    `Thread title: ${threadTitle}`,
+    `Posts:\n${posts.map((p, i) => `[${i + 1}] ${p}`).join('\n')}`,
+    'Summarise the discussion using the NDJSON format above.',
+  ].join('\n');
+
+  let buffer = '';
+  await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        onEvent(JSON.parse(trimmed) as SummariseStreamEvent);
+      } catch { /* malformed line — skip */ }
+    }
+  });
+  if (buffer.trim()) {
+    try {
+      onEvent(JSON.parse(buffer.trim()) as SummariseStreamEvent);
+    } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Streams a suggested reply as NDJSON chunk events via LLMStreamFn.
+ * Emits chunk events for progressive text display, then a meta event at the end.
+ */
+export async function suggestAnswerStream(
+  threadTitle: string,
+  posts: string[],
+  llmStreamFn: LLMStreamFn,
+  onEvent: (event: SuggestStreamEvent) => void,
+): Promise<void> {
+  const systemPrompt = [
+    'You are a knowledgeable forum member writing a genuine reply to a discussion.',
+    'Write in a natural, conversational tone — the way a real person would write, not an AI assistant.',
+    'Be direct and specific. Avoid filler phrases like "Great question!", "Certainly!", or "I hope this helps".',
+    'Do not use em dashes (—) or en dashes (–) or double hyphens (--); use commas, conjunctions, or separate sentences instead.',
+    'Output ONLY newline-delimited JSON. Each line must be a complete, valid JSON object. No other text.',
+    'Lines 1-N: {"type":"chunk","text":"<1-2 sentences of the reply>"}',
+    'Split the reply into 1-2 sentence chunks — emit one chunk line per 1-2 sentences.',
+    'Final line: {"type":"meta","confidence":"high"|"medium"|"low","caveats":["<caveat if any>"]}',
+    'Use an empty caveats array if there are none. No markdown, no prose outside the JSON.',
+  ].join(' ');
+
+  const userPrompt = [
+    `Thread title: ${threadTitle}`,
+    `Posts:\n${posts.map((p, i) => `[${i + 1}] ${p}`).join('\n')}`,
+    'Write a helpful reply using the NDJSON chunk format above.',
+  ].join('\n');
+
+  let buffer = '';
+  await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const event = JSON.parse(trimmed) as SuggestStreamEvent;
+        if (event.type === 'chunk') {
+          event.text = event.text
+            .replace(/\s*--\s*/g, ', ')
+            .replace(/[–—]/g, ',');
+        }
+        onEvent(event);
+      } catch { /* malformed line — skip */ }
+    }
+  });
+  if (buffer.trim()) {
+    try {
+      onEvent(JSON.parse(buffer.trim()) as SuggestStreamEvent);
+    } catch { /* ignore */ }
   }
 }

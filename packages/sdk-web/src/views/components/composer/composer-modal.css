@@ -80,13 +80,13 @@
 
 .fk-composer-tabs {
   display: flex;
-  gap: 4px;
+  gap: 0;
   margin-bottom: 36px;
 }
 
 .fk-composer-tab {
   position: relative;
-  padding: 6px 14px;
+  padding: 6px 22px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
@@ -129,8 +129,13 @@
   background: transparent;
   color: var(--text);
   font-size: 16px;
+  font-weight: 700;
   outline: none;
   font-family: inherit;
+}
+
+.fk-composer-title-input--light {
+  font-weight: 100;
 }
 
 .fk-composer-title-label {
@@ -179,6 +184,17 @@
 .fk-composer-suggest:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.fk-composer-suggest-hint {
+  font-size: 12px;
+  color: var(--up);
+}
+
+.fk-composer-link-hint {
+  font-size: 12px;
+  color: var(--up);
+  margin: 0;
 }
 
 .fk-composer-counter {
@@ -277,7 +293,7 @@
 .fk-composer-error {
   margin: 12px 0 0;
   font-size: 13px;
-  color: var(--down);
+  color: var(--danger);
   text-align: right;
 }
 

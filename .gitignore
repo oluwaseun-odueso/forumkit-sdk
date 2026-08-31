@@ -27,6 +27,8 @@ Thumbs.db
 CHECKLIST.md
 CLAUDE.md
 gen-tokens.mjs
+gen-tokens-native.mjs
 docs/backend-test-plan.md
 design_handoff_forum_kit
-
+design_handoff_forum_kit_mobile
+seed-demo-content.mjs

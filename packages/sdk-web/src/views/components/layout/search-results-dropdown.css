@@ -1,0 +1,410 @@
+.fk-search-dropdown-section {
+  margin-bottom: 4px;
+}
+
+.fk-search-dropdown-section-title {
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fk-search-dropdown-history-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.fk-search-dropdown-history-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-2);
+}
+
+.fk-search-dropdown-history-main:hover {
+  background: var(--hover);
+}
+
+.fk-search-dropdown-history-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-search-dropdown-history-clear {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.fk-search-dropdown-history-clear:hover {
+  background: var(--hover);
+}
+
+.fk-search-dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+
+.fk-search-dropdown-panel {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  max-width: 600px;
+  margin: 0 auto;
+  z-index: 60;
+  background: var(--elev);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 20px 50px -16px rgba(0, 0, 0, 0.55);
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.fk-search-dropdown-status {
+  padding: 16px 10px;
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.fk-search-dropdown-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-2);
+}
+
+.fk-search-dropdown-row:hover {
+  background: var(--hover);
+}
+
+/* Notifications page only — an unread row gets a faint accent tint, same
+   "unread" signal an inbox uses; the row title is already bold by default
+   above, so read rows don't need a separate de-emphasized style. */
+.fk-search-dropdown-row--unread {
+  background: var(--accent-soft);
+}
+
+.fk-search-dropdown-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fk-search-dropdown-row-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text), var(--text-2));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-search-dropdown-row-snippet {
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-search-dropdown-see-more {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.fk-search-dropdown-see-more:hover {
+  background: var(--hover-2);
+}
+
+/* Below: additions for the full SearchResults page, which reuses the row/
+   status classes above (bigger thumbnail, no fixed panel width/height) —
+   see routes/SearchResults.tsx. */
+
+.fk-search-results-row {
+  padding: 10px;
+}
+
+/* Wider than the shared fk-profile column (760px) — the results page has
+   no right rail competing for space, so it can afford to give the content
+   itself more of the screen while margin:0 auto (inherited from fk-profile)
+   still keeps it centered. Chained with .fk-profile (two classes) rather
+   than used alone, so this reliably beats .fk-profile's own max-width
+   regardless of which stylesheet's import happens to land later in the
+   bundle — same specificity would otherwise make that a coin flip. */
+.fk-profile.fk-search-results-wide {
+  max-width: 1150px;
+}
+
+/* "N votes · N comments" line under a thread result, left-aligned under
+   the row's content (same fk-post-card-row-text column the title and
+   snippet sit in). */
+.fk-search-results-row-stats {
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: -4px 0 12px;
+}
+
+/* Thread/comment result titles use a lighter weight than the feed's own
+   PostCard title (700) so a page full of stacked results doesn't read as
+   uniformly heavy — the author-name header above each title already
+   carries the bold weight for this row. */
+.fk-search-results-title {
+  font-weight: 600;
+  /* A touch darker than the feed's full-brightness --text — a page full of
+     stacked white titles against the dark background read as too sharp a
+     contrast. Blended rather than swapped to a different token outright,
+     so it's a subtle step down, not a jump to --text-2's much dimmer tone. */
+  color: color-mix(in srgb, var(--text), var(--text-2));
+}
+
+/* Same "just a little" nudge as the title above, but the opposite
+   direction — RenderedBody's default --muted reads a bit too dim once the
+   title next to it is toned down, so lighten it slightly rather than
+   swapping to a brighter token wholesale. */
+.fk-search-results-snippet {
+  color: color-mix(in srgb, var(--muted), var(--text-2));
+}
+
+/* PersonRow isn't a fk-post-card, so it needs its own wrapper to hang the
+   shared fk-post-card-divider off — the divider itself has to be a sibling
+   of the clickable row, not a child of the <button>, since buttons can't
+   contain block-level layout dividers cleanly. */
+.fk-search-results-person-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.fk-search-results-row-karma {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* CommentRow's own outer padding — same values as .fk-post-card (which
+   ThreadRow uses directly) but without that class's cursor:pointer, since
+   a comment result's clickable bits are the title and "Go to Thread" link
+   specifically, not the whole row. */
+.fk-search-results-thread-row {
+  padding: 14px 8px 6px;
+}
+
+.fk-search-results-clickable-title {
+  cursor: pointer;
+}
+
+.fk-search-results-clickable-title:hover {
+  text-decoration: underline;
+}
+
+/* The comment itself, set apart from the thread context above it — but
+   only just: --surface-2 (RenderedBody's usual "inset surface" token for
+   code blocks/spoilers) read as too strong a block of color here, so this
+   uses --nav instead — the same near-invisible-against-the-page tone the
+   sidebar's hamburger button uses, just enough to draw a boundary around
+   the comment without it looking like a separate panel. */
+.fk-search-results-comment-card {
+  background: var(--nav);
+  border-radius: 12px;
+  padding: 10px 12px 12px;
+  margin: 6px 0 10px;
+}
+
+.fk-search-results-comment-card-votes {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fk-search-results-comment-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.fk-search-results-comment-footer-stats {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.fk-search-results-goto-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.fk-search-results-goto-link:hover {
+  text-decoration: underline;
+}
+
+/* Media tab/preview — thread results that have an image, shown as a grid
+   of square thumbnails instead of full rows. */
+/* Brick/masonry layout via CSS multi-column instead of a row grid — each
+   tile keeps its image's natural aspect ratio (see MediaTile's <img>) so
+   tiles end up different heights, then flow down whichever column is
+   currently shortest, Pinterest-style. */
+.fk-search-results-media-wrap {
+  position: relative;
+}
+
+.fk-search-results-media-grid {
+  column-count: 3;
+  column-gap: 12px;
+  margin-bottom: 12px;
+}
+
+@keyframes fk-search-results-media-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.fk-search-results-media-skeleton-tile {
+  border-radius: 12px;
+  background: var(--surface-2);
+  margin-bottom: 16px;
+  break-inside: avoid;
+  animation: fk-search-results-media-pulse 1.4s ease-in-out infinite;
+}
+
+/* Cycled heights so the skeleton reads as a masonry grid rather than a
+   flat wall of identical boxes — doesn't need to match the real layout
+   exactly, just look like one while it's arranging itself. */
+.fk-search-results-media-skeleton-tile:nth-child(3n) { height: 260px; }
+.fk-search-results-media-skeleton-tile:nth-child(3n + 1) { height: 190px; }
+.fk-search-results-media-skeleton-tile:nth-child(3n + 2) { height: 230px; }
+
+.fk-search-results-media-tile {
+  display: inline-block;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.fk-search-results-media-tile-image {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-2);
+  margin-bottom: 6px;
+}
+
+.fk-search-results-media-tile-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.fk-search-results-media-tile-image img.fk-search-results-media-tile-img--loaded {
+  opacity: 1;
+}
+
+/* The "1/N" gallery-count badge — top-right corner of the image, same
+   placement/style convention as PostCard's own "+N" multi-image badge
+   (fk-post-card-more-badge). */
+.fk-search-results-media-tile-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.fk-search-results-media-tile-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.fk-search-results-media-tile-title {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+/* Lighter than ProfileTabs' own 600 (shared class, so scoped to just the
+   results page's tab row rather than changing the shared .fk-profile-tab
+   rule and affecting the actual Profile page's tabs too). */
+.fk-search-results-tabs .fk-profile-tab {
+  font-weight: 400;
+}
+
+.fk-search-did-you-mean {
+  font-size: 13px;
+  color: var(--text-2);
+  padding: 8px 0 12px;
+}
+
+.fk-search-did-you-mean button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 13px;
+  text-decoration: underline;
+}

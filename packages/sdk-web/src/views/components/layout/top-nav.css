@@ -19,6 +19,7 @@
   background: transparent;
   border: none;
   padding: 0;
+  margin-left: 3px;
   flex: 0 0 auto;
 }
 
@@ -51,6 +52,12 @@
     linear-gradient(90deg, #3f7ee2, #7b5cff 55%, #37e0e6) border-box;
   box-shadow: 0 0 0 3px var(--accent-soft);
   color: var(--muted);
+  /* Above the dropdown's own backdrop (z-index 55, search-results-
+     dropdown.css) — without this, the backdrop (there to close the
+     dropdown on an outside click) sits on top of this pill too, silently
+     eating clicks meant for the input or the clear button below it. */
+  position: relative;
+  z-index: 56;
 }
 
 .fk-topnav-search--compact {
@@ -100,6 +107,27 @@
   color: var(--text);
   font-size: 14.5px;
   font-family: inherit;
+  font-weight: 400;
+}
+
+.fk-topnav-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-2);
+  padding: 0;
+}
+
+.fk-topnav-search-clear:hover {
+  background: var(--hover-2);
+  color: var(--text);
 }
 
 .fk-topnav-search-divider {
@@ -116,11 +144,21 @@
   border-radius: 999px;
   cursor: pointer;
   color: var(--text);
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 500;
+  font-size: 13px;
   background: transparent;
   border: none;
   font-family: inherit;
+}
+
+/* --text is already the brightest general-purpose token, but in dark
+   theme it's a soft off-white (#e7eaef per tokens.css), not pure white —
+   bumped further here since this label wants to stand out more than body
+   text. Scoped to dark only (light theme's --text is near-black, already
+   the right kind of "bright" there via contrast, not luminance). */
+:host(:not([data-theme='light'])) .fk-topnav-ask,
+.fk-root:not([data-theme='light']) .fk-topnav-ask {
+  color: #ffffff;
 }
 
 .fk-topnav-ask:hover:not(:disabled) {
@@ -129,7 +167,10 @@
 
 .fk-topnav-ask:disabled {
   cursor: default;
-  opacity: 0.5;
+  /* Feed/Profile/SearchResults don't wire onAsk yet (only Thread does),
+     so this button is disabled there most of the time — 0.5 opacity was
+     washing out the brightened white text from above, undoing it. */
+  opacity: 0.85;
 }
 
 .fk-topnav-actions {
@@ -137,6 +178,12 @@
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
+}
+
+.fk-topnav-create-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
 }
 
 .fk-topnav-create {
@@ -181,4 +228,61 @@
   padding: 0;
   outline: 2px solid transparent;
   outline-offset: 2px;
+}
+
+/* ── Ask-active sweep animation ─────────────────────────────────────────── */
+/* @property lets CSS animate the conic-gradient angle via a custom property.
+   Supported in Chrome 85+, Safari 16.4+, Firefox 120+; falls back gracefully
+   (gradient border remains, sweep simply doesn't animate). */
+@property --fk-ask-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes fk-ask-spin {
+  to { --fk-ask-angle: 360deg; }
+}
+
+/* The ::after creates a conic-gradient "donut" layered over the existing
+   gradient border — the XOR mask clips it to only the border strip (1.5px
+   wide), so the pill's interior stays transparent. */
+.fk-topnav-search--ask-active {
+  position: relative;
+  overflow: visible;
+}
+
+.fk-topnav-search--ask-active::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 999px;
+  background: conic-gradient(
+    from var(--fk-ask-angle),
+    transparent 0%, transparent 86%,
+    rgba(255, 255, 255, 0.85) 93%, transparent 100%
+  );
+  animation: fk-ask-spin 1.6s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 1.5px;
+}
+
+/* Ask button stays fully visible (not dimmed) when the pill is in ask-active
+   mode — on the AskResult page onAsk is undefined (disabled) but we still
+   want it to look alive as a visual cue that you're in AI mode.
+   Base: accent color (readable on light pill background). Dark-mode override
+   bumps it to white for maximum contrast against the dark surface. */
+.fk-topnav-search--ask-active .fk-topnav-ask {
+  opacity: 1;
+  color: var(--accent);
+}
+
+:host(:not([data-theme='light'])) .fk-topnav-search--ask-active .fk-topnav-ask,
+.fk-root:not([data-theme='light']) .fk-topnav-search--ask-active .fk-topnav-ask {
+  color: #ffffff;
 }

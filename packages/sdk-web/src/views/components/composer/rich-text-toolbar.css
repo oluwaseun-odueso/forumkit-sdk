@@ -2,7 +2,11 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  /* Thin, unobtrusive scrollbar instead of the browser default — the
+     toolbar row is short, so a full-size scrollbar would be disproportionate. */
+  scrollbar-width: thin;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   border-radius: 22px 22px 0 0;
@@ -24,6 +28,10 @@
   border: none;
   color: inherit;
   font-family: inherit;
+  /* Without this, the flex row would rather squash every button below its
+     min-width than let the row overflow — since overflow (and the resulting
+     scroll) is exactly what we want once the toolbar can't fit on one line. */
+  flex-shrink: 0;
 }
 
 .fk-rte-btn:hover {
@@ -67,5 +75,6 @@
 }
 
 .fk-rte-spacer {
-  flex: 1;
+  flex: 1 0 auto;
+  min-width: 8px;
 }

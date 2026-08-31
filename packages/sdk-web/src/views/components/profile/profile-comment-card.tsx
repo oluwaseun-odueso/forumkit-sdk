@@ -1,5 +1,5 @@
 import type { Comment } from '@forumkit/types';
-import { UpvoteIcon } from '../shared/icons';
+import { UpvoteIcon, DownvoteIcon } from '../shared/icons';
 import RenderedBody from '../shared/rendered-body';
 import { fmtRelativeTime } from '../../lib/format-time';
 import './profile-comment-card.css';
@@ -19,7 +19,6 @@ type ProfileCommentCardProps = {
  */
 export default function ProfileCommentCard({ comment, threadTitle, replyingTo, onOpen }: ProfileCommentCardProps) {
   const voteCounts = comment.voteCounts ?? { up: 0, down: 0 };
-  const netVotes = voteCounts.up - voteCounts.down;
 
   return (
     <article className="fk-profile-comment-card" onClick={onOpen}>
@@ -37,7 +36,8 @@ export default function ProfileCommentCard({ comment, threadTitle, replyingTo, o
       )}
       <RenderedBody body={comment.body} className="fk-profile-comment-card-body" />
       <div className="fk-profile-comment-card-stats">
-        <span><UpvoteIcon size={13} />{netVotes}</span>
+        <span><UpvoteIcon size={13} />{voteCounts.up}</span>
+        <span><DownvoteIcon size={13} />{voteCounts.down}</span>
       </div>
     </article>
   );

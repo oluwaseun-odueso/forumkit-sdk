@@ -52,6 +52,7 @@
 
 .fk-profile-card-actions {
   display: flex;
+  justify-content: center;
   gap: 10px;
 }
 

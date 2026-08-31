@@ -3,12 +3,15 @@ import type { FeedPost, VoteDir } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
-import Carousel from '../shared/carousel';
+import Carousel, { type MediaItem } from '../shared/carousel';
 import Lightbox from '../shared/lightbox';
 import RenderedBody from '../shared/rendered-body';
 import VotePill from '../shared/vote-pill';
 import DropdownMenu, { DropdownMenuItem } from '../shared/dropdown-menu';
-import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon } from '../shared/icons';
+import ConfirmDialog from '../shared/confirm-dialog';
+import { CommentIcon, ShareIcon, EllipsisIcon, SaveIcon, ReportIcon, LinkIcon, TrashIcon } from '../shared/icons';
+import { useShare } from '../../hooks/use-share';
+import { useForum } from '../../hooks/use-forum-state';
 import './post-card.css';
 
 type PostCardProps = {
@@ -30,12 +33,28 @@ export default function PostCard({
 }: PostCardProps) {
   const avatar = authorAvatar(post.authorId, post.author);
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const share = useShare(post.id);
+  const { openReportModal, currentUserId, state, deletePost } = useForum();
+  const canDelete = currentUserId !== null && (
+    post.authorId === currentUserId || state.profile.role === 'moderator' || state.profile.role === 'admin'
+  );
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [snippetExpanded, setSnippetExpanded] = useState(false);
   const [snippetOverflowing, setSnippetOverflowing] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const snippetRef = useRef<HTMLDivElement>(null);
   const images = post.imageUrls ?? (post.imageUrl ? [post.imageUrl] : []);
+  // A single ordered list covering every attached image AND the video (if
+  // any) — previously video was a completely separate, uncounted fallback
+  // only shown when there were zero images, so a post with e.g. one image
+  // and one video silently lost the video and undercounted the "+N" badge.
+  // Carousel/Lightbox now navigate this list as one set of slides.
+  const media: MediaItem[] = [
+    ...images.map((url): MediaItem => ({ type: 'image', url })),
+    ...(post.videoUrl ? [{ type: 'video', url: post.videoUrl } as MediaItem] : []),
+  ];
+  const rowExtraMediaCount = Math.max(0, media.length - 1);
 
   useLayoutEffect(() => {
     if (snippetExpanded) return;
@@ -84,21 +103,21 @@ export default function PostCard({
         <>
           <h3 className="fk-post-card-title fk-post-card-title--card">{post.title}</h3>
           {renderSnippet()}
-          {images.length > 0 ? (
+          {media.length > 1 ? (
             <div className="fk-post-card-cardimg" onClick={stop}>
-              {images.length > 1 ? (
-                <Carousel
-                  images={images}
-                  index={carouselIndex}
-                  onIndexChange={setCarouselIndex}
-                  onImageClick={() => setLightboxOpen(true)}
-                />
-              ) : (
-                <Thumbnail gradient={post.thumbGradient} imageUrl={images[0] ?? null} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
-              )}
+              <Carousel
+                items={media}
+                index={carouselIndex}
+                onIndexChange={setCarouselIndex}
+                onItemClick={() => setLightboxOpen(true)}
+              />
             </div>
-          ) : post.videoUrl ? (
-            <video src={post.videoUrl} controls className="fk-post-card-video" onClick={stop} />
+          ) : media.length === 1 && media[0]?.type === 'image' ? (
+            <div className="fk-post-card-cardimg" onClick={stop}>
+              <Thumbnail gradient={post.thumbGradient} imageUrl={media[0].url} radius={16} style={{ cursor: 'pointer' }} onClick={e => openLightbox(e, 0)} />
+            </div>
+          ) : media.length === 1 && media[0]?.type === 'video' ? (
+            <video src={media[0].url} controls className="fk-post-card-video" onClick={stop} />
           ) : null}
         </>
       ) : (
@@ -107,11 +126,11 @@ export default function PostCard({
             <h3 className="fk-post-card-title fk-clamp-2">{post.title}</h3>
             {renderSnippet()}
           </div>
-          {images.length > 0 ? (
+          {media.length > 0 && media[0]?.type === 'image' ? (
             <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
               <Thumbnail
                 gradient={post.thumbGradient}
-                imageUrl={images[0] ?? null}
+                imageUrl={media[0].url}
                 width={150}
                 height={110}
                 radius={14}
@@ -119,41 +138,72 @@ export default function PostCard({
                 style={{ cursor: 'pointer' }}
                 onClick={e => openLightbox(e, 0)}
               />
-              {images.length > 1 && (
-                <span className="fk-post-card-more-badge">+{images.length - 1}</span>
+              {rowExtraMediaCount > 0 && (
+                <span className="fk-post-card-more-badge">+{rowExtraMediaCount}</span>
               )}
             </div>
-          ) : post.videoUrl ? (
-            <video src={post.videoUrl} controls width={150} height={110} className="fk-post-card-row-video" onClick={stop} />
+          ) : media.length > 0 && media[0]?.type === 'video' ? (
+            <div className="fk-post-card-row-img" onClick={stop} style={{ position: 'relative' }}>
+              <video src={media[0].url} controls width={150} height={110} className="fk-post-card-row-video" />
+              {rowExtraMediaCount > 0 && (
+                <span className="fk-post-card-more-badge">+{rowExtraMediaCount}</span>
+              )}
+            </div>
           ) : null}
         </div>
       )}
 
       <div className="fk-post-card-actions" onClick={stop}>
-        <VotePill votes={post.votes} dir={vote} onVote={onVote} />
+        <VotePill voteCounts={post.voteCounts} dir={vote} onVote={onVote} />
         <button type="button" className="fk-post-card-chip">
           <CommentIcon />
           {post.commentCount}
         </button>
         <div className="fk-post-card-spacer" />
-        <button type="button" className="fk-post-card-chip">
-          <ShareIcon />
-          Share
-        </button>
+        <div className="fk-post-card-menu-anchor">
+          <button type="button" className="fk-post-card-chip" onClick={share.handleShareClick}>
+            <ShareIcon />
+            Share
+          </button>
+          <DropdownMenu open={share.menuOpen} onClose={share.closeMenu} style={{ top: 40, right: 0, width: 210, padding: 6 }}>
+            <DropdownMenuItem icon={<LinkIcon size={16} />} label="Copy link" onClick={share.handleCopyLink} />
+            <DropdownMenuItem icon={<ShareIcon />} label="Share with a member" onClick={share.handleShareWithMember} />
+          </DropdownMenu>
+        </div>
         <div className="fk-post-card-menu-anchor">
           <button type="button" className={`fk-post-card-ellipsis${menuOpen ? ' fk-post-card-ellipsis--open' : ''}`} onClick={onToggleMenu}>
             <EllipsisIcon />
           </button>
           <DropdownMenu open={menuOpen} onClose={onCloseMenu} style={{ top: 40, right: 0, width: 190, padding: 6 }}>
-            <DropdownMenuItem icon={<SaveIcon />} label={saved ? 'Unsave' : 'Save'} onClick={onSave} />
-            <DropdownMenuItem icon={<ReportIcon />} label="Report" />
+            <DropdownMenuItem icon={<SaveIcon filled={saved} />} label={saved ? 'Unsave' : 'Save'} onClick={onSave} />
+            <DropdownMenuItem
+              icon={<ReportIcon />}
+              label="Report"
+              onClick={() => { onCloseMenu(); openReportModal({ type: 'thread', threadId: post.id }); }}
+            />
+            {canDelete && (
+              <DropdownMenuItem
+                icon={<TrashIcon />}
+                label="Delete"
+                onClick={() => { onCloseMenu(); setDeleteConfirmOpen(true); }}
+              />
+            )}
           </DropdownMenu>
         </div>
       </div>
       <div className="fk-post-card-divider" />
 
-      {lightboxOpen && images.length > 0 && (
-        <Lightbox images={images} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
+      {deleteConfirmOpen && (
+        <ConfirmDialog
+          title="Delete post?"
+          message="This can't be undone. The post and its comments will be permanently removed."
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={() => deletePost(post.id)}
+        />
+      )}
+
+      {lightboxOpen && media.length > 0 && (
+        <Lightbox items={media} startIndex={carouselIndex} onClose={() => setLightboxOpen(false)} />
       )}
     </article>
   );

@@ -3,6 +3,25 @@
   position: relative;
 }
 
+.fk-comment--accepted {
+  padding-left: 10px;
+  border-left: 2px solid var(--success);
+  background: color-mix(in srgb, var(--success) 6%, transparent);
+  border-radius: 4px;
+}
+
+.fk-comment-accepted-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .fk-comment-head {
   display: flex;
   align-items: center;
@@ -103,7 +122,14 @@
   cursor: default;
 }
 
-.fk-comment-reply,
+.fk-comment-action--accepted {
+  color: var(--success);
+}
+
+.fk-comment-action--accepted:hover {
+  color: var(--success);
+}
+
 .fk-comment-edit {
   margin-bottom: 12px;
 }
@@ -143,7 +169,7 @@
 }
 
 .fk-comment-error {
-  color: var(--danger, #e0463a);
+  color: var(--danger);
   font-size: 12.5px;
   margin: 0 0 8px;
 }

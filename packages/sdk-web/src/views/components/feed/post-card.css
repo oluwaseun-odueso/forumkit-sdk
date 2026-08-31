@@ -29,9 +29,13 @@
 .fk-post-card-title {
   margin: 0 0 6px;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.3;
-  color: var(--text);
+  /* Softer than full-brightness --text — a feed full of stacked
+     high-contrast white titles reads as too sharp against the dark
+     background (same fix already applied to search results/notification
+     titles elsewhere). */
+  color: color-mix(in srgb, var(--text), var(--text-2));
 }
 
 .fk-post-card-title--card {

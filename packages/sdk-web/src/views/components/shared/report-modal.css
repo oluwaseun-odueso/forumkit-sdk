@@ -1,0 +1,8 @@
+/* The shared .fk-drafts-modal-body's 8px padding (meant for an edge-to-edge
+   row list, like the drafts modal it's named for) reads as too tight for
+   this modal's form content, especially left/right — scoped override here
+   rather than changing the shared class, which DraftsListModal itself still
+   wants at 8px. */
+.fk-report-modal-body {
+  padding: 20px 24px 24px;
+}

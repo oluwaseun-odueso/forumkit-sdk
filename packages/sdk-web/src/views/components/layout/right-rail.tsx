@@ -2,7 +2,7 @@ import type { RailItem } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
 import Avatar from '../shared/avatar';
 import Thumbnail from '../shared/thumbnail';
-import { UpvoteIcon, CommentIcon } from '../shared/icons';
+import { UpvoteIcon, DownvoteIcon, CommentIcon } from '../shared/icons';
 import './right-rail.css';
 
 type RailSections = {
@@ -28,7 +28,8 @@ function RailRow({ item, onOpen }: { item: RailItem; onOpen: () => void }) {
         </div>
         <div className="fk-rail-row-title fk-clamp-2">{item.title}</div>
         <div className="fk-rail-row-stats">
-          <span><UpvoteIcon size={13} />{item.votes}</span>
+          <span><UpvoteIcon size={13} />{item.voteCounts.up}</span>
+          <span><DownvoteIcon size={13} />{item.voteCounts.down}</span>
           <span><CommentIcon size={13} />{item.commentCount}</span>
         </div>
       </div>
@@ -79,7 +80,8 @@ export default function RightRail({ sections, onOpenPost }: RightRailProps) {
                 </div>
                 <div className="fk-rail-row-title fk-clamp-2">{item.title}</div>
                 <div className="fk-rail-row-stats">
-                  <span><UpvoteIcon size={14} />{item.votes}</span>
+                  <span><UpvoteIcon size={14} />{item.voteCounts.up}</span>
+                  <span><DownvoteIcon size={14} />{item.voteCounts.down}</span>
                   <span><CommentIcon size={14} />{item.commentCount}</span>
                 </div>
               </div>

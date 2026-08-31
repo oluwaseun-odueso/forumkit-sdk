@@ -1,6 +1,7 @@
 import type { DB } from '../db';
 import type { Tag, Thread, ThreadListQuery, SimilarThread, VoteCounts, VoteDirection, TopWindow } from '@forumkit/types';
 import { THREAD_VOTE_COUNTS_SUBQUERY } from './vote';
+import { resolveMediaUrl } from '../lib/attachment-url';
 
 export type ThreadWithMetaData = Thread & { commentCount: number };
 
@@ -65,13 +66,13 @@ const TOP_WINDOW_INTERVALS: Record<Exclude<TopWindow, 'all'>, string> = {
   hour: '1 hour', day: '1 day', week: '7 days', month: '30 days', year: '365 days',
 };
 
-function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
+function toThreadWithMetaData(row: ThreadRow, publicApiUrl: string): ThreadWithMetaData {
   return {
     id: row.id,
     forumId: row.forum_id,
     authorId: row.author_id,
     authorDisplayName: row.author_display_name,
-    authorAvatarUrl: row.author_avatar_url,
+    authorAvatarUrl: resolveMediaUrl(publicApiUrl, row.author_avatar_url),
     title: row.title,
     body: row.body,
     status: row.status,
@@ -95,6 +96,7 @@ function toThreadWithMetaData(row: ThreadRow): ThreadWithMetaData {
 
 export async function listThreads(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   opts: ListThreadsOptions,
 ): Promise<{ threads: ThreadWithMetaData[]; total: number }> {
@@ -193,13 +195,14 @@ export async function listThreads(
   ]);
 
   return {
-    threads: rows.map(toThreadWithMetaData),
+    threads: rows.map(r => toThreadWithMetaData(r, publicApiUrl)),
     total: Number(countRows[0]?.total ?? 0),
   };
 }
 
 export async function getThreadById(
   db: DB,
+  publicApiUrl: string,
   threadId: string,
   requesterId?: string | undefined,
 ): Promise<ThreadWithMetaData | null> {
@@ -240,7 +243,7 @@ export async function getThreadById(
   `;
 
   const row = rows[0];
-  return row ? toThreadWithMetaData(row) : null;
+  return row ? toThreadWithMetaData(row, publicApiUrl) : null;
 }
 
 // Backs the profile's Posts tab — threads authored by a specific user,
@@ -249,6 +252,7 @@ export async function getThreadById(
 // string, same as listThreads.
 export async function listThreadsByAuthor(
   db: DB,
+  publicApiUrl: string,
   forumId: string,
   authorId: string,
   page: number,
@@ -288,7 +292,7 @@ export async function listThreadsByAuthor(
     `,
   ]);
 
-  return { threads: rows.map(toThreadWithMetaData), total: Number(countRows[0]?.total ?? 0) };
+  return { threads: rows.map(r => toThreadWithMetaData(r, publicApiUrl)), total: Number(countRows[0]?.total ?? 0) };
 }
 
 // Batch fetch by id, same row shape as listThreads/getThreadById — used to
@@ -296,6 +300,7 @@ export async function listThreadsByAuthor(
 // (from votes/saves) rather than a forum-wide scope query.
 export async function getThreadsByIds(
   db: DB,
+  publicApiUrl: string,
   ids: string[],
   requesterId?: string | undefined,
 ): Promise<ThreadWithMetaData[]> {
@@ -337,7 +342,7 @@ export async function getThreadsByIds(
     GROUP BY t.id, u.display_name, u.avatar_url, cc.comment_count
   `;
 
-  return rows.map(toThreadWithMetaData);
+  return rows.map(r => toThreadWithMetaData(r, publicApiUrl));
 }
 
 // Post karma: sum(upvotes) - sum(downvotes) across every thread the user
@@ -355,6 +360,7 @@ export async function getThreadKarma(db: DB, forumId: string, authorId: string):
 
 export async function createThread(
   db: DB,
+  publicApiUrl: string,
   input: CreateThreadInput,
 ): Promise<ThreadWithMetaData> {
   const thread = await db.begin(async (sql) => {
@@ -373,7 +379,7 @@ export async function createThread(
       `;
     }
 
-    return getThreadById(sql as unknown as DB, row.id);
+    return getThreadById(sql as unknown as DB, publicApiUrl, row.id);
   });
 
   if (!thread) throw new Error('Thread not found after create');
@@ -388,6 +394,7 @@ type UpdateThreadPatch = {
 
 export async function updateThread(
   db: DB,
+  publicApiUrl: string,
   threadId: string,
   patch: UpdateThreadPatch,
 ): Promise<ThreadWithMetaData | null> {
@@ -411,7 +418,7 @@ export async function updateThread(
     }
   });
 
-  return getThreadById(db, threadId);
+  return getThreadById(db, publicApiUrl, threadId);
 }
 
 export async function softDeleteThread(db: DB, threadId: string): Promise<void> {
@@ -420,6 +427,7 @@ export async function softDeleteThread(db: DB, threadId: string): Promise<void> 
 
 export async function setThreadLocked(
   db: DB,
+  publicApiUrl: string,
   threadId: string,
   locked: boolean,
 ): Promise<ThreadWithMetaData | null> {
@@ -428,16 +436,17 @@ export async function setThreadLocked(
     SET status = ${locked ? 'locked' : 'open'}
     WHERE id = ${threadId}
   `;
-  return getThreadById(db, threadId);
+  return getThreadById(db, publicApiUrl, threadId);
 }
 
 export async function setThreadPinned(
   db: DB,
+  publicApiUrl: string,
   threadId: string,
   pinned: boolean,
 ): Promise<ThreadWithMetaData | null> {
   await db`UPDATE threads SET pinned = ${pinned} WHERE id = ${threadId}`;
-  return getThreadById(db, threadId);
+  return getThreadById(db, publicApiUrl, threadId);
 }
 
 export async function findSimilarThreads(
@@ -479,5 +488,21 @@ export async function updateThreadEmbedding(
     UPDATE threads
     SET embedding = ${'[' + embedding.join(',') + ']'}::vector
     WHERE id = ${threadId}
+  `;
+}
+
+// Mirrors repositories/comment.ts's insertReport, targeting thread_id
+// instead of comment_id — moderation_queue's CHECK constraint (see
+// migrations/015_moderation_thread_reports.ts) enforces exactly one of the
+// two is set.
+export async function insertReport(
+  db: DB,
+  threadId: string,
+  reporterId: string,
+  reason: string,
+): Promise<void> {
+  await db`
+    INSERT INTO moderation_queue (thread_id, reporter_id, reason)
+    VALUES (${threadId}, ${reporterId}, ${reason})
   `;
 }

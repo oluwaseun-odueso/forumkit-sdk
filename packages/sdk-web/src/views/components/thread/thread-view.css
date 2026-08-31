@@ -25,9 +25,9 @@
 .fk-thread-title {
   margin: 0 0 14px;
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.25;
-  color: var(--text);
+  color: color-mix(in srgb, var(--text), var(--text-2));
 }
 
 .fk-thread-body {
@@ -77,26 +77,6 @@
 
 .fk-thread-chip--static:hover {
   background: var(--surface-2);
-}
-
-.fk-thread-composer {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 6px 6px 6px 18px;
-  margin-bottom: 24px;
-}
-
-.fk-thread-composer-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text);
-  font-size: 14.5px;
-  font-family: inherit;
 }
 
 .fk-ai-row {
@@ -174,4 +154,39 @@
 
 .fk-ai-panel-body p:last-child {
   margin-bottom: 0;
+}
+
+.fk-ai-suggest-block {
+  background: var(--surface-2);
+  border-radius: 20px;
+  padding: 14px 16px;
+}
+
+.fk-ai-suggest-text {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+}
+
+.fk-ai-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fk-ai-copy-btn:hover {
+  background: var(--hover-1);
+  color: var(--text);
+}
+
+.fk-ai-copy-btn--copied {
+  color: var(--accent);
+  border-color: var(--accent);
 }
