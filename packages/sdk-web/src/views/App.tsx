@@ -16,6 +16,13 @@ import ShareModal from './components/shared/share-modal';
 import ReportModal from './components/shared/report-modal';
 import NotificationSettingsModal from './components/shared/notification-settings-modal';
 
+// The host page's own z-index landscape is unknown (headers, sidebars, modals
+// are all commonly positioned+z-indexed), so this full-viewport container
+// needs a value that can't lose a stacking fight it doesn't know it's in -
+// 2147483647 (max signed 32-bit int) is the same convention widgets like
+// Intercom's use for exactly this reason.
+const FULLSCREEN_STYLE = { position: 'fixed', inset: 0, zIndex: 2147483647 } as const;
+
 function Router() {
   const {
     state, closeSettings, saveProfile, toggleTheme,
@@ -80,10 +87,10 @@ function SessionGate({ children }: { children: ReactNode }) {
   const session = useSession();
 
   if (session.status === 'loading') {
-    return <div style={{ position: 'fixed', inset: 0 }} />;
+    return <div style={FULLSCREEN_STYLE} />;
   }
   if (session.status === 'error') {
-    return <div style={{ position: 'fixed', inset: 0 }}>Failed to connect: {session.error}</div>;
+    return <div style={FULLSCREEN_STYLE}>Failed to connect: {session.error}</div>;
   }
   return <>{children}</>;
 }
@@ -93,7 +100,7 @@ export function App({ config }: { config: ForumKitConfig }) {
     <SessionProvider config={config}>
       <SessionGate>
         <ForumProvider>
-          <div style={{ position: 'fixed', inset: 0 }}>
+          <div style={FULLSCREEN_STYLE}>
             <Router />
           </div>
         </ForumProvider>
