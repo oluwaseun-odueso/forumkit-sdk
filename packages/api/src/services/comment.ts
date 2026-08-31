@@ -219,7 +219,7 @@ async function embedComment(
 ): Promise<void> {
   try {
     const vector = await embedOne(body, embedFn);
-    if (vector) await repo.updateCommentEmbedding(db, commentId, vector);
+    if (vector && vector.length > 0) await repo.updateCommentEmbedding(db, commentId, vector);
   } catch (e) {
     console.error('[comment-service] embedding failed for comment %s: %o', commentId, e);
   }

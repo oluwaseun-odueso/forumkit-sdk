@@ -67,7 +67,7 @@ describe('POST /threads/:tid/ai/summarise', () => {
       expect(Array.isArray(body.summary.keyPoints)).toBe(true);
     } else {
       expect(res.statusCode).toBe(503);
-      expect(JSON.parse(res.body)['error']).toBe('ai_unavailable');
+      expect(JSON.parse(res.body)['error']).toBe('ai_not_configured');
     }
   });
 });

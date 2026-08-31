@@ -77,7 +77,7 @@ export async function surfaceRelated(
     vector = await embedOne(`${thread.title} ${thread.body}`, embedFn);
   }
 
-  if (!vector) return err('ai_unavailable');
+  if (!vector || vector.length === 0) return err('ai_unavailable');
 
   const related = await findRelatedThreads(db, thread.forum_id, vector, threadId, 5);
   return ok(related);

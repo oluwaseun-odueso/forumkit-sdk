@@ -230,7 +230,7 @@ export async function findDuplicates(
   excludeId?: string | undefined,
 ): Promise<SimilarThread[]> {
   const vector = await embedOne(`${title} ${body}`, embedFn);
-  if (!vector) return [];
+  if (!vector || vector.length === 0) return [];
   return threadRepo.findSimilarThreads(db, forumId, vector, excludeId);
 }
 
@@ -334,7 +334,7 @@ async function embedThread(
 ): Promise<void> {
   try {
     const vector = await embedOne(`${title} ${body}`, embedFn);
-    if (vector) {
+    if (vector && vector.length > 0) {
       await threadRepo.updateThreadEmbedding(db, threadId, vector);
     }
   } catch (e) {
