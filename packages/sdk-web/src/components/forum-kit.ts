@@ -22,6 +22,26 @@ export class ForumKitElement extends HTMLElement {
   private _shadow: ShadowRoot;
   private _mountPoint: HTMLDivElement;
   private _root: Root | null = null;
+  // A function can't be represented as an HTML attribute, so onLogout is set
+  // as a JS property directly (el.onLogout = fn) rather than observed via
+  // attributeChangedCallback — this is also why plain HTML usage has no way
+  // to provide it, by design (see README's Customization section).
+  private _onLogout: (() => void) | undefined;
+
+  get onLogout(): (() => void) | undefined {
+    return this._onLogout;
+  }
+
+  set onLogout(fn: (() => void) | undefined) {
+    this._onLogout = fn;
+    // Only re-render if we've already got a base config (forum-id/token
+    // attributes present) - avoids re-rendering on a partially-constructed
+    // element if onLogout happens to be assigned before those attributes.
+    if (this._config) {
+      this._config = this._readConfig();
+      this._render();
+    }
+  }
 
   static get observedAttributes(): string[] {
     return ['forum-id', 'token', 'theme', 'api-url', 'platform'];
@@ -77,6 +97,7 @@ export class ForumKitElement extends HTMLElement {
       theme,
       apiUrl: this.getAttribute('api-url') ?? DEFAULT_API_URL,
       platform,
+      ...(this._onLogout ? { onLogout: this._onLogout } : {}),
     };
   }
 

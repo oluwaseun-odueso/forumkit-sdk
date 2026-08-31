@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { ForumKitConfig } from '@forumkit/types';
+import type { ForumKitElement } from '../components/forum-kit';
 import '../components/forum-kit';
 
 type ForumKitProps = ForumKitConfig & {
@@ -18,8 +19,8 @@ type ForumKitProps = ForumKitConfig & {
  *     theme={{ primaryColor: '#6200EE' }}
  *   />
  */
-export function ForumKit({ forumId, token, theme, apiUrl, className }: ForumKitProps): React.JSX.Element {
-  const ref = useRef<HTMLElement>(null);
+export function ForumKit({ forumId, token, theme, apiUrl, platform, onLogout, className }: ForumKitProps): React.JSX.Element {
+  const ref = useRef<ForumKitElement>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -29,7 +30,9 @@ export function ForumKit({ forumId, token, theme, apiUrl, className }: ForumKitP
     el.setAttribute('token', token);
     if (theme) el.setAttribute('theme', JSON.stringify(theme));
     if (apiUrl) el.setAttribute('api-url', apiUrl);
-  }, [forumId, token, theme, apiUrl]);
+    if (platform) el.setAttribute('platform', platform);
+    el.onLogout = onLogout;
+  }, [forumId, token, theme, apiUrl, platform, onLogout]);
 
   return (
     // @ts-expect-error — custom element not in JSX intrinsic elements
