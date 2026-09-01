@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area, Point } from 'react-easy-crop';
+import 'react-easy-crop/react-easy-crop.css';
 import Modal from '../shared/modal';
 import PillButton from '../shared/pill-button';
 import { CloseIcon, CameraIcon } from '../shared/icons';
