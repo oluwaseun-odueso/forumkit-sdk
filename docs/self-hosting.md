@@ -181,6 +181,7 @@ being a listed value below for forward-compatibility.
 | `NODE_ENV` | `development` | Set to `production` in production. Disables pretty-print logging. |
 | `SESSION_TTL_MINUTES` | `15` | How long ForumKit session tokens are valid before the SDK re-exchanges. |
 | `MAX_POST_LENGTH` | `10000` | Maximum character length of a post body. |
+| `PUBLIC_API_URL` | `http://localhost:$PORT` | The public URL this API is reachable at — used to build download links for uploaded attachments (avatars, post/comment images). **Set this to your real public domain in production** (e.g. `https://forum.yourapp.com`); the `localhost` default only resolves for clients on the same machine as the API. |
 
 ---
 

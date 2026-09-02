@@ -37,6 +37,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES:-15}
       MAX_POST_LENGTH: ${MAX_POST_LENGTH:-10000}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
     depends_on:
       db:
         condition: service_healthy
