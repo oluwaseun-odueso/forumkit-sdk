@@ -7,6 +7,37 @@ import shadowStyles from '../views/styles/all.css?inline';
 
 const DEFAULT_API_URL = '';  // same origin by default
 
+const FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Michroma&family=Inter:wght@400;500;600;700;800&display=swap';
+
+// tokens.css assumes Inter/Michroma are already loaded (font-family: Inter,
+// system-ui, sans-serif - a silent fallback, not a load failure, so this was
+// easy to miss). The dev harness's own index.html loads them via <link> tags,
+// but that file is dev-harness-only scaffolding, never shipped - a real host
+// page has no reason to know it needs to load these specific fonts for
+// ForumKit's benefit. Font-face rules aren't shadow-DOM-scoped (unlike normal
+// selectors), so injecting these into the document head - once per page,
+// however many <forum-kit> instances exist - makes them available inside the
+// shadow root too.
+function ensureFontsLoaded(): void {
+  if (document.querySelector(`link[href="${FONTS_HREF}"]`)) return;
+
+  const preconnect1 = document.createElement('link');
+  preconnect1.rel = 'preconnect';
+  preconnect1.href = 'https://fonts.googleapis.com';
+  document.head.appendChild(preconnect1);
+
+  const preconnect2 = document.createElement('link');
+  preconnect2.rel = 'preconnect';
+  preconnect2.href = 'https://fonts.gstatic.com';
+  preconnect2.crossOrigin = 'anonymous';
+  document.head.appendChild(preconnect2);
+
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = FONTS_HREF;
+  document.head.appendChild(stylesheet);
+}
+
 /**
  * <forum-kit> Web Component
  *
@@ -49,6 +80,7 @@ export class ForumKitElement extends HTMLElement {
 
   constructor() {
     super();
+    ensureFontsLoaded();
     this._shadow = this.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
