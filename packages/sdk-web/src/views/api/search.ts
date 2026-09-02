@@ -8,9 +8,11 @@ import {
 // SearchOpts now lives in @forumkit/shared; re-exported so existing imports work.
 export type { SearchOpts };
 
-const API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
+function getApiBase(): string {
+  return typeof window !== 'undefined'
+    ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+    : '';
+}
 
 function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -30,7 +32,7 @@ export function searchThreads(
   opts?: SearchOpts,
   token?: string,
 ): Promise<SearchResponse<SearchResult>> {
-  return sharedSearchThreads(API_BASE, forumId, q, opts, token);
+  return sharedSearchThreads(getApiBase(), forumId, q, opts, token);
 }
 
 export function searchUsers(
@@ -39,7 +41,7 @@ export function searchUsers(
   opts?: SearchOpts,
   token?: string,
 ): Promise<{ results: UserSearchResult[]; total: number; page: number; limit: number }> {
-  return sharedSearchUsers(API_BASE, forumId, q, opts, token);
+  return sharedSearchUsers(getApiBase(), forumId, q, opts, token);
 }
 
 // Forum-wide comment search stays local (not part of the shared subset).
@@ -49,7 +51,7 @@ export async function searchComments(
   opts?: SearchOpts,
   token?: string,
 ): Promise<SearchResponse<CommentSearchResult>> {
-  const res = await fetch(`${API_BASE}/forums/${forumId}/search/comments?${buildQuery(q, opts)}`, {
+  const res = await fetch(`${getApiBase()}/forums/${forumId}/search/comments?${buildQuery(q, opts)}`, {
     headers: authHeaders(token),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

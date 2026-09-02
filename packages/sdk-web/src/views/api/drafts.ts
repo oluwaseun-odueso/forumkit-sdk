@@ -7,21 +7,23 @@ import {
   deleteDraft as sharedDeleteDraft,
 } from '@forumkit/shared';
 
-const API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
+function getApiBase(): string {
+  return typeof window !== 'undefined'
+    ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+    : '';
+}
 
 // All draft endpoints delegate to the shared client (signatures unchanged).
 export function listDrafts(forumId: string, token?: string): Promise<Draft[]> {
-  return sharedListDrafts(API_BASE, forumId, token);
+  return sharedListDrafts(getApiBase(), forumId, token);
 }
 
 export function getDraft(forumId: string, draftId: string, token?: string): Promise<Draft> {
-  return sharedGetDraft(API_BASE, forumId, draftId, token);
+  return sharedGetDraft(getApiBase(), forumId, draftId, token);
 }
 
 export function createDraft(forumId: string, title: string, content: DraftContent, token?: string): Promise<Draft> {
-  return sharedCreateDraft(API_BASE, forumId, title, content, token);
+  return sharedCreateDraft(getApiBase(), forumId, title, content, token);
 }
 
 export function updateDraft(
@@ -30,9 +32,9 @@ export function updateDraft(
   fields: { title?: string; content?: DraftContent },
   token?: string,
 ): Promise<Draft> {
-  return sharedUpdateDraft(API_BASE, forumId, draftId, fields, token);
+  return sharedUpdateDraft(getApiBase(), forumId, draftId, fields, token);
 }
 
 export function deleteDraft(forumId: string, draftId: string, token?: string): Promise<void> {
-  return sharedDeleteDraft(API_BASE, forumId, draftId, token);
+  return sharedDeleteDraft(getApiBase(), forumId, draftId, token);
 }

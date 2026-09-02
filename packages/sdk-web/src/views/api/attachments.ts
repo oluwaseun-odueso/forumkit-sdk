@@ -5,9 +5,11 @@ import {
   deleteAttachment as sharedDeleteAttachment,
 } from '@forumkit/shared';
 
-const API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
+function getApiBase(): string {
+  return typeof window !== 'undefined'
+    ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+    : '';
+}
 
 export type RequestUploadUrlOptions = {
   forumId: string;
@@ -20,7 +22,7 @@ export type RequestUploadUrlOptions = {
 
 export function requestUploadUrl(opts: RequestUploadUrlOptions): Promise<UploadUrlResponse> {
   return sharedRequestUploadUrl(
-    API_BASE,
+    getApiBase(),
     opts.forumId,
     { filename: opts.filename, mimeType: opts.mimeType, byteSize: opts.byteSize, purpose: opts.purpose },
     opts.token,
@@ -40,9 +42,9 @@ export function confirmUpload(
   dimensions: { width: number | null; height: number | null },
   token?: string,
 ): Promise<Attachment & { downloadUrl: string }> {
-  return sharedConfirmUpload(API_BASE, forumId, attachmentId, dimensions, token);
+  return sharedConfirmUpload(getApiBase(), forumId, attachmentId, dimensions, token);
 }
 
 export function deleteAttachment(forumId: string, attachmentId: string, token?: string): Promise<void> {
-  return sharedDeleteAttachment(API_BASE, forumId, attachmentId, token);
+  return sharedDeleteAttachment(getApiBase(), forumId, attachmentId, token);
 }

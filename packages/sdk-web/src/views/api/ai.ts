@@ -2,9 +2,11 @@ import type { AISuggestion, SimilarThread } from '@forumkit/types';
 import { askQuestionStreaming, summariseStreaming, suggestStreaming } from '@forumkit/shared';
 export type { AskStreamEvent, SummariseStreamEvent, SuggestStreamEvent } from '@forumkit/shared';
 
-const API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
+function getApiBase(): string {
+  return typeof window !== 'undefined'
+    ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+    : '';
+}
 
 function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -12,7 +14,7 @@ function authHeaders(token?: string): Record<string, string> {
 
 export async function callSummarise(threadId: string, token?: string): Promise<string[]> {
   try {
-    const res = await fetch(`${API_BASE}/threads/${threadId}/ai/summarise`, {
+    const res = await fetch(`${getApiBase()}/threads/${threadId}/ai/summarise`, {
       method: 'POST',
       headers: authHeaders(token),
     });
@@ -28,7 +30,7 @@ export async function callSummarise(threadId: string, token?: string): Promise<s
 
 export async function callSuggest(threadId: string, token?: string): Promise<string> {
   try {
-    const res = await fetch(`${API_BASE}/threads/${threadId}/ai/suggest`, {
+    const res = await fetch(`${getApiBase()}/threads/${threadId}/ai/suggest`, {
       method: 'POST',
       headers: authHeaders(token),
     });
@@ -43,7 +45,7 @@ export async function callSuggest(threadId: string, token?: string): Promise<str
 
 export async function callSurfaceRelated(threadId: string, token?: string): Promise<SimilarThread[]> {
   try {
-    const res = await fetch(`${API_BASE}/threads/${threadId}/ai/surface-related`, {
+    const res = await fetch(`${getApiBase()}/threads/${threadId}/ai/surface-related`, {
       method: 'POST',
       headers: authHeaders(token),
     });
@@ -63,7 +65,7 @@ export async function callSummariseStreaming(
   onEvent: Parameters<typeof summariseStreaming>[3],
   token?: string,
 ): Promise<void> {
-  await summariseStreaming(API_BASE, threadId, token, onEvent);
+  await summariseStreaming(getApiBase(), threadId, token, onEvent);
 }
 
 export async function callSuggestStreaming(
@@ -71,7 +73,7 @@ export async function callSuggestStreaming(
   onEvent: Parameters<typeof suggestStreaming>[3],
   token?: string,
 ): Promise<void> {
-  await suggestStreaming(API_BASE, threadId, token, onEvent);
+  await suggestStreaming(getApiBase(), threadId, token, onEvent);
 }
 
 export async function callAskStreaming(
@@ -81,7 +83,7 @@ export async function callAskStreaming(
   onEvent: Parameters<typeof askQuestionStreaming>[4],
 ): Promise<void> {
   if (!token) throw new Error('Not authenticated');
-  await askQuestionStreaming(API_BASE, forumId, q, token, onEvent);
+  await askQuestionStreaming(getApiBase(), forumId, q, token, onEvent);
 }
 
 export async function callSuggestMetadata(
@@ -92,7 +94,7 @@ export async function callSuggestMetadata(
   token?: string,
 ): Promise<SuggestMetadataResult> {
   try {
-    const res = await fetch(`${API_BASE}/forums/${forumId}/ai/suggest-metadata`, {
+    const res = await fetch(`${getApiBase()}/forums/${forumId}/ai/suggest-metadata`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
       body: JSON.stringify({ title, body, existingTags }),

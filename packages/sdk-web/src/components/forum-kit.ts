@@ -91,11 +91,19 @@ export class ForumKitElement extends HTMLElement {
     const platformAttr = this.getAttribute('platform');
     const platform = platformAttr === 'native' ? 'native' : 'web';
 
+    const apiUrl = this.getAttribute('api-url') ?? DEFAULT_API_URL;
+    // views/api/*.ts's fetch calls all read this global for their base URL
+    // (set here rather than threaded through props/context, since several of
+    // them are called from outside any component - e.g. streaming helpers).
+    if (typeof window !== 'undefined') {
+      (window as Window & { FK_API_URL?: string }).FK_API_URL = apiUrl;
+    }
+
     return {
       forumId,
       token,
       theme,
-      apiUrl: this.getAttribute('api-url') ?? DEFAULT_API_URL,
+      apiUrl,
       platform,
       ...(this._onLogout ? { onLogout: this._onLogout } : {}),
     };

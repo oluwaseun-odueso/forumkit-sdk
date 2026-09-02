@@ -5,10 +5,12 @@ import { searchGifs as sharedSearchGifs, GifSearchNotConfiguredError } from '@fo
 // keep working unchanged.
 export { GifSearchNotConfiguredError };
 
-const API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
+function getApiBase(): string {
+  return typeof window !== 'undefined'
+    ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+    : '';
+}
 
 export function searchGifs(forumId: string, query: string, token?: string, limit = 24): Promise<GifResult[]> {
-  return sharedSearchGifs(API_BASE, forumId, query, token, limit);
+  return sharedSearchGifs(getApiBase(), forumId, query, token, limit);
 }
