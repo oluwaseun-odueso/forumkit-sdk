@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
+import { NavigationContainer, NavigationIndependentTree, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeContext';
 import FeedScreen from '../screens/FeedScreen';
@@ -56,30 +56,39 @@ export default function RootNavigator() {
   }), [mode, tokens]);
 
   return (
-    <NavigationContainer theme={navTheme}>
-      {/* statusBarTranslucent: Android-only, defaults to false in react-native-
-          screens — that mismatches our edge-to-edge theme (transparent status
-          bar in styles.xml, enforced by Android 15/SDK 35 regardless), so
-          each Screen's own window-insets handling wasn't forwarding a
-          correct top inset to useSafeAreaInsets() on Android. */}
-      <Stack.Navigator screenOptions={{ headerShown: false, statusBarTranslucent: true }}>
-        <Stack.Screen name="Feed" component={FeedScreen} />
-        {/* animation: 'none' stops native-stack from playing its own push/pop
-            transition on top of the swipe's own JS slide-out when it calls
-            navigation.replace() into a neighbouring thread — that stacked,
-            direction-mismatched native transition was part of what made
-            swiping feel bumpy.
-            gestureEnabled is left at the default (true) so the iOS native
-            edge-swipe-back works. ThreadScreen's PanResponder ignores touches
-            that start within the left-edge zone (first 30px), leaving those
-            for the native recogniser. */}
-        <Stack.Screen name="Thread" component={ThreadScreen} options={{ animation: 'none' }} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="Search" component={SearchScreen} />
-        <Stack.Screen name="SearchInput" component={SearchInputScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="AskResult" component={AskResultScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Moderation" component={ModerationScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    // ForumKit is embedded inside a host app's own component tree, which in
+    // virtually every real RN app already has its own NavigationContainer at
+    // its root (see fix commit for the psos-app crash this addresses:
+    // "Looks like you have nested a 'NavigationContainer' inside another").
+    // NavigationIndependentTree marks this container as deliberately
+    // self-contained — its own back stack, its own everything, no state
+    // shared with (or visible to) whatever navigator the host already has.
+    <NavigationIndependentTree>
+      <NavigationContainer theme={navTheme}>
+        {/* statusBarTranslucent: Android-only, defaults to false in react-native-
+            screens — that mismatches our edge-to-edge theme (transparent status
+            bar in styles.xml, enforced by Android 15/SDK 35 regardless), so
+            each Screen's own window-insets handling wasn't forwarding a
+            correct top inset to useSafeAreaInsets() on Android. */}
+        <Stack.Navigator screenOptions={{ headerShown: false, statusBarTranslucent: true }}>
+          <Stack.Screen name="Feed" component={FeedScreen} />
+          {/* animation: 'none' stops native-stack from playing its own push/pop
+              transition on top of the swipe's own JS slide-out when it calls
+              navigation.replace() into a neighbouring thread — that stacked,
+              direction-mismatched native transition was part of what made
+              swiping feel bumpy.
+              gestureEnabled is left at the default (true) so the iOS native
+              edge-swipe-back works. ThreadScreen's PanResponder ignores touches
+              that start within the left-edge zone (first 30px), leaving those
+              for the native recogniser. */}
+          <Stack.Screen name="Thread" component={ThreadScreen} options={{ animation: 'none' }} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="SearchInput" component={SearchInputScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AskResult" component={AskResultScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Moderation" component={ModerationScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </NavigationIndependentTree>
   );
 }
