@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 import { listDrafts, deleteDraft, fmtRelativeTime } from '@forumkit/shared';
 import type { Draft } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { CloseIcon } from '../components/icons';
 import Mascot from '../components/Mascot';
 import { useSheetLayout } from '../lib/sheet-layout';
+import BottomSheetShell from '../components/BottomSheetShell';
 
 // Drafts list (bottom sheet) — mirrors sdk-web's drafts-list-modal. Opened from
 // the composer's "Drafts" link: tap a draft to load it into the composer, or
@@ -39,43 +40,40 @@ export default function DraftsSheet({ apiUrl, forumId, token, onClose, onOpen }:
   }
 
   return (
-    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]} onPress={() => {}}>
-          <Text style={[styles.title, { color: tokens.text }]}>Drafts</Text>
-          <Text style={[styles.note, { color: tokens.muted }]}>Media isn’t saved in drafts.</Text>
+    <BottomSheetShell visible onClose={onClose}>
+      <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]}>
+        <Text style={[styles.title, { color: tokens.text }]}>Drafts</Text>
+        <Text style={[styles.note, { color: tokens.muted }]}>Media isn’t saved in drafts.</Text>
 
-          {loading ? (
-            <View style={{ alignItems: 'center', padding: 16 }}><Mascot size={36} /></View>
-          ) : drafts.length === 0 ? (
-            <Text style={{ color: tokens['text-2'], padding: 12 }}>No drafts yet</Text>
-          ) : (
-            <FlatList
-              data={drafts}
-              keyExtractor={d => d.id}
-              style={{ maxHeight: 320 }}
-              renderItem={({ item }) => (
-                <Pressable onPress={() => onOpen(item)} style={[styles.row, { borderTopColor: tokens.border }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.dTitle, { color: tokens.text }]} numberOfLines={1}>{item.title || 'Untitled'}</Text>
-                    {item.content.body ? <Text style={[styles.dBody, { color: tokens['text-2'] }]} numberOfLines={1}>{item.content.body}</Text> : null}
-                    <Text style={[styles.dTime, { color: tokens.muted }]}>{fmtRelativeTime(item.updatedAt)}</Text>
-                  </View>
-                  <Pressable onPress={() => remove(item.id)} hitSlop={8} style={[styles.del, { backgroundColor: tokens['surface-2'] }]}>
-                    <CloseIcon size={14} color={tokens['text-2']} />
-                  </Pressable>
+        {loading ? (
+          <View style={{ alignItems: 'center', padding: 16 }}><Mascot size={36} /></View>
+        ) : drafts.length === 0 ? (
+          <Text style={{ color: tokens['text-2'], padding: 12 }}>No drafts yet</Text>
+        ) : (
+          <FlatList
+            data={drafts}
+            keyExtractor={d => d.id}
+            style={{ maxHeight: 320 }}
+            renderItem={({ item }) => (
+              <Pressable onPress={() => onOpen(item)} style={[styles.row, { borderTopColor: tokens.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.dTitle, { color: tokens.text }]} numberOfLines={1}>{item.title || 'Untitled'}</Text>
+                  {item.content.body ? <Text style={[styles.dBody, { color: tokens['text-2'] }]} numberOfLines={1}>{item.content.body}</Text> : null}
+                  <Text style={[styles.dTime, { color: tokens.muted }]}>{fmtRelativeTime(item.updatedAt)}</Text>
+                </View>
+                <Pressable onPress={() => remove(item.id)} hitSlop={8} style={[styles.del, { backgroundColor: tokens['surface-2'] }]}>
+                  <CloseIcon size={14} color={tokens['text-2']} />
                 </Pressable>
-              )}
-            />
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+              </Pressable>
+            )}
+          />
+        )}
+      </View>
+    </BottomSheetShell>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16 },
   title: { fontSize: 16, fontWeight: '800' },
   note: { fontSize: 12, marginTop: 4, marginBottom: 8 },

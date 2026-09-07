@@ -12,7 +12,7 @@ export default function ConfirmDialog({ title, message, confirmLabel = 'Delete',
 }) {
   const { tokens } = useTheme();
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={onCancel}>
+    <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={onCancel}>
       <Pressable style={styles.scrim} onPress={onCancel}>
         <Pressable style={[styles.card, { backgroundColor: tokens.elev, borderColor: tokens.border }]} onPress={() => {}}>
           <Text style={[styles.title, { color: tokens.text }]}>{title}</Text>

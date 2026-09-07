@@ -40,7 +40,7 @@ export function DropdownMenu({ visible, onClose, anchor, width = 150, align = 'l
   const left = align === 'left' ? anchor.x : anchor.x + anchor.width - width;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
         {/* Inner Pressable swallows taps on the card so they don't reach the
             scrim and close it (rows handle their own presses). */}

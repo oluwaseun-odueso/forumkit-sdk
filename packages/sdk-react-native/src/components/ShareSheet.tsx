@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, TextInput, Pressable, FlatList, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, FlatList, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { searchUsers } from '@forumkit/shared';
 import type { UserSearchResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from './Avatar';
 import { useSheetLayout } from '../lib/sheet-layout';
+import BottomSheetShell from './BottomSheetShell';
 
 // In-app member share — the native platform's share target (per ForumKitConfig:
 // native share goes to in-app member sharing, not a copyable link). Mirrors
@@ -46,13 +47,8 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
   }
 
   return (
-    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
+    <BottomSheetShell visible onClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      {/* Scrim and sheet are siblings, not nested — see EditProfileSheet.tsx
-          for why (a nested Pressable-swallows-tap hack is fragile once a
-          scrollable list sits inside it). */}
-      <Pressable style={styles.scrim} onPress={onClose} />
-      <View style={styles.sheetWrap} pointerEvents="box-none">
         <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]}>
           <Text style={[styles.title, { color: tokens.text }]}>Share with a member</Text>
           <TextInput
@@ -93,15 +89,12 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
             </Text>
           </Pressable>
         </View>
-      </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </BottomSheetShell>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16 },
   title: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
   search: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14 },

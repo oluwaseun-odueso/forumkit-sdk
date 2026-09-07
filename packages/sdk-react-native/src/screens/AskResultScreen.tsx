@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Modal,
+  View, Text, TextInput, Pressable, ScrollView, StyleSheet,
   ActivityIndicator, Platform, KeyboardAvoidingView, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import type { SearchResult } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
+import BottomSheetShell from '../components/BottomSheetShell';
 import { ArrowRightIcon, ChevronRightIcon } from '../components/icons';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -169,13 +170,7 @@ export default function AskResultScreen() {
       </KeyboardAvoidingView>
 
       {/* Sources bottom sheet */}
-      <Modal
-        visible={sheetTurn !== null}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSheetTurn(null)}
-      >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setSheetTurn(null)} />
+      <BottomSheetShell visible={sheetTurn !== null} onClose={() => setSheetTurn(null)}>
         <View style={[styles.sheet, {
           backgroundColor: tokens.bg,
           paddingBottom: insets.bottom + 16,
@@ -201,7 +196,7 @@ export default function AskResultScreen() {
             ))}
           </ScrollView>
         </View>
-      </Modal>
+      </BottomSheetShell>
     </View>
   );
 }
@@ -569,10 +564,6 @@ const styles = StyleSheet.create({
   },
 
   // Sources bottom sheet
-  sheetBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
   sheet: {
     borderRadius: 20,
     paddingTop: 12,
