@@ -19,7 +19,7 @@ type ForumKitProps = ForumKitConfig & {
  *     theme={{ primaryColor: '#6200EE' }}
  *   />
  */
-export function ForumKit({ forumId, token, theme, apiUrl, platform, onLogout, className }: ForumKitProps): React.JSX.Element {
+export function ForumKit({ forumId, token, theme, apiUrl, platform, onLogout, getToken, className }: ForumKitProps): React.JSX.Element {
   const ref = useRef<ForumKitElement>(null);
 
   useEffect(() => {
@@ -32,7 +32,8 @@ export function ForumKit({ forumId, token, theme, apiUrl, platform, onLogout, cl
     if (apiUrl) el.setAttribute('api-url', apiUrl);
     if (platform) el.setAttribute('platform', platform);
     el.onLogout = onLogout;
-  }, [forumId, token, theme, apiUrl, platform, onLogout]);
+    el.getToken = getToken;
+  }, [forumId, token, theme, apiUrl, platform, onLogout, getToken]);
 
   return (
     // @ts-expect-error — custom element not in JSX intrinsic elements

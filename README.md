@@ -195,6 +195,13 @@ system or a `prefers-color-scheme` media query) rather than JS.
   component props (it's a function, which a plain HTML attribute can't
   carry). The bare `<forum-kit>` Web Component has no equivalent, so no
   "Log Out" item appears in its account menu.
+- **`getToken`** — optional, same function-prop caveat as `onLogout` above.
+  `token` is a signed JWT from your backend and is only used for the SDK's
+  very first session exchange; if your host token is short-lived (it
+  should be), the session will stop renewing once it expires unless you
+  also provide `getToken`, called to fetch a fresh one for every renewal
+  after that. Wire it to whatever endpoint your backend already uses to
+  mint that JWT.
 - **`apiUrl`** — points the SDK at a non-same-origin API. Defaults to
   same origin on web; required on React Native (there's no "same
   origin" inside a native app).

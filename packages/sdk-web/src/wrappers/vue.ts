@@ -12,6 +12,7 @@ export const ForumKit = defineComponent({
     apiUrl:  { type: String, default: undefined },
     platform: { type: String as PropType<'web' | 'native'>, default: undefined },
     onLogout: { type: Function as PropType<() => void>, default: undefined },
+    getToken: { type: Function as PropType<() => Promise<string>>, default: undefined },
     class:   { type: String, default: undefined },
   },
   setup(props) {
@@ -38,6 +39,7 @@ export const ForumKit = defineComponent({
         el.removeAttribute('platform');
       }
       el.onLogout = props.onLogout;
+      el.getToken = props.getToken;
     }
 
     onMounted(applyProps);

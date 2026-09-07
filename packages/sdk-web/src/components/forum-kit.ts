@@ -74,6 +74,27 @@ export class ForumKitElement extends HTMLElement {
     }
   }
 
+  // Same reasoning as onLogout above - getToken is a function, so it's a JS
+  // property (el.getToken = fn) rather than an observed attribute. Called by
+  // SessionProvider to fetch a fresh host JWT on every renewal past the
+  // first exchange, since a properly short-lived host token (the security
+  // property it's meant to have) will already be expired by the time a
+  // renewal is due - without this, the SDK has no way to get a new one and
+  // renewal just fails once the original token expires.
+  private _getToken: (() => Promise<string>) | undefined;
+
+  get getToken(): (() => Promise<string>) | undefined {
+    return this._getToken;
+  }
+
+  set getToken(fn: (() => Promise<string>) | undefined) {
+    this._getToken = fn;
+    if (this._config) {
+      this._config = this._readConfig();
+      this._render();
+    }
+  }
+
   static get observedAttributes(): string[] {
     return ['forum-id', 'token', 'theme', 'api-url', 'platform'];
   }
@@ -138,6 +159,7 @@ export class ForumKitElement extends HTMLElement {
       apiUrl,
       platform,
       ...(this._onLogout ? { onLogout: this._onLogout } : {}),
+      ...(this._getToken ? { getToken: this._getToken } : {}),
     };
   }
 

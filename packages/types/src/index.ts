@@ -558,6 +558,15 @@ export type ThemeTokens = {
 export type ForumKitConfig = {
   forumId: string;
   token: string;                     // signed JWT from host application
+  // Called to fetch a fresh host JWT whenever the SDK needs to refresh its
+  // session (`token` above is only used for the very first exchange). A host
+  // JWT is meant to be short-lived (security property, not an implementation
+  // detail), so without this the SDK has no way to renew past however long
+  // that first token was valid for — it can only keep re-presenting the same
+  // one, which the backend correctly rejects once it's expired. Omitted
+  // entirely, the session just stops renewing once `token` expires, same as
+  // before this field existed.
+  getToken?: () => Promise<string>;
   theme?: ThemeTokens;
   apiUrl?: string;                   // defaults to same origin
   onLogout?: () => void;             // host owns the real sign-out flow; if provided, the
