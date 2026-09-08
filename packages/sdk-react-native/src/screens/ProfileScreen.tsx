@@ -208,9 +208,6 @@ function ProfileBody() {
           <Mascot size={88} animated={false} badge={false} />
           <Text style={[styles.emptyTitle, { color: tokens.text }]}>{copy.title}</Text>
           <Text style={[styles.emptyDesc, { color: tokens.muted }]}>{copy.description}</Text>
-          <Pressable onPress={() => setEditOpen(true)} style={[styles.settingsBtn, { backgroundColor: tokens.text }]}>
-            <Text style={{ color: tokens.bg, fontSize: 13.5, fontWeight: '700' }}>Update Settings</Text>
-          </Pressable>
         </View>
       ) : (
         <View style={{ paddingHorizontal: 16 }}>
@@ -295,5 +292,4 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 24 },
   emptyTitle: { fontSize: 17, fontWeight: '800', marginTop: 16, textAlign: 'center' },
   emptyDesc: { fontSize: 13.5, textAlign: 'center', marginTop: 8, maxWidth: 280, lineHeight: 20 },
-  settingsBtn: { borderRadius: 999, paddingVertical: 10, paddingHorizontal: 20, marginTop: 18 },
 });

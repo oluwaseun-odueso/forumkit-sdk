@@ -1,14 +1,12 @@
 import { profileEmptyCopy } from '@forumkit/shared';
 import MascotIcon from '../layout/mascot-icon';
-import PillButton from '../shared/pill-button';
 import './profile-empty-state.css';
 
 type ProfileEmptyStateProps = {
   tab: string;
-  onUpdateSettings: () => void;
 };
 
-export default function ProfileEmptyState({ tab, onUpdateSettings }: ProfileEmptyStateProps) {
+export default function ProfileEmptyState({ tab }: ProfileEmptyStateProps) {
   const copy = profileEmptyCopy(tab);
 
   return (
@@ -18,9 +16,6 @@ export default function ProfileEmptyState({ tab, onUpdateSettings }: ProfileEmpt
       </div>
       <h2 className="fk-profile-empty-title">{copy.title}</h2>
       <p className="fk-profile-empty-desc">{copy.description}</p>
-      <PillButton variant="ghost" onClick={onUpdateSettings} style={{ background: 'var(--text)', color: 'var(--bg)' }}>
-        Update Settings
-      </PillButton>
     </div>
   );
 }

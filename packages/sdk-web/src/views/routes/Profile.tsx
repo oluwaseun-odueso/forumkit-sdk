@@ -46,7 +46,7 @@ export function Profile() {
   const {
     state, setProfileTab, setProfileSort, setProfileContentType, loadMoreProfileActivity,
     setViewedProfileTab, setViewedProfileSort, setViewedProfileContentType, loadMoreViewedProfileActivity,
-    openComposer, openThread, openSettings, votePost, toggleSavePost, setPostMenu, goBack,
+    openComposer, openThread, votePost, toggleSavePost, setPostMenu, goBack,
   } = useForum();
   const [contentMenuOpen, setContentMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -136,7 +136,7 @@ export function Profile() {
         <div className="fk-profile-divider" />
 
         {profile.activityItems.length === 0 && !profile.activityLoading ? (
-          <ProfileEmptyState tab={profile.activeTab} onUpdateSettings={openSettings} />
+          <ProfileEmptyState tab={profile.activeTab} />
         ) : (
           <>
             {profile.activityItems.map(item => item.kind === 'thread' ? (
