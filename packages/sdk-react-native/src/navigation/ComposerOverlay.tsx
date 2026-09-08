@@ -127,7 +127,11 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
     if (!token || !canPost) return;
     setSubmitting(true);
     setError(null);
-    const rawBody = tab === 'link' ? (body.trim() ? `${body.trim()}\n${linkUrl.trim()}` : linkUrl.trim()) : body;
+    // Wrapped as markdown link syntax, not just the bare URL - RenderedBody
+    // only recognises [label](url), so a plain URL rendered as inert,
+    // unstyled text with nothing marking it as the link that was added.
+    const linkMarkdown = `[${linkTrimmed}](${linkTrimmed})`;
+    const rawBody = tab === 'link' ? (body.trim() ? `${body.trim()}\n${linkMarkdown}` : linkMarkdown) : body;
     // The backend requires a non-empty body always (title + media alone
     // aren't enough) — web never hits this because its rich-text editor
     // serializes an "empty" doc as non-empty markup (e.g. `<p></p>`), but
