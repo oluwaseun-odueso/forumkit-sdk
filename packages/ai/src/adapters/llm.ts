@@ -20,6 +20,59 @@ async function safeLLMCall(
   }
 }
 
+/**
+ * Extracts complete top-level JSON objects from `buffer`, in arrival order,
+ * calling `onObject` for each — regardless of what separates them.
+ *
+ * The streaming prompts below ask for one JSON object per line, but that's
+ * not a reliable invariant to parse against: confirmed directly against a
+ * real model response, a run of several objects can end up separated by a
+ * single space rather than a newline partway through a longer reply (the
+ * model followed the one-per-line instruction for the first couple of
+ * objects, then drifted). A naive `buffer.split('\n')` treats that whole
+ * multi-object run stuck together as one unparseable "line" and silently
+ * drops all of it via the catch-and-skip below - which is what made
+ * Suggest Reply's output empty far more often than Summarise's shorter,
+ * less drift-prone output, even though both used the same parsing.
+ *
+ * Tracks brace depth (ignoring braces inside string literals) to find each
+ * complete `{...}` object's exact bounds, so it doesn't matter whether
+ * objects are separated by a newline, a space, or nothing at all. Returns
+ * the unconsumed remainder (an in-progress trailing object, if any) for the
+ * caller to prepend to the next chunk.
+ */
+export function extractJSONObjects(buffer: string, onObject: (obj: unknown) => void): string {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let objStart = -1;
+
+  for (let i = 0; i < buffer.length; i++) {
+    const ch = buffer[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '{') {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0 && objStart !== -1) {
+        const candidate = buffer.slice(objStart, i + 1);
+        try { onObject(JSON.parse(candidate)); } catch { /* malformed object — skip */ }
+        objStart = -1;
+      }
+    }
+  }
+  // Nothing left mid-object → fully consumed; otherwise carry the
+  // in-progress object forward to be completed by the next chunk(s).
+  return objStart !== -1 ? buffer.slice(objStart) : '';
+}
+
 export type AskBullet   = { fact: string; quote: string; sourceIndex: number };
 export type AskCategory = { title: string; bullets: AskBullet[] };
 export type AskAnswer   = { intro: string; categories: AskCategory[]; suggestions: string[] };
@@ -95,22 +148,8 @@ export async function askSearchQuestionStream(
   let buffer = '';
   await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
     buffer += chunk;
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        onEvent(JSON.parse(trimmed) as AskStreamEvent);
-      } catch { /* malformed line — skip */ }
-    }
+    buffer = extractJSONObjects(buffer, (obj) => onEvent(obj as AskStreamEvent));
   });
-  // Flush anything remaining in the buffer after the stream ends.
-  if (buffer.trim()) {
-    try {
-      onEvent(JSON.parse(buffer.trim()) as AskStreamEvent);
-    } catch { /* ignore */ }
-  }
 }
 
 /**
@@ -289,21 +328,8 @@ export async function summariseThreadStream(
   let buffer = '';
   await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
     buffer += chunk;
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        onEvent(JSON.parse(trimmed) as SummariseStreamEvent);
-      } catch { /* malformed line — skip */ }
-    }
+    buffer = extractJSONObjects(buffer, (obj) => onEvent(obj as SummariseStreamEvent));
   });
-  if (buffer.trim()) {
-    try {
-      onEvent(JSON.parse(buffer.trim()) as SummariseStreamEvent);
-    } catch { /* ignore */ }
-  }
 }
 
 /**
@@ -337,25 +363,14 @@ export async function suggestAnswerStream(
   let buffer = '';
   await llmStreamFn(systemPrompt, userPrompt, (chunk) => {
     buffer += chunk;
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const event = JSON.parse(trimmed) as SuggestStreamEvent;
-        if (event.type === 'chunk') {
-          event.text = event.text
-            .replace(/\s*--\s*/g, ', ')
-            .replace(/[–—]/g, ',');
-        }
-        onEvent(event);
-      } catch { /* malformed line — skip */ }
-    }
+    buffer = extractJSONObjects(buffer, (obj) => {
+      const event = obj as SuggestStreamEvent;
+      if (event.type === 'chunk') {
+        event.text = event.text
+          .replace(/\s*--\s*/g, ', ')
+          .replace(/[–—]/g, ',');
+      }
+      onEvent(event);
+    });
   });
-  if (buffer.trim()) {
-    try {
-      onEvent(JSON.parse(buffer.trim()) as SuggestStreamEvent);
-    } catch { /* ignore */ }
-  }
 }
