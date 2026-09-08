@@ -127,11 +127,17 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
     if (!token || !canPost) return;
     setSubmitting(true);
     setError(null);
-    // Wrapped as markdown link syntax, not just the bare URL - RenderedBody
-    // only recognises [label](url), so a plain URL rendered as inert,
+    // Gated on whether a link was actually typed, not on tab === 'link' -
+    // linkUrl is its own persistent state, independent of which tab happens
+    // to be active when Post is pressed (e.g. fill in the link, switch back
+    // to Text to review, then post - tab is 'text' at that point, but the
+    // link the user typed shouldn't just be silently dropped). Wrapped as
+    // markdown link syntax, not just the bare URL - RenderedBody only
+    // recognises [label](url), so a plain URL would render as inert,
     // unstyled text with nothing marking it as the link that was added.
-    const linkMarkdown = `[${linkTrimmed}](${linkTrimmed})`;
-    const rawBody = tab === 'link' ? (body.trim() ? `${body.trim()}\n${linkMarkdown}` : linkMarkdown) : body;
+    const hasLink = linkTrimmed.length > 0 && isValidUrl(linkTrimmed);
+    const linkMarkdown = hasLink ? `[${linkTrimmed}](${linkTrimmed})` : '';
+    const rawBody = hasLink ? (body.trim() ? `${body.trim()}\n${linkMarkdown}` : linkMarkdown) : body;
     // The backend requires a non-empty body always (title + media alone
     // aren't enough) — web never hits this because its rich-text editor
     // serializes an "empty" doc as non-empty markup (e.g. `<p></p>`), but
