@@ -48,7 +48,11 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
 
   return (
     <BottomSheetShell visible onClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      {/* BottomSheetShell only bottom-anchors its direct child - this flex:1
+          wrapper fills the whole shell, so it needs its own justifyContent
+          to keep the card itself pinned to the bottom rather than the
+          top-aligned flex default. */}
+      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]}>
           <Text style={[styles.title, { color: tokens.text }]}>Share with a member</Text>
           <TextInput
@@ -56,7 +60,7 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
             onChangeText={setQuery}
             placeholder="Search members"
             placeholderTextColor={tokens.muted}
-            style={[styles.search, { color: tokens.text, backgroundColor: tokens['surface-2'], borderColor: tokens['border-strong'] }]}
+            style={[styles.search, { color: tokens.text, backgroundColor: tokens['surface-2'] }]}
           />
           {loading ? (
             <ActivityIndicator color={tokens.accent} style={{ padding: 16 }} />
@@ -97,7 +101,7 @@ export default function ShareSheet({ apiUrl, forumId, token, onClose, onShare }:
 const styles = StyleSheet.create({
   sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16 },
   title: { fontSize: 16, fontWeight: '800', marginBottom: 12 },
-  search: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14 },
+  search: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   check: { width: 20, height: 20, borderRadius: 10, borderWidth: 2 },
   shareBtn: { borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginTop: 12 },

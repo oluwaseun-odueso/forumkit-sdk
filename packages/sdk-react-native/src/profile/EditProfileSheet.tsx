@@ -74,7 +74,11 @@ export default function EditProfileSheet({ apiUrl, forumId, token, profile, onCl
 
   return (
     <BottomSheetShell visible onClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      {/* BottomSheetShell only bottom-anchors its direct child - this flex:1
+          wrapper fills the whole shell, so it needs its own justifyContent
+          to keep the card itself pinned to the bottom rather than the
+          top-aligned flex default. */}
+      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight: sheetMaxHeight, paddingBottom }]}>
           <View style={styles.header}>
             <Text style={[styles.title, { color: tokens.text }]}>Edit profile</Text>
