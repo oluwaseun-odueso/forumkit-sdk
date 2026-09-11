@@ -11,6 +11,7 @@ import type { UserProfile, ProfileActivityScope, VoteDirection, Comment } from '
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
+import { useThreadSync, type ThreadSyncPatch } from '../sync/ThreadSyncContext';
 import { pickAndUploadImage } from '../lib/upload';
 import Shell, { useShell } from '../navigation/Shell';
 import Avatar from '../components/Avatar';
@@ -79,23 +80,49 @@ function ProfileBody() {
     setActivity(prev => prev.map(a => (a.kind === 'thread' && a.row.id === id ? { kind: 'thread', row: fn(a.row) } : a)));
   }, []);
 
+  const { threadPatches, commentPatches, patchThread } = useThreadSync();
+
+  // Pick up patches broadcast from other screens, and drop rows that no
+  // longer belong in the currently active tab (e.g. unsaving a thread from
+  // ThreadScreen while this screen's Saved tab is mounted underneath).
+  useEffect(() => {
+    setActivity(prev => prev
+      .map(a => {
+        if (a.kind === 'thread') {
+          const patch = threadPatches[a.row.id];
+          return patch ? { kind: 'thread' as const, row: { ...a.row, ...patch } } : a;
+        }
+        const patch = commentPatches[a.comment.id];
+        return patch ? { ...a, comment: { ...a.comment, ...patch } } : a;
+      })
+      .filter(a => {
+        if (a.kind !== 'thread') return true;
+        if (activeTab === 'Saved') return a.row.saved;
+        if (activeTab === 'Upvoted') return a.row.myVote === 1;
+        if (activeTab === 'Downvoted') return a.row.myVote === -1;
+        return true;
+      }));
+  }, [threadPatches, commentPatches, activeTab]);
+
   function onVote(row: FeedRow, dir: VoteDirection) {
     if (!token) return;
     const oldDir = row.myVote;
     const newDir = nextVoteDir(oldDir, dir);
     const prev = row.voteCounts;
-    updateThreadRow(row.id, r => ({ ...r, myVote: newDir, voteCounts: applyVote(r.voteCounts, oldDir, newDir) }));
+    const apply = (patch: ThreadSyncPatch) => { updateThreadRow(row.id, r => ({ ...r, ...patch })); patchThread(row.id, patch); };
+    apply({ myVote: newDir, voteCounts: applyVote(row.voteCounts, oldDir, newDir) });
     const req = newDir === null ? removeVoteFromThread(apiUrl, forumId, row.id, token) : voteOnThread(apiUrl, forumId, row.id, newDir, token);
-    req.then(res => updateThreadRow(row.id, r => ({ ...r, myVote: res.myVote, voteCounts: res.voteCounts })))
-      .catch(() => updateThreadRow(row.id, r => ({ ...r, myVote: oldDir, voteCounts: prev })));
+    req.then(res => apply({ myVote: res.myVote, voteCounts: res.voteCounts }))
+      .catch(() => apply({ myVote: oldDir, voteCounts: prev }));
   }
 
   function onSave(row: FeedRow) {
     if (!token) return;
     const next = !row.saved;
-    updateThreadRow(row.id, r => ({ ...r, saved: next }));
+    const apply = (patch: ThreadSyncPatch) => { updateThreadRow(row.id, r => ({ ...r, ...patch })); patchThread(row.id, patch); };
+    apply({ saved: next });
     const req = next ? saveThread(apiUrl, forumId, row.id, token) : unsaveThread(apiUrl, forumId, row.id, token);
-    req.catch(() => updateThreadRow(row.id, r => ({ ...r, saved: !next })));
+    req.catch(() => apply({ saved: !next }));
   }
 
   async function editImage(kind: 'avatar' | 'banner') {

@@ -5,6 +5,7 @@ import { Michroma_400Regular } from '@expo-google-fonts/michroma';
 import type { ForumKitConfig } from '@forumkit/types';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import { SessionProvider, useSession } from './session/SessionContext';
+import { ThreadSyncProvider } from './sync/ThreadSyncContext';
 import RootNavigator from './navigation/RootNavigator';
 
 // The mountable SDK root — a host app drops in <ForumKit forumId token
@@ -35,7 +36,9 @@ export function ForumKit(config: ForumKitConfig) {
     <SafeAreaProvider>
       <ThemeProvider theme={config.theme}>
         <SessionProvider config={config}>
-          <SessionGate />
+          <ThreadSyncProvider>
+            <SessionGate />
+          </ThreadSyncProvider>
         </SessionProvider>
       </ThemeProvider>
     </SafeAreaProvider>

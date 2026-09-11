@@ -9,6 +9,7 @@ import type { VoteDirection } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
+import { useThreadSync, type ThreadSyncPatch } from '../sync/ThreadSyncContext';
 import Shell from '../navigation/Shell';
 import { useScrollCollapse } from '../lib/useScrollCollapse';
 import PostRow from '../feed/PostRow';
@@ -92,33 +93,42 @@ function FeedBody() {
 
   useEffect(() => { void load(sort); }, [load, sort]);
 
+  const { threadPatches, patchThread } = useThreadSync();
+
   const updateRow = useCallback((id: string, fn: (r: FeedRow) => FeedRow) => {
     setRows(prev => prev.map(r => (r.id === id ? fn(r) : r)));
   }, []);
+
+  // Pick up patches broadcast by other screens for rows already loaded here.
+  useEffect(() => {
+    setRows(prev => prev.map(r => (threadPatches[r.id] ? { ...r, ...threadPatches[r.id] } : r)));
+  }, [threadPatches]);
 
   const onVote = useCallback((row: FeedRow, dir: VoteDirection) => {
     if (!token) return;
     const oldDir = row.myVote;
     const newDir = nextVoteDir(oldDir, dir);
     const prevCounts = row.voteCounts;
-    updateRow(row.id, r => ({ ...r, myVote: newDir, voteCounts: applyVote(r.voteCounts, oldDir, newDir) }));
+    const apply = (patch: ThreadSyncPatch) => { updateRow(row.id, r => ({ ...r, ...patch })); patchThread(row.id, patch); };
+    apply({ myVote: newDir, voteCounts: applyVote(row.voteCounts, oldDir, newDir) });
     const req = newDir === null
       ? removeVoteFromThread(apiUrl, forumId, row.id, token)
       : voteOnThread(apiUrl, forumId, row.id, newDir, token);
     req
-      .then(res => updateRow(row.id, r => ({ ...r, myVote: res.myVote, voteCounts: res.voteCounts })))
-      .catch(() => updateRow(row.id, r => ({ ...r, myVote: oldDir, voteCounts: prevCounts })));
-  }, [apiUrl, forumId, token, updateRow]);
+      .then(res => apply({ myVote: res.myVote, voteCounts: res.voteCounts }))
+      .catch(() => apply({ myVote: oldDir, voteCounts: prevCounts }));
+  }, [apiUrl, forumId, token, updateRow, patchThread]);
 
   const onSave = useCallback((row: FeedRow) => {
     if (!token) return;
     const newSaved = !row.saved;
-    updateRow(row.id, r => ({ ...r, saved: newSaved }));
+    const apply = (patch: ThreadSyncPatch) => { updateRow(row.id, r => ({ ...r, ...patch })); patchThread(row.id, patch); };
+    apply({ saved: newSaved });
     const req = newSaved
       ? saveThread(apiUrl, forumId, row.id, token)
       : unsaveThread(apiUrl, forumId, row.id, token);
-    req.catch(() => updateRow(row.id, r => ({ ...r, saved: !newSaved })));
-  }, [apiUrl, forumId, token, updateRow]);
+    req.catch(() => apply({ saved: !newSaved }));
+  }, [apiUrl, forumId, token, updateRow, patchThread]);
 
   const submitReport = useCallback((reason: string) => {
     if (!token || !reportId) return;

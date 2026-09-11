@@ -13,6 +13,7 @@ import type { Thread, Comment, VoteDirection } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
+import { useThreadSync, type ThreadSyncPatch, type CommentSyncPatch } from '../sync/ThreadSyncContext';
 import Shell, { useShell } from '../navigation/Shell';
 import { useScrollCollapse } from '../lib/useScrollCollapse';
 import Avatar from '../components/Avatar';
@@ -181,6 +182,28 @@ export default function ThreadScreen() {
     return () => { cancelled = true; };
   }, [apiUrl, forumId, threadId, token]);
 
+  const { threadPatches, commentPatches, patchThread, patchComment } = useThreadSync();
+
+  // Pick up patches broadcast by other screens (e.g. a vote/save cast from
+  // Feed, or from this same thread mounted twice) for this thread and its
+  // comments. myVote uses !== undefined, not != null, since null is itself a
+  // meaningful value here (vote removed) that must not be mistaken for "this
+  // patch didn't touch myVote at all".
+  useEffect(() => {
+    const patch = threadPatches[threadId];
+    if (patch) setThread(t => (t ? {
+      ...t,
+      ...(patch.voteCounts != null && { voteCounts: patch.voteCounts }),
+      ...(patch.myVote !== undefined && { myVote: patch.myVote }),
+      ...(patch.commentCount != null && { commentCount: patch.commentCount }),
+      ...(patch.saved != null && { isSaved: patch.saved }),
+    } : t));
+  }, [threadPatches, threadId]);
+
+  useEffect(() => {
+    setComments(prev => prev.map(c => (commentPatches[c.id] ? { ...c, ...commentPatches[c.id] } : c)));
+  }, [commentPatches]);
+
   const tree = useMemo(() => {
     const built = commentsToCommentTree(comments);
     const filtered = search.trim() ? filterComments(built, search.trim()) : built;
@@ -195,17 +218,19 @@ export default function ThreadScreen() {
     const oldDir = thread.myVote ?? null;
     const newDir = nextVoteDir(oldDir, dir);
     const prev = thread.voteCounts ?? { up: 0, down: 0 };
-    setThread(t => (t ? { ...t, myVote: newDir, voteCounts: applyVote(t.voteCounts ?? { up: 0, down: 0 }, oldDir, newDir) } : t));
+    const apply = (patch: ThreadSyncPatch) => { setThread(t => (t ? { ...t, ...patch } : t)); patchThread(threadId, patch); };
+    apply({ myVote: newDir, voteCounts: applyVote(thread.voteCounts ?? { up: 0, down: 0 }, oldDir, newDir) });
     const req = newDir === null ? removeVoteFromThread(apiUrl, forumId, threadId, token) : voteOnThread(apiUrl, forumId, threadId, newDir, token);
-    req.then(r => setThread(t => (t ? { ...t, myVote: r.myVote, voteCounts: r.voteCounts } : t)))
-      .catch(() => setThread(t => (t ? { ...t, myVote: oldDir, voteCounts: prev } : t)));
+    req.then(r => apply({ myVote: r.myVote, voteCounts: r.voteCounts }))
+      .catch(() => apply({ myVote: oldDir, voteCounts: prev }));
   }
 
   function savePost(save: boolean) {
     if (!token) return;
-    setThread(t => (t ? { ...t, isSaved: save } : t));
+    const apply = (saved: boolean) => { setThread(t => (t ? { ...t, isSaved: saved } : t)); patchThread(threadId, { saved }); };
+    apply(save);
     const req = save ? saveThread(apiUrl, forumId, threadId, token) : unsaveThread(apiUrl, forumId, threadId, token);
-    req.catch(() => setThread(t => (t ? { ...t, isSaved: !save } : t)));
+    req.catch(() => apply(!save));
   }
 
   const ctx: CommentCtx = {
@@ -217,21 +242,26 @@ export default function ThreadScreen() {
       const oldDir = c.myVote ?? null;
       const newDir = nextVoteDir(oldDir, dir);
       const prev = c.voteCounts ?? { up: 0, down: 0 };
-      setComments(cs => cs.map(x => (x.id === commentId ? { ...x, myVote: newDir, voteCounts: applyVote(x.voteCounts ?? { up: 0, down: 0 }, oldDir, newDir) } : x)));
+      const apply = (patch: CommentSyncPatch) => { setComments(cs => cs.map(x => (x.id === commentId ? { ...x, ...patch } : x))); patchComment(commentId, patch); };
+      apply({ myVote: newDir, voteCounts: applyVote(c.voteCounts ?? { up: 0, down: 0 }, oldDir, newDir) });
       const req = newDir === null ? removeVoteFromComment(apiUrl, threadId, commentId, token) : voteOnComment(apiUrl, threadId, commentId, newDir, token);
-      req.then(r => setComments(cs => cs.map(x => (x.id === commentId ? { ...x, myVote: r.myVote, voteCounts: r.voteCounts } : x))))
-        .catch(() => setComments(cs => cs.map(x => (x.id === commentId ? { ...x, myVote: oldDir, voteCounts: prev } : x))));
+      req.then(r => apply({ myVote: r.myVote, voteCounts: r.voteCounts }))
+        .catch(() => apply({ myVote: oldDir, voteCounts: prev }));
     },
     onSave(commentId, save) {
       if (!token) return;
-      setComments(cs => cs.map(x => (x.id === commentId ? { ...x, isSaved: save } : x)));
+      const apply = (isSaved: boolean) => { setComments(cs => cs.map(x => (x.id === commentId ? { ...x, isSaved } : x))); patchComment(commentId, { isSaved }); };
+      apply(save);
       const req = save ? saveComment(apiUrl, threadId, commentId, token) : unsaveComment(apiUrl, threadId, commentId, token);
-      req.catch(() => setComments(cs => cs.map(x => (x.id === commentId ? { ...x, isSaved: !save } : x))));
+      req.catch(() => apply(!save));
     },
     async onReplySubmit(parentId, body, attachmentIds) {
       if (!token) return;
       const created = await createReply(apiUrl, threadId, { body, parentCommentId: parentId, attachmentIds }, token);
       setComments(cs => [...cs, created]);
+      const next = (thread?.commentCount ?? comments.length) + 1;
+      setThread(t => (t ? { ...t, commentCount: next } : t));
+      patchThread(threadId, { commentCount: next });
     },
     async onEdit(commentId, body) {
       if (!token) return;
@@ -241,6 +271,9 @@ export default function ThreadScreen() {
     onDelete(commentId) {
       if (!token) return;
       setComments(cs => cs.filter(x => x.id !== commentId));
+      const next = Math.max(0, (thread?.commentCount ?? comments.length) - 1);
+      setThread(t => (t ? { ...t, commentCount: next } : t));
+      patchThread(threadId, { commentCount: next });
       void deleteComment(apiUrl, threadId, commentId, token).catch(() => { /* best effort */ });
     },
     onAccept(commentId, accepted) {
@@ -260,6 +293,9 @@ export default function ThreadScreen() {
     if (!token) return;
     const created = await createReply(apiUrl, threadId, { body, attachmentIds }, token);
     setComments(cs => [...cs, created]);
+    const next = (thread?.commentCount ?? comments.length) + 1;
+    setThread(t => (t ? { ...t, commentCount: next } : t));
+    patchThread(threadId, { commentCount: next });
   }
 
   async function savePostEdit() {
