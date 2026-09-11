@@ -1,6 +1,7 @@
 {
   "name": "@timpel/forumkit-sdk-web",
-  "version": "0.2.8",
+  "version": "0.2.9",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,7 +20,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "publishConfig": {
     "access": "restricted"
