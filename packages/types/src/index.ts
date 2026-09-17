@@ -578,4 +578,25 @@ export type ForumKitConfig = {
   // Declared explicitly by the host, not auto-detected — there's no
   // reliable runtime signal for "am I inside a native app" today.
   platform?: 'web' | 'native';       // defaults to 'web'
+  // Replaces the "FORUM KIT" wordmark. Capped at 20 characters — throws in
+  // development if exceeded (so a host catches it while building), truncates
+  // defensively in production (so a bad value never overflows the nav bar
+  // live). Falls back to "FORUM KIT" when unset or empty.
+  brandName?: string;
+  // The wordmark's own font, independent of theme.fontFamily (a host is
+  // likely to want a distinct display typeface for their name specifically,
+  // separate from whatever they set as the general body font). Falls back
+  // to Michroma when unset. On React Native this must be a font-family key
+  // the host has already registered via their own useFonts() call before
+  // mounting ForumKit — not an arbitrary string, the way it can be on web.
+  brandNameFontFamily?: string;
+  // A host-supplied component that replaces the ForumKit mascot everywhere
+  // it appears — the brand mark beside the wordmark and every loading state
+  // that otherwise shows the default mascot. `unknown` here deliberately:
+  // this package has no React/React Native dependency, and each SDK narrows
+  // it locally to the real component type it actually expects (a plain
+  // JS-property assignment on the custom element for web, matching how
+  // onLogout/getToken are already handled — not JSON-serialized through the
+  // theme attribute, since a component reference can't be).
+  mascot?: unknown;
 };
