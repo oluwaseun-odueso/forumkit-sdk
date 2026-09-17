@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { ForumKitConfig, ThemeTokens } from '@forumkit/types';
 import { App } from '../views/App';
-import { ThemeHostContext, type Theme } from '../views/hooks/use-theme';
+import { ThemeHostContext, type Theme, type ForumKitMascot } from '../views/hooks/use-theme';
 import shadowStyles from '../views/styles/all.css?inline';
 
 const DEFAULT_API_URL = '';  // same origin by default
@@ -269,7 +269,18 @@ export class ForumKitElement extends HTMLElementBase {
     this._root.render(
       createElement(
         ThemeHostContext.Provider,
-        { value: { setThemeAttr: this._setThemeAttr } },
+        // this._config.mascot is `unknown` (ForumKitConfig's own type, kept
+        // framework-agnostic) - this is the trust boundary where a host's
+        // raw JS property value gets threaded into the properly-typed React
+        // context that MascotIcon actually consumes. Conditionally spread,
+        // not `mascot: ... as ... | undefined`, since exactOptionalPropertyTypes
+        // treats "key present with value undefined" differently from "key omitted".
+        {
+          value: {
+            setThemeAttr: this._setThemeAttr,
+            ...(this._config.mascot !== undefined ? { mascot: this._config.mascot as ForumKitMascot } : {}),
+          },
+        },
         createElement(App, { config: this._config }),
       ),
     );

@@ -1,3 +1,5 @@
+import { useContext } from 'react';
+import { ThemeHostContext } from '../../hooks/use-theme';
 import './mascot-icon.css';
 
 type MascotIconProps = {
@@ -8,6 +10,14 @@ type MascotIconProps = {
 const FIGURE_DELAYS = ['0s', '.18s', '.36s'];
 
 export default function MascotIcon({ size = 34, variant = 'nav' }: MascotIconProps) {
+  // A host-supplied mascot replaces the default everywhere this component
+  // is used — the brand mark in top-nav/Drawer and every loading state that
+  // otherwise renders the built-in CSS mascot below. Read from context
+  // rather than requiring every one of this component's ~15 call sites to
+  // be refactored individually.
+  const { mascot: Mascot } = useContext(ThemeHostContext);
+  if (Mascot) return <Mascot size={size} />;
+
   const isNav = variant === 'nav';
   const s = size / 34;
 

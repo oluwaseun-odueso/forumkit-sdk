@@ -1,13 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import type { ForumKitConfig } from '@forumkit/types';
 import type { ForumKitElement } from '../components/forum-kit';
+import type { ForumKitMascot } from '../views/hooks/use-theme';
 import '../components/forum-kit';
-
-// ForumKitConfig types mascot `unknown` — it has no React dependency to
-// describe a component type accurately. This is the SDK that does have
-// that dependency, so this narrows it to what forum-kit.ts actually does
-// with it: renders it in place of the default mascot, sized like one.
-type ForumKitMascot = React.ComponentType<{ size?: number }>;
 
 type ForumKitProps = Omit<ForumKitConfig, 'mascot'> & {
   mascot?: ForumKitMascot;

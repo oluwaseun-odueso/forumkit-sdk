@@ -1,8 +1,13 @@
-import { createContext } from 'react';
+import { createContext, type ComponentType } from 'react';
 
 export type Theme = 'dark' | 'light';
 
-export type ThemeHost = { setThemeAttr: (theme: Theme) => void };
+// ForumKitConfig types this `unknown` (that package has no React
+// dependency); this is MascotIcon's own real contract, defined here since
+// this context is the thing that actually carries a host's override to it.
+export type ForumKitMascot = ComponentType<{ size?: number }>;
+
+export type ThemeHost = { setThemeAttr: (theme: Theme) => void; mascot?: ForumKitMascot };
 
 // The DOM-attribute-setting side of theming (shared by every consumer);
 // the actual theme *state* lives in use-forum-state.tsx's
