@@ -55,19 +55,19 @@ This starts:
 - `minio` — local S3-compatible storage, standing in for a real bucket (see Storage below)
 - `api` — ForumKit API on port 3000
 
-### 3. Run migrations
+Migrations run automatically as part of the `api` container starting — a
+short-lived step applies anything pending against `DATABASE_URL`, then exits
+before the server itself starts. Nothing to run by hand here; `npm run
+db:migrate` still exists if you ever want to apply migrations manually
+(e.g. to inspect what's pending before deploying).
 
-```bash
-npm run db:migrate
-```
-
-### 4. (Optional) Seed development data
+### 3. (Optional) Seed development data
 
 ```bash
 npm run db:seed
 ```
 
-### 5. Verify
+### 4. Verify
 
 ```bash
 curl http://localhost:3000/health
@@ -108,11 +108,17 @@ DATABASE_POOL_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.s
 FORUM_SECRET_KEY=your-generated-secret-here
 ```
 
-### 5. Run migrations
+### 5. Start the server
 
 ```bash
-npm run db:migrate
+npm start
 ```
+
+Applies any pending migrations against `DATABASE_URL` first (exiting before
+continuing if that fails), then starts the API server — the same two-step
+sequence the Docker image runs internally. `npm run db:migrate` remains
+available separately if you want to apply migrations without starting the
+server.
 
 ---
 
@@ -204,10 +210,13 @@ ForumKit uses sequential numbered migrations. To upgrade:
 ```bash
 git pull
 npm install
-npm run db:migrate
+npm run build
+npm start   # or: docker compose up -d --build, for the Docker path
 ```
 
-The migration runner applies only unapplied migrations in order. Rollback with:
+Migrations run automatically as part of starting — no separate migration
+step needed. The runner applies only unapplied migrations, in order, and
+refuses to start the server if a migration fails. Rollback with:
 
 ```bash
 npm run db:migrate:down
