@@ -279,6 +279,7 @@ export class ForumKitElement extends HTMLElementBase {
           value: {
             setThemeAttr: this._setThemeAttr,
             ...(this._config.mascot !== undefined ? { mascot: this._config.mascot as ForumKitMascot } : {}),
+            ...(this._config.brandName !== undefined ? { brandName: this._config.brandName } : {}),
           },
         },
         createElement(App, { config: this._config }),

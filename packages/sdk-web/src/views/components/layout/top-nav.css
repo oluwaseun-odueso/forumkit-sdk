@@ -24,7 +24,7 @@
 }
 
 .fk-topnav-wordmark {
-  font-family: Michroma, sans-serif;
+  font-family: var(--fk-brand-font-family, Michroma, sans-serif);
   font-size: 15px;
   letter-spacing: 1px;
   color: var(--text);
