@@ -3,7 +3,14 @@ import type { ForumKitConfig } from '@forumkit/types';
 import type { ForumKitElement } from '../components/forum-kit';
 import '../components/forum-kit';
 
-type ForumKitProps = ForumKitConfig & {
+// ForumKitConfig types mascot `unknown` — it has no React dependency to
+// describe a component type accurately. This is the SDK that does have
+// that dependency, so this narrows it to what forum-kit.ts actually does
+// with it: renders it in place of the default mascot, sized like one.
+type ForumKitMascot = React.ComponentType<{ size?: number }>;
+
+type ForumKitProps = Omit<ForumKitConfig, 'mascot'> & {
+  mascot?: ForumKitMascot;
   className?: string;
 };
 
@@ -19,24 +26,49 @@ type ForumKitProps = ForumKitConfig & {
  *     theme={{ primaryColor: '#6200EE' }}
  *   />
  */
-export function ForumKit({ forumId, token, theme, apiUrl, platform, onLogout, getToken, className }: ForumKitProps): React.JSX.Element {
+export function ForumKit({
+  forumId,
+  token,
+  theme,
+  apiUrl,
+  platform,
+  brandName,
+  brandNameFontFamily,
+  mascot,
+  onLogout,
+  getToken,
+  className,
+}: ForumKitProps): React.JSX.Element {
   const ref = useRef<ForumKitElement>(null);
 
+  // onLogout/getToken/mascot can't be JSX/HTML attributes (functions and a
+  // component reference, respectively) — still assigned imperatively as JS
+  // properties. forum-id/token/theme/api-url/platform/brand-name/
+  // brand-name-font-family are passed as JSX props below instead of set
+  // here: a ref-based useEffect only runs after mount, which is strictly
+  // after connectedCallback already ran and read (missing) attributes —
+  // passing them as JSX props lets React set them as part of creating the
+  // DOM node, before it's connected, so connectedCallback sees real values.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-
-    el.setAttribute('forum-id', forumId);
-    el.setAttribute('token', token);
-    if (theme) el.setAttribute('theme', JSON.stringify(theme));
-    if (apiUrl) el.setAttribute('api-url', apiUrl);
-    if (platform) el.setAttribute('platform', platform);
     el.onLogout = onLogout;
     el.getToken = getToken;
-  }, [forumId, token, theme, apiUrl, platform, onLogout, getToken]);
+    el.mascot = mascot;
+  }, [onLogout, getToken, mascot]);
 
   return (
     // @ts-expect-error — custom element not in JSX intrinsic elements
-    <forum-kit ref={ref} class={className} />
+    <forum-kit
+      ref={ref}
+      class={className}
+      forum-id={forumId}
+      token={token}
+      theme={theme ? JSON.stringify(theme) : undefined}
+      api-url={apiUrl || undefined}
+      platform={platform || undefined}
+      brand-name={brandName || undefined}
+      brand-name-font-family={brandNameFontFamily || undefined}
+    />
   );
 }
