@@ -578,7 +578,7 @@ export type ForumKitConfig = {
   // Declared explicitly by the host, not auto-detected — there's no
   // reliable runtime signal for "am I inside a native app" today.
   platform?: 'web' | 'native';       // defaults to 'web'
-  // Replaces the "FORUM KIT" wordmark. Capped at 20 characters — throws in
+  // Replaces the "FORUM KIT" wordmark. Capped at 15 characters — throws in
   // development if exceeded (so a host catches it while building), truncates
   // defensively in production (so a bad value never overflows the nav bar
   // live). Falls back to "FORUM KIT" when unset or empty.

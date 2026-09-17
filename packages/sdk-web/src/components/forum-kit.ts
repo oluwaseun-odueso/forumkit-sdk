@@ -6,6 +6,13 @@ import { ThemeHostContext, type Theme } from '../views/hooks/use-theme';
 import shadowStyles from '../views/styles/all.css?inline';
 
 const DEFAULT_API_URL = '';  // same origin by default
+const MAX_BRAND_NAME_LENGTH = 15;
+
+// This package targets the browser and has no @types/node dependency, so
+// TypeScript doesn't otherwise know about Node's `process` global. Declared
+// locally, just for the one field actually read, rather than pulling in the
+// full @types/node surface for a single dev/prod check.
+declare const process: { env: { NODE_ENV?: string } } | undefined;
 
 const FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Michroma&family=Inter:wght@400;500;600;700;800&display=swap';
 
@@ -48,7 +55,16 @@ function ensureFontsLoaded(): void {
  *     theme='{"primaryColor":"#6200EE"}'
  *   ></forum-kit>
  */
-export class ForumKitElement extends HTMLElement {
+// SSR frameworks (e.g. Next.js) still import client-component modules on the
+// server to render initial HTML, where `HTMLElement` doesn't exist — extending
+// it directly would throw just from importing this file, before any consumer
+// code gets a chance to skip rendering server-side. Extending this stand-in
+// instead means the class itself is always definable; only actually
+// instantiating/connecting it needs a real DOM, which SSR never does.
+const HTMLElementBase: typeof HTMLElement =
+  typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as typeof HTMLElement);
+
+export class ForumKitElement extends HTMLElementBase {
   private _config: ForumKitConfig | null = null;
   private _shadow: ShadowRoot;
   private _mountPoint: HTMLDivElement;
@@ -95,8 +111,24 @@ export class ForumKitElement extends HTMLElement {
     }
   }
 
+  // Same reasoning again - a component reference can't be an HTML attribute,
+  // so mascot is a JS property (el.mascot = MyMascot) rather than observed.
+  private _mascot: unknown;
+
+  get mascot(): unknown {
+    return this._mascot;
+  }
+
+  set mascot(component: unknown) {
+    this._mascot = component;
+    if (this._config) {
+      this._config = this._readConfig();
+      this._render();
+    }
+  }
+
   static get observedAttributes(): string[] {
-    return ['forum-id', 'token', 'theme', 'api-url', 'platform'];
+    return ['forum-id', 'token', 'theme', 'api-url', 'platform', 'brand-name', 'brand-name-font-family'];
   }
 
   constructor() {
@@ -117,6 +149,7 @@ export class ForumKitElement extends HTMLElement {
   connectedCallback(): void {
     this._config = this._readConfig();
     this._applyTheme(this._config.theme ?? {});
+    this._applyBrandFont(this._config.brandNameFontFamily);
     this._render();
   }
 
@@ -129,6 +162,7 @@ export class ForumKitElement extends HTMLElement {
     if (!this._shadow) return;
     this._config = this._readConfig();
     this._applyTheme(this._config.theme ?? {});
+    this._applyBrandFont(this._config.brandNameFontFamily);
     this._render();
   }
 
@@ -152,15 +186,47 @@ export class ForumKitElement extends HTMLElement {
       (window as Window & { FK_API_URL?: string }).FK_API_URL = apiUrl;
     }
 
+    const brandName = this._resolveBrandName(this.getAttribute('brand-name'));
+    const brandNameFontFamily = this.getAttribute('brand-name-font-family') ?? undefined;
+
     return {
       forumId,
       token,
       theme,
       apiUrl,
       platform,
+      ...(brandName !== undefined ? { brandName } : {}),
+      ...(brandNameFontFamily !== undefined ? { brandNameFontFamily } : {}),
+      ...(this._mascot !== undefined ? { mascot: this._mascot } : {}),
       ...(this._onLogout ? { onLogout: this._onLogout } : {}),
       ...(this._getToken ? { getToken: this._getToken } : {}),
     };
+  }
+
+  // Fails loudly in development (a host catches an over-length brandName
+  // immediately, while building) and gracefully in production (truncates
+  // defensively rather than ever overflowing the nav bar live) - same split
+  // CLAUDE.md prescribes for the rest of this codebase. `process` is guarded
+  // since not every bundler a host uses necessarily polyfills it, though the
+  // common ones (Vite, webpack, Next.js) all replace process.env.NODE_ENV at
+  // build time - the same convention React itself relies on for dev warnings.
+  private _resolveBrandName(raw: string | null): string | undefined {
+    if (raw === null || raw === '') return undefined;
+    if (raw.length <= MAX_BRAND_NAME_LENGTH) return raw;
+
+    const isDev = typeof process === 'undefined' || process.env['NODE_ENV'] !== 'production';
+    if (isDev) {
+      throw new Error(
+        `<forum-kit>: brand-name is ${raw.length} characters ("${raw}") — must be ${MAX_BRAND_NAME_LENGTH} or fewer.`,
+      );
+    }
+    return raw.slice(0, MAX_BRAND_NAME_LENGTH);
+  }
+
+  /** brandNameFontFamily lives outside ThemeTokens (it's a top-level ForumKitConfig field, not a theme token), so it gets its own CSS var rather than going through _applyTheme's tokenMap. */
+  private _applyBrandFont(fontFamily: string | undefined): void {
+    if (fontFamily) this.style.setProperty('--fk-brand-font-family', fontFamily);
+    else this.style.removeProperty('--fk-brand-font-family');
   }
 
   /**
@@ -211,6 +277,6 @@ export class ForumKitElement extends HTMLElement {
 }
 
 // Register the custom element
-if (!customElements.get('forum-kit')) {
+if (typeof customElements !== 'undefined' && !customElements.get('forum-kit')) {
   customElements.define('forum-kit', ForumKitElement);
 }
