@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "tsc",
     "migrate": "sh -c 'if [ -f ../../.env ]; then node --env-file=../../.env ../../node_modules/.bin/node-pg-migrate up --migrations-dir src/migrations --tsx; else ../../node_modules/.bin/node-pg-migrate up --migrations-dir src/migrations --tsx; fi'",
     "migrate:down": "sh -c 'if [ -f ../../.env ]; then node --env-file=../../.env ../../node_modules/.bin/node-pg-migrate down --migrations-dir src/migrations --tsx; else ../../node_modules/.bin/node-pg-migrate down --migrations-dir src/migrations --tsx; fi'",
     "migrate:create": "node-pg-migrate create --migrations-dir src/migrations --migration-file-language ts",
+    "migrate:auto": "sh -c 'if [ -f ../../.env ]; then node --env-file=../../.env --import tsx/esm src/bin/migrate.ts; else node --import tsx/esm src/bin/migrate.ts; fi'",
     "seed": "tsx --env-file=../../.env src/seeds/index.ts"
   },
   "dependencies": {
