@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import { SessionProvider, useSession } from './session/SessionContext';
 import { ThreadSyncProvider } from './sync/ThreadSyncContext';
 import RootNavigator from './navigation/RootNavigator';
+import Mascot from './components/Mascot';
 
 // The mountable SDK root — a host app drops in <ForumKit forumId token
 // theme? apiUrl? onLogout? /> and never touches ForumKit's internal
@@ -34,7 +35,7 @@ export function ForumKit(config: ForumKitConfig) {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider theme={config.theme}>
+      <ThemeProvider config={config}>
         <SessionProvider config={config}>
           <ThreadSyncProvider>
             <SessionGate />
@@ -55,7 +56,7 @@ function SessionGate() {
   if (session.status === 'loading') {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.bg }}>
-        <ActivityIndicator color={tokens.accent} />
+        <Mascot size={48} />
       </View>
     );
   }
