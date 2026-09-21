@@ -46,7 +46,7 @@ export default function Drawer({ activeRoute, onSelectRoute, onOpenModeration }:
   // (not just disabled) for everyone else.
   onOpenModeration?: (() => void) | undefined;
 }) {
-  const { tokens, mode, brandName, brandNameFontFamily } = useTheme();
+  const { tokens, mode, brandName, brandNameFontFamily, brandNameFontSize } = useTheme();
   const insets = useSafeAreaInsets();
   // Dark mode specifically wants this close to the feed's own background
   // (tokens.bg) rather than the lighter surface-2 shade used everywhere
@@ -71,6 +71,7 @@ export default function Drawer({ activeRoute, onSelectRoute, onOpenModeration }:
             styles.wordmark,
             { color: tokens.text },
             brandNameFontFamily ? { fontFamily: brandNameFontFamily } : null,
+            brandNameFontSize ? { fontSize: brandNameFontSize } : null,
           ]}
         >
           {brandName || 'FORUM KIT'}

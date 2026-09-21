@@ -8,6 +8,11 @@ export type ThemeMode = 'dark' | 'light';
 
 const STORAGE_KEY = 'forumkit.themePreference';
 const MAX_BRAND_NAME_LENGTH = 15;
+// Mirrors sdk-web's forum-kit.ts bounds - default wordmark size there is
+// 15px, same reasoning: keep a host from setting something unreadably tiny
+// or large enough to break the drawer's brand row layout.
+const MIN_BRAND_FONT_SIZE_PX = 10;
+const MAX_BRAND_FONT_SIZE_PX = 24;
 
 // ForumKitConfig types this `unknown` (that package has no React/React
 // Native dependency); this is Mascot's own real contract.
@@ -61,6 +66,26 @@ function resolveBrandName(raw: string | undefined): string | undefined {
   return raw.slice(0, MAX_BRAND_NAME_LENGTH);
 }
 
+// Same fail-loudly-in-dev/clamp-in-prod split, bounded to
+// MIN/MAX_BRAND_FONT_SIZE_PX. Takes the same CSS-string convention as
+// theme.fontSize (e.g. "18px") and returns the plain number RN's style
+// system expects. Unparseable values (not a simple "Npx") pass through
+// unvalidated via parseFontSize's own fallback, same reasoning as
+// sdk-web's counterpart - trust the host rather than reject sizing this
+// just doesn't anticipate.
+function resolveBrandFontSize(raw: string | undefined): number | undefined {
+  const n = parseFontSize(raw);
+  if (n === undefined) return undefined;
+  if (n >= MIN_BRAND_FONT_SIZE_PX && n <= MAX_BRAND_FONT_SIZE_PX) return n;
+
+  if (__DEV__) {
+    throw new Error(
+      `<ForumKit>: brandNameFontSize is ${n}px — must be between ${MIN_BRAND_FONT_SIZE_PX}px and ${MAX_BRAND_FONT_SIZE_PX}px.`,
+    );
+  }
+  return Math.min(Math.max(n, MIN_BRAND_FONT_SIZE_PX), MAX_BRAND_FONT_SIZE_PX);
+}
+
 type ThemeContextValue = {
   mode: ThemeMode;
   tokens: TokenSet;
@@ -76,6 +101,7 @@ type ThemeContextValue = {
   mascot?: ForumKitMascot;
   brandName?: string;
   brandNameFontFamily?: string;
+  brandNameFontSize?: number;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -115,6 +141,7 @@ export function ThemeProvider({ children, config }: { children: ReactNode; confi
     ...(config.mascot !== undefined ? { mascot: config.mascot as ForumKitMascot } : {}),
     ...((() => { const bn = resolveBrandName(config.brandName); return bn !== undefined ? { brandName: bn } : {}; })()),
     ...(config.brandNameFontFamily !== undefined ? { brandNameFontFamily: config.brandNameFontFamily } : {}),
+    ...((() => { const bfs = resolveBrandFontSize(config.brandNameFontSize); return bfs !== undefined ? { brandNameFontSize: bfs } : {}; })()),
     // startTransition schedules the mass re-render (all useTheme consumers) as
     // a concurrent update so React can yield to user interactions mid-render,
     // preventing the JS thread from blocking during a full-tree theme repaint.
@@ -128,7 +155,7 @@ export function ThemeProvider({ children, config }: { children: ReactNode; confi
       if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       startTransition(() => setMode(m));
     },
-  }), [mode, tokens, theme, config.mascot, config.brandName, config.brandNameFontFamily]);
+  }), [mode, tokens, theme, config.mascot, config.brandName, config.brandNameFontFamily, config.brandNameFontSize]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
