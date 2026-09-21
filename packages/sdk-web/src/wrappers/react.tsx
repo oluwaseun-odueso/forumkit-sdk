@@ -29,6 +29,7 @@ export function ForumKit({
   platform,
   brandName,
   brandNameFontFamily,
+  brandNameFontSize,
   mascot,
   onLogout,
   getToken,
@@ -64,6 +65,7 @@ export function ForumKit({
       platform={platform || undefined}
       brand-name={brandName || undefined}
       brand-name-font-family={brandNameFontFamily || undefined}
+      brand-name-font-size={brandNameFontSize || undefined}
     />
   );
 }

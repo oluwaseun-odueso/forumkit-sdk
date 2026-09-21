@@ -7,6 +7,11 @@ import shadowStyles from '../views/styles/all.css?inline';
 
 const DEFAULT_API_URL = '';  // same origin by default
 const MAX_BRAND_NAME_LENGTH = 15;
+// Default wordmark size is 15px (top-nav.css) - bounds keep a host from
+// setting something unreadably tiny or large enough to break the 56px-tall
+// nav bar's layout.
+const MIN_BRAND_FONT_SIZE_PX = 10;
+const MAX_BRAND_FONT_SIZE_PX = 24;
 
 // This package targets the browser and has no @types/node dependency, so
 // TypeScript doesn't otherwise know about Node's `process` global. Declared
@@ -128,7 +133,7 @@ export class ForumKitElement extends HTMLElementBase {
   }
 
   static get observedAttributes(): string[] {
-    return ['forum-id', 'token', 'theme', 'api-url', 'platform', 'brand-name', 'brand-name-font-family'];
+    return ['forum-id', 'token', 'theme', 'api-url', 'platform', 'brand-name', 'brand-name-font-family', 'brand-name-font-size'];
   }
 
   constructor() {
@@ -149,7 +154,7 @@ export class ForumKitElement extends HTMLElementBase {
   connectedCallback(): void {
     this._config = this._readConfig();
     this._applyTheme(this._config.theme ?? {});
-    this._applyBrandFont(this._config.brandNameFontFamily);
+    this._applyBrandFont(this._config.brandNameFontFamily, this._config.brandNameFontSize);
     this._render();
   }
 
@@ -162,7 +167,7 @@ export class ForumKitElement extends HTMLElementBase {
     if (!this._shadow) return;
     this._config = this._readConfig();
     this._applyTheme(this._config.theme ?? {});
-    this._applyBrandFont(this._config.brandNameFontFamily);
+    this._applyBrandFont(this._config.brandNameFontFamily, this._config.brandNameFontSize);
     this._render();
   }
 
@@ -188,6 +193,7 @@ export class ForumKitElement extends HTMLElementBase {
 
     const brandName = this._resolveBrandName(this.getAttribute('brand-name'));
     const brandNameFontFamily = this.getAttribute('brand-name-font-family') ?? undefined;
+    const brandNameFontSize = this._resolveBrandFontSize(this.getAttribute('brand-name-font-size'));
 
     return {
       forumId,
@@ -197,25 +203,30 @@ export class ForumKitElement extends HTMLElementBase {
       platform,
       ...(brandName !== undefined ? { brandName } : {}),
       ...(brandNameFontFamily !== undefined ? { brandNameFontFamily } : {}),
+      ...(brandNameFontSize !== undefined ? { brandNameFontSize } : {}),
       ...(this._mascot !== undefined ? { mascot: this._mascot } : {}),
       ...(this._onLogout ? { onLogout: this._onLogout } : {}),
       ...(this._getToken ? { getToken: this._getToken } : {}),
     };
   }
 
+  // `process` is guarded since not every bundler a host uses necessarily
+  // polyfills it, though the common ones (Vite, webpack, Next.js) all
+  // replace process.env.NODE_ENV at build time - the same convention React
+  // itself relies on for dev warnings.
+  private _isDev(): boolean {
+    return typeof process === 'undefined' || process.env['NODE_ENV'] !== 'production';
+  }
+
   // Fails loudly in development (a host catches an over-length brandName
   // immediately, while building) and gracefully in production (truncates
   // defensively rather than ever overflowing the nav bar live) - same split
-  // CLAUDE.md prescribes for the rest of this codebase. `process` is guarded
-  // since not every bundler a host uses necessarily polyfills it, though the
-  // common ones (Vite, webpack, Next.js) all replace process.env.NODE_ENV at
-  // build time - the same convention React itself relies on for dev warnings.
+  // CLAUDE.md prescribes for the rest of this codebase.
   private _resolveBrandName(raw: string | null): string | undefined {
     if (raw === null || raw === '') return undefined;
     if (raw.length <= MAX_BRAND_NAME_LENGTH) return raw;
 
-    const isDev = typeof process === 'undefined' || process.env['NODE_ENV'] !== 'production';
-    if (isDev) {
+    if (this._isDev()) {
       throw new Error(
         `<forum-kit>: brand-name is ${raw.length} characters ("${raw}") — must be ${MAX_BRAND_NAME_LENGTH} or fewer.`,
       );
@@ -223,10 +234,32 @@ export class ForumKitElement extends HTMLElementBase {
     return raw.slice(0, MAX_BRAND_NAME_LENGTH);
   }
 
-  /** brandNameFontFamily lives outside ThemeTokens (it's a top-level ForumKitConfig field, not a theme token), so it gets its own CSS var rather than going through _applyTheme's tokenMap. */
-  private _applyBrandFont(fontFamily: string | undefined): void {
+  // Same fail-loudly-in-dev/clamp-in-prod split as _resolveBrandName, bounded
+  // to MIN/MAX_BRAND_FONT_SIZE_PX. Only validates simple "Npx" values (the
+  // only form this codebase's own convention ever produces, e.g.
+  // theme.fontSize) - anything else parses as NaN and passes through
+  // untouched, trusting the host rather than rejecting valid CSS sizing this
+  // just doesn't anticipate (rem/em/%/clamp()/etc).
+  private _resolveBrandFontSize(raw: string | null): string | undefined {
+    if (raw === null || raw === '') return undefined;
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n)) return raw;
+    if (n >= MIN_BRAND_FONT_SIZE_PX && n <= MAX_BRAND_FONT_SIZE_PX) return raw;
+
+    if (this._isDev()) {
+      throw new Error(
+        `<forum-kit>: brand-name-font-size is ${raw} — must be between ${MIN_BRAND_FONT_SIZE_PX}px and ${MAX_BRAND_FONT_SIZE_PX}px.`,
+      );
+    }
+    return `${Math.min(Math.max(n, MIN_BRAND_FONT_SIZE_PX), MAX_BRAND_FONT_SIZE_PX)}px`;
+  }
+
+  /** brandNameFontFamily/brandNameFontSize live outside ThemeTokens (top-level ForumKitConfig fields, not theme tokens), so they get their own CSS vars rather than going through _applyTheme's tokenMap. */
+  private _applyBrandFont(fontFamily: string | undefined, fontSize: string | undefined): void {
     if (fontFamily) this.style.setProperty('--fk-brand-font-family', fontFamily);
     else this.style.removeProperty('--fk-brand-font-family');
+    if (fontSize) this.style.setProperty('--fk-brand-font-size', fontSize);
+    else this.style.removeProperty('--fk-brand-font-size');
   }
 
   /**

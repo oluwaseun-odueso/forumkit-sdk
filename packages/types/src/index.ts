@@ -590,6 +590,12 @@ export type ForumKitConfig = {
   // the host has already registered via their own useFonts() call before
   // mounting ForumKit — not an arbitrary string, the way it can be on web.
   brandNameFontFamily?: string;
+  // The wordmark's own font size, independent of theme.fontSize — same
+  // reasoning as brandNameFontFamily above (a host wanting a distinct
+  // display typeface for their name likely wants to size it independently
+  // too). A CSS-string size (e.g. "18px"), matching theme.fontSize's own
+  // convention. Falls back to the default wordmark size (15px) when unset.
+  brandNameFontSize?: string;
   // A host-supplied component that replaces the ForumKit mascot everywhere
   // it appears — the brand mark beside the wordmark and every loading state
   // that otherwise shows the default mascot. `unknown` here deliberately:
