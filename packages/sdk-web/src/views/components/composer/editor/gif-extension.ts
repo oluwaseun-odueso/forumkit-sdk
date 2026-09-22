@@ -23,8 +23,8 @@ declare module '@tiptap/core' {
  */
 export const Gif = Node.create<GifOptions>({
   name: 'gif',
-  group: 'inline',
-  inline: true,
+  group: 'block',
+  inline: false,
   atom: true,
 
   addOptions() {
