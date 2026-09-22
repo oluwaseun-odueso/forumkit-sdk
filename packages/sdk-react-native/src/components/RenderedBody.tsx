@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Linking, Text, View, Image, StyleSheet } from 'react-native';
 import { resolveGiphyUrl, parseGiphyDimensions, fitGifDimensions } from '@forumkit/shared';
 import { useTheme } from '../theme/ThemeContext';
@@ -155,6 +155,25 @@ function renderInline(text: string, keyPrefix: string, linkColor: string, codeBg
 const GIF_MAX_WIDTH = 280;
 const GIF_MAX_HEIGHT = 280;
 
+// Legacy placeholders without a width/height suffix fall back to a square
+// box; self-correct once onLoad reports the real size.
+function GifImage({ url, bg }: { url: string; bg: string }) {
+  const [dims, setDims] = useState(() => parseGiphyDimensions(url));
+  const { width, height } = fitGifDimensions(dims, GIF_MAX_WIDTH, GIF_MAX_HEIGHT);
+  return (
+    <Image
+      source={{ uri: resolveGiphyUrl(url) }}
+      style={[styles.gif, { backgroundColor: bg, width, height }]}
+      resizeMode="contain"
+      onLoad={e => {
+        if (dims) return;
+        const { width: w, height: h } = e.nativeEvent.source;
+        if (w > 0 && h > 0) setDims({ width: w, height: h });
+      }}
+    />
+  );
+}
+
 export default function RenderedBody({ body, size = 14.5 }: { body: string; size?: number }) {
   const { tokens } = useTheme();
   const blocks = useMemo(() => parseBlocks(body), [body]);
@@ -203,14 +222,9 @@ export default function RenderedBody({ body, size = 14.5 }: { body: string; size
             return <View key={key} style={[styles.hr, { backgroundColor: tokens.border }]} />;
           case 'image':
             if (b.alt === 'gif') {
-              const { width: gifW, height: gifH } = fitGifDimensions(parseGiphyDimensions(b.url), GIF_MAX_WIDTH, GIF_MAX_HEIGHT);
               return (
                 <View key={key} style={styles.gifWrap}>
-                  <Image
-                    source={{ uri: resolveGiphyUrl(b.url) }}
-                    style={[styles.gif, { backgroundColor: tokens['surface-2'], width: gifW, height: gifH }]}
-                    resizeMode="contain"
-                  />
+                  <GifImage url={b.url} bg={tokens['surface-2']} />
                   <Text style={{ color: tokens.muted, fontSize: 11, marginTop: 4 }}>via GIPHY</Text>
                 </View>
               );

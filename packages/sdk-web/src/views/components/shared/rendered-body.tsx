@@ -32,10 +32,17 @@ const components: Components = {
       return <video src={src} controls className="fk-rendered-media" />;
     }
     if (alt === 'gif' && typeof src === 'string') {
-      const { width, height } = fitGifDimensions(parseGiphyDimensions(src), GIF_MAX_WIDTH, GIF_MAX_HEIGHT);
+      // Unknown dims (legacy content, no width/height in the src): let the
+      // browser size the img to its own intrinsic dimensions, capped by
+      // max-width/max-height — forcing a mismatched box here is what
+      // letterboxes non-square GIFs inside it.
+      const dims = parseGiphyDimensions(src);
+      const sizeStyle = dims
+        ? fitGifDimensions(dims, GIF_MAX_WIDTH, GIF_MAX_HEIGHT)
+        : { maxWidth: GIF_MAX_WIDTH, maxHeight: GIF_MAX_HEIGHT };
       return (
         <span className="fk-gif-wrap">
-          <img src={resolveGiphyUrl(src)} alt="" className="fk-rendered-media" style={{ width, height }} />
+          <img src={resolveGiphyUrl(src)} alt="" className="fk-rendered-media" style={sizeStyle} />
           <span className="fk-gif-caption">via GIPHY</span>
         </span>
       );
