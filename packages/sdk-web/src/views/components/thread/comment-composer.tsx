@@ -90,7 +90,10 @@ export default function CommentComposer({
   }
 
   function handleSelectGif(gif: GifResult) {
-    run(e => e.chain().focus().setGif({ id: gif.id, width: gif.width, height: gif.height }).run());
+    // Inserting an atom node leaves it selected as a NodeSelection — moving
+    // to 'end' afterward stops the *next* insertion (image, video, another
+    // GIF) from replacing it instead of adding alongside it.
+    run(e => e.chain().focus().setGif({ id: gif.id, width: gif.width, height: gif.height }).focus('end').run());
     setGifPanelOpen(false);
     setGifQuery('');
     setGifResults([]);
@@ -101,8 +104,8 @@ export default function CommentComposer({
     try {
       const { url, attachmentId } = await uploadInline(forumId, sessionToken, file);
       attachmentIdsRef.current.push(attachmentId);
-      if (kind === 'image') run(e => e.chain().focus().setImage({ src: url }).run());
-      else run(e => e.chain().focus().setVideo({ src: url }).run());
+      if (kind === 'image') run(e => e.chain().focus().setImage({ src: url }).focus('end').run());
+      else run(e => e.chain().focus().setVideo({ src: url }).focus('end').run());
     } catch {
       setError('Upload failed. Please try again.');
     }
