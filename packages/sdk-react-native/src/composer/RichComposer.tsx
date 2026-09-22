@@ -17,7 +17,7 @@ import { liveMarkdownParser } from './liveMarkdownParser';
 // markdown at the current selection; the media button uploads via lib/upload;
 // the GIF button inserts a markdown image from the GIPHY proxy.
 export default function RichComposer({
-  apiUrl, forumId, token, value, onChangeText, attachments, onAttachmentsChange,
+  apiUrl, forumId, token, value, onChangeText, attachments, onAttachmentsChange, gifs, onGifsChange,
   placeholder = 'Body text (optional)', minHeight = 120, allowMedia = true, onUploadingChange,
 }: {
   apiUrl: string;
@@ -27,6 +27,11 @@ export default function RichComposer({
   onChangeText: (v: string) => void;
   attachments: ComposerAttachment[];
   onAttachmentsChange: Dispatch<SetStateAction<ComposerAttachment[]>>;
+  // Selected GIFs shown as a thumbnail strip (like attachments), not spliced
+  // into `value` as text — the parent is responsible for turning these into
+  // markdown (buildGiphyMarkdown) and appending to the body at submit time.
+  gifs: GifResult[];
+  onGifsChange: Dispatch<SetStateAction<GifResult[]>>;
   placeholder?: string;
   minHeight?: number;
   // The post composer sets this false — image/video for posts lives in the
@@ -106,6 +111,10 @@ export default function RichComposer({
     if (token && target?.attachmentId) void deleteAttachment(apiUrl, forumId, target.attachmentId, token).catch(() => { /* best effort */ });
   }
 
+  function removeGif(id: string) {
+    onGifsChange(prev => prev.filter(g => g.id !== id));
+  }
+
   useEffect(() => {
     if (!gifOpen || gifNotConfigured || !token) return;
     const q = gifQuery.trim();
@@ -175,6 +184,18 @@ export default function RichComposer({
         </ScrollView>
       )}
 
+      {/* One GIF at a time, like a reaction rather than a gallery — matches the original behaviour and Reddit's own comment GIFs. */}
+      {gifs.length > 0 && (
+        <View style={styles.thumbs}>
+          <View style={styles.thumbWrap}>
+            <Image source={{ uri: gifs[0]!.previewUrl }} style={[styles.thumb, { backgroundColor: tokens['surface-2'] }]} />
+            <Pressable onPress={() => removeGif(gifs[0]!.id)} style={[styles.thumbX, { backgroundColor: tokens.elev }]} hitSlop={6}>
+              <CloseIcon size={12} color={tokens.text} />
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {gifOpen && (
         <View style={[styles.gifPanel, { borderTopColor: tokens.border }]}>
           <TextInput
@@ -191,7 +212,7 @@ export default function RichComposer({
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 8 }}>
               {gifResults.map(g => (
-                <Pressable key={g.id} onPress={() => { insert(`\n![gif](${g.url})\n`); setGifOpen(false); }}>
+                <Pressable key={g.id} onPress={() => { onGifsChange([g]); setGifOpen(false); }}>
                   <Image source={{ uri: g.previewUrl }} style={{ width: 90, height: 90, borderRadius: 8, backgroundColor: tokens['surface-2'] }} />
                 </Pressable>
               ))}

@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { Linking, Text, View, Image, StyleSheet } from 'react-native';
+import { resolveGiphyUrl, parseGiphyDimensions } from '@forumkit/shared';
 import { useTheme } from '../theme/ThemeContext';
 
 // Renders a post/comment body as Markdown — the mobile counterpart to sdk-web's
@@ -150,6 +151,17 @@ function renderInline(text: string, keyPrefix: string, linkColor: string, codeBg
   });
 }
 
+// Caps a GIF's real dimensions to a Reddit-sized preview box instead of
+// stretching it full-width — scales down proportionally, never up.
+const GIF_MAX_WIDTH = 280;
+const GIF_MAX_HEIGHT = 280;
+
+function fitGifDimensions(dims: { width: number; height: number } | null): { width: number; height: number } {
+  if (!dims || dims.width <= 0 || dims.height <= 0) return { width: GIF_MAX_WIDTH, height: GIF_MAX_HEIGHT };
+  const scale = Math.min(1, GIF_MAX_WIDTH / dims.width, GIF_MAX_HEIGHT / dims.height);
+  return { width: Math.round(dims.width * scale), height: Math.round(dims.height * scale) };
+}
+
 export default function RenderedBody({ body, size = 14.5 }: { body: string; size?: number }) {
   const { tokens } = useTheme();
   const blocks = useMemo(() => parseBlocks(body), [body]);
@@ -197,6 +209,19 @@ export default function RenderedBody({ body, size = 14.5 }: { body: string; size
           case 'hr':
             return <View key={key} style={[styles.hr, { backgroundColor: tokens.border }]} />;
           case 'image':
+            if (b.alt === 'gif') {
+              const { width: gifW, height: gifH } = fitGifDimensions(parseGiphyDimensions(b.url));
+              return (
+                <View key={key} style={styles.gifWrap}>
+                  <Image
+                    source={{ uri: resolveGiphyUrl(b.url) }}
+                    style={[styles.gif, { backgroundColor: tokens['surface-2'], width: gifW, height: gifH }]}
+                    resizeMode="contain"
+                  />
+                  <Text style={{ color: tokens.muted, fontSize: 11, marginTop: 4 }}>via GIPHY</Text>
+                </View>
+              );
+            }
             return <Image key={key} source={{ uri: b.url }} style={[styles.image, { backgroundColor: tokens['surface-2'] }]} resizeMode="cover" />;
           case 'paragraph':
           default:
@@ -218,4 +243,6 @@ const styles = StyleSheet.create({
   codeBlock: { borderRadius: 8, padding: 12, marginBottom: 10 },
   hr: { height: 1, marginVertical: 10 },
   image: { width: '100%', aspectRatio: 4 / 5, borderRadius: 12, marginVertical: 8 },
+  gifWrap: { marginVertical: 8, alignItems: 'flex-start' },
+  gif: { borderRadius: 8 },
 });

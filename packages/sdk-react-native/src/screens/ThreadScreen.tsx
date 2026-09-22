@@ -7,9 +7,10 @@ import {
   updateThread, deleteThread, reportThread, reportComment, shareThreadWithUsers,
   voteOnThread, removeVoteFromThread, voteOnComment, removeVoteFromComment,
   saveComment, unsaveComment, saveThread, unsaveThread, commentsToCommentTree, filterComments, fmtRelativeTime,
+  buildGiphyMarkdown,
   type CommentNode,
 } from '@forumkit/shared';
-import type { Thread, Comment, VoteDirection } from '@forumkit/types';
+import type { Thread, Comment, VoteDirection, GifResult } from '@forumkit/types';
 import { useSession } from '../session/SessionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { applyVote, nextVoteDir } from '../lib/vote';
@@ -89,6 +90,7 @@ export default function ThreadScreen() {
   const [postEditOpen, setPostEditOpen] = useState(false);
   const [postEditTitle, setPostEditTitle] = useState('');
   const [postEditBody, setPostEditBody] = useState('');
+  const [postEditGifs, setPostEditGifs] = useState<GifResult[]>([]);
   const [postDeleteOpen, setPostDeleteOpen] = useState(false);
   const [postMenuOpen, setPostMenuOpen] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
@@ -300,9 +302,13 @@ export default function ThreadScreen() {
 
   async function savePostEdit() {
     if (!token || !thread) return;
-    const updated = await updateThread(apiUrl, forumId, threadId, { title: postEditTitle.trim(), body: postEditBody.trim() }, token);
+    const withGif = postEditGifs[0]
+      ? `${postEditBody.trim()}\n${buildGiphyMarkdown(postEditGifs[0])}`.trim()
+      : postEditBody.trim();
+    const updated = await updateThread(apiUrl, forumId, threadId, { title: postEditTitle.trim(), body: withGif }, token);
     setThread(updated);
     setPostEditOpen(false);
+    setPostEditGifs([]);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }
 
@@ -360,6 +366,8 @@ export default function ThreadScreen() {
                   onChangeText={setPostEditBody}
                   attachments={[]}
                   onAttachmentsChange={() => {}}
+                  gifs={postEditGifs}
+                  onGifsChange={setPostEditGifs}
                   allowMedia={false}
                 />
                 <View style={styles.editActions}>

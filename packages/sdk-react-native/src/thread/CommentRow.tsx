@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import RichComposer from '../composer/RichComposer';
-import type { CommentNode } from '@forumkit/shared';
-import type { VoteDirection } from '@forumkit/types';
+import { buildGiphyMarkdown, type CommentNode } from '@forumkit/shared';
+import type { VoteDirection, GifResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
 import RenderedBody from '../components/RenderedBody';
@@ -40,6 +40,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editBody, setEditBody] = useState(node.body);
+  const [editGifs, setEditGifs] = useState<GifResult[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { ref: ellipsisRef, anchor, measure } = useAnchor();
@@ -86,14 +87,21 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
             onChangeText={setEditBody}
             attachments={[]}
             onAttachmentsChange={() => {}}
+            gifs={editGifs}
+            onGifsChange={setEditGifs}
             allowMedia={false}
           />
           <View style={styles.editActions}>
-            <Pressable onPress={() => { setEditOpen(false); setEditBody(node.body); }} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}>
+            <Pressable onPress={() => { setEditOpen(false); setEditBody(node.body); setEditGifs([]); }} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}>
               <Text style={{ color: tokens['text-2'], fontWeight: '700', fontSize: 12 }}>Cancel</Text>
             </Pressable>
             <Pressable
-              onPress={async () => { await ctx.onEdit(node.id, editBody.trim()); setEditOpen(false); }}
+              onPress={async () => {
+                const withGif = editGifs[0] ? `${editBody.trim()}\n${buildGiphyMarkdown(editGifs[0])}`.trim() : editBody.trim();
+                await ctx.onEdit(node.id, withGif);
+                setEditOpen(false);
+                setEditGifs([]);
+              }}
               style={[styles.smallBtn, { backgroundColor: tokens.accent }]}
             >
               <Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 12 }}>Save</Text>

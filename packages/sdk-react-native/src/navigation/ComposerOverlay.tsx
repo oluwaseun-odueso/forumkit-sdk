@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, Pressable, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createThread, createDraft, deleteAttachment } from '@forumkit/shared';
-import type { DraftContent } from '@forumkit/types';
+import { createThread, createDraft, deleteAttachment, buildGiphyMarkdown } from '@forumkit/shared';
+import type { DraftContent, GifResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttachment } from '../lib/upload';
@@ -55,6 +55,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
   const [body, setBody] = useState(initialDraft?.content.body ?? '');
   const [linkUrl, setLinkUrl] = useState(initialDraft?.content.linkUrl ?? '');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [gifs, setGifs] = useState<GifResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +138,10 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
     // unstyled text with nothing marking it as the link that was added.
     const hasLink = linkTrimmed.length > 0 && isValidUrl(linkTrimmed);
     const linkMarkdown = hasLink ? `[${linkTrimmed}](${linkTrimmed})` : '';
-    const rawBody = hasLink ? (body.trim() ? `${body.trim()}\n${linkMarkdown}` : linkMarkdown) : body;
+    const withLink = hasLink ? (body.trim() ? `${body.trim()}\n${linkMarkdown}` : linkMarkdown) : body;
+    // Same reasoning as the link above - RichComposer shows the selected
+    // GIF as a thumbnail, not spliced into `body` as text.
+    const rawBody = gifs[0] ? `${withLink.trim()}\n${buildGiphyMarkdown(gifs[0])}`.trim() : withLink;
     // The backend requires a non-empty body always (title + media alone
     // aren't enough) — web never hits this because its rich-text editor
     // serializes an "empty" doc as non-empty markup (e.g. `<p></p>`), but
@@ -245,6 +249,8 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
               onChangeText={setBody}
               attachments={attachments}
               onAttachmentsChange={setAttachments}
+              gifs={gifs}
+              onGifsChange={setGifs}
               allowMedia={false}
             />
           )}
