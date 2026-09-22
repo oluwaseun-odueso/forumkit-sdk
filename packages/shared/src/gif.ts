@@ -11,9 +11,14 @@ export function buildGiphyPlaceholder(gif: Pick<GifResult, 'id' | 'width' | 'hei
   return `${GIPHY_PLACEHOLDER_PREFIX}${gif.id}:${gif.width}x${gif.height}`;
 }
 
+export function parseGiphyId(urlOrPlaceholder: string): string | null {
+  if (!urlOrPlaceholder.startsWith(GIPHY_PLACEHOLDER_PREFIX)) return null;
+  return urlOrPlaceholder.slice(GIPHY_PLACEHOLDER_PREFIX.length).split(':')[0] ?? null;
+}
+
 export function resolveGiphyUrl(urlOrPlaceholder: string): string {
-  if (!urlOrPlaceholder.startsWith(GIPHY_PLACEHOLDER_PREFIX)) return urlOrPlaceholder;
-  const id = urlOrPlaceholder.slice(GIPHY_PLACEHOLDER_PREFIX.length).split(':')[0];
+  const id = parseGiphyId(urlOrPlaceholder);
+  if (!id) return urlOrPlaceholder;
   return `https://media.giphy.com/media/${id}/giphy.gif`;
 }
 

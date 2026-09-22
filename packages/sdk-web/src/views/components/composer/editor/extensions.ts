@@ -8,6 +8,7 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { Markdown } from 'tiptap-markdown';
 import { Video } from './video-extension';
+import { Gif } from './gif-extension';
 import { Spoiler } from './spoiler-mark';
 import { Superscript } from './superscript-extension';
 
@@ -22,6 +23,7 @@ export function createEditorExtensions(placeholder: string) {
     }),
     Link.configure({ openOnClick: false }),
     ImageExtension,
+    Gif,
     Superscript,
     Table.configure({ resizable: false }),
     TableRow,

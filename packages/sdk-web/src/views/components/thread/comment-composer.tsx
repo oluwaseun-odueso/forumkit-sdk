@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import type { GifResult } from '@forumkit/types';
-import { buildGiphyPlaceholder } from '@forumkit/shared';
 import { createEditorExtensions } from '../composer/editor/extensions';
 import {
   ToolbarButton, LinkIcon, BulletListIcon, NumberedListIcon, SpoilerIcon, CodeBlockIcon, TableIcon,
-  ImageIcon, VideoIcon, GifIcon,
+  ImageIcon, VideoIcon,
 } from '../composer/editor/toolbar-buttons';
 import { uploadInline } from '../composer/editor/upload-inline';
 import { deleteAttachment as apiDeleteAttachment } from '../../api/attachments';
@@ -59,10 +58,9 @@ export default function CommentComposer({
   useEffect(() => {
     if (!gifPanelOpen || gifNotConfigured) return;
     const q = gifQuery.trim();
-    if (!q) { setGifResults([]); return; }
     setGifLoading(true);
     const timer = window.setTimeout(() => {
-      searchGifs(forumId, q, sessionToken)
+      searchGifs(forumId, q || 'trending', sessionToken)
         .then(setGifResults)
         .catch(err => {
           if (err instanceof GifSearchNotConfiguredError) setGifNotConfigured(true);
@@ -92,7 +90,7 @@ export default function CommentComposer({
   }
 
   function handleSelectGif(gif: GifResult) {
-    run(e => e.chain().focus().setImage({ src: buildGiphyPlaceholder(gif), alt: 'gif' }).run());
+    run(e => e.chain().focus().setGif({ id: gif.id, width: gif.width, height: gif.height }).run());
     setGifPanelOpen(false);
     setGifQuery('');
     setGifResults([]);
@@ -224,7 +222,8 @@ export default function CommentComposer({
         <div className="fk-comment-composer-icons">
           <ToolbarButton label="Image" onClick={() => imageInputRef.current?.click()}><ImageIcon /></ToolbarButton>
           <ToolbarButton label="Video" onClick={() => videoInputRef.current?.click()}><VideoIcon /></ToolbarButton>
-          <ToolbarButton label="GIF" active={gifPanelOpen} onClick={() => setGifPanelOpen(o => !o)}><GifIcon /></ToolbarButton>
+          <ToolbarButton label="GIF" active={gifPanelOpen} style={{ fontWeight: 800, fontSize: 11 }}
+            onClick={() => setGifPanelOpen(o => !o)}>GIF</ToolbarButton>
           <ToolbarButton label="Show formatting options" active={formattingOpen} style={{ fontWeight: 700, fontSize: 13 }}
             onClick={() => setFormattingOpen(o => !o)}>Aa</ToolbarButton>
         </div>
