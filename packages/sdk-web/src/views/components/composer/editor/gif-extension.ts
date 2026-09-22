@@ -79,8 +79,9 @@ export const Gif = Node.create<GifOptions>({
   addStorage() {
     return {
       markdown: {
-        serialize(state: { write: (s: string) => void }, node: { attrs: GifAttrs }) {
+        serialize(state: { write: (s: string) => void; closeBlock: (node: unknown) => void }, node: { attrs: GifAttrs }) {
           state.write(`![gif](${buildGiphyPlaceholder(node.attrs)})`);
+          state.closeBlock(node);
         },
         parse: {
           updateDOM(element: HTMLElement) {
