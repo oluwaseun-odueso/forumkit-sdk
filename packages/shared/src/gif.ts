@@ -26,3 +26,15 @@ export function parseGiphyDimensions(urlOrPlaceholder: string): { width: number;
 export function buildGiphyMarkdown(gif: Pick<GifResult, 'id' | 'width' | 'height'>): string {
   return `![gif](${buildGiphyPlaceholder(gif)})`;
 }
+
+// Caps real dimensions to a preview box, scaling down proportionally and
+// never up — shared so web and RN render GIFs at the same effective size.
+export function fitGifDimensions(
+  dims: { width: number; height: number } | null,
+  maxWidth: number,
+  maxHeight: number,
+): { width: number; height: number } {
+  if (!dims || dims.width <= 0 || dims.height <= 0) return { width: maxWidth, height: maxHeight };
+  const scale = Math.min(1, maxWidth / dims.width, maxHeight / dims.height);
+  return { width: Math.round(dims.width * scale), height: Math.round(dims.height * scale) };
+}

@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { Linking, Text, View, Image, StyleSheet } from 'react-native';
-import { resolveGiphyUrl, parseGiphyDimensions } from '@forumkit/shared';
+import { resolveGiphyUrl, parseGiphyDimensions, fitGifDimensions } from '@forumkit/shared';
 import { useTheme } from '../theme/ThemeContext';
 
 // Renders a post/comment body as Markdown — the mobile counterpart to sdk-web's
@@ -151,16 +151,9 @@ function renderInline(text: string, keyPrefix: string, linkColor: string, codeBg
   });
 }
 
-// Caps a GIF's real dimensions to a Reddit-sized preview box instead of
-// stretching it full-width — scales down proportionally, never up.
+// Reddit-sized preview box, matching sdk-web's rendered-body.tsx.
 const GIF_MAX_WIDTH = 280;
 const GIF_MAX_HEIGHT = 280;
-
-function fitGifDimensions(dims: { width: number; height: number } | null): { width: number; height: number } {
-  if (!dims || dims.width <= 0 || dims.height <= 0) return { width: GIF_MAX_WIDTH, height: GIF_MAX_HEIGHT };
-  const scale = Math.min(1, GIF_MAX_WIDTH / dims.width, GIF_MAX_HEIGHT / dims.height);
-  return { width: Math.round(dims.width * scale), height: Math.round(dims.height * scale) };
-}
 
 export default function RenderedBody({ body, size = 14.5 }: { body: string; size?: number }) {
   const { tokens } = useTheme();
@@ -210,7 +203,7 @@ export default function RenderedBody({ body, size = 14.5 }: { body: string; size
             return <View key={key} style={[styles.hr, { backgroundColor: tokens.border }]} />;
           case 'image':
             if (b.alt === 'gif') {
-              const { width: gifW, height: gifH } = fitGifDimensions(parseGiphyDimensions(b.url));
+              const { width: gifW, height: gifH } = fitGifDimensions(parseGiphyDimensions(b.url), GIF_MAX_WIDTH, GIF_MAX_HEIGHT);
               return (
                 <View key={key} style={styles.gifWrap}>
                   <Image

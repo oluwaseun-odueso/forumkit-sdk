@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import type { GifResult } from '@forumkit/types';
+import { buildGiphyPlaceholder } from '@forumkit/shared';
 import { createEditorExtensions } from '../composer/editor/extensions';
 import {
   ToolbarButton, LinkIcon, BulletListIcon, NumberedListIcon, SpoilerIcon, CodeBlockIcon, TableIcon,
@@ -91,7 +92,7 @@ export default function CommentComposer({
   }
 
   function handleSelectGif(gif: GifResult) {
-    run(e => e.chain().focus().setImage({ src: gif.url }).run());
+    run(e => e.chain().focus().setImage({ src: buildGiphyPlaceholder(gif), alt: 'gif' }).run());
     setGifPanelOpen(false);
     setGifQuery('');
     setGifResults([]);
