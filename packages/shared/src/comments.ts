@@ -1,5 +1,5 @@
 import { fmtRelativeTime } from './format-time';
-import type { Comment, VoteCounts, VoteDirection } from '@forumkit/types';
+import type { AttachmentSummary, Comment, VoteCounts, VoteDirection } from '@forumkit/types';
 
 // Nested comment view-model + the flat->tree builder, shared by web and mobile.
 // Lifted from sdk-web (use-forum-state.tsx's commentsToCommentTree +
@@ -19,6 +19,7 @@ export type CommentNode = {
   myVote?: VoteDirection | null;
   isSaved: boolean;
   isAcceptedAnswer: boolean;
+  attachments: AttachmentSummary[];
   replies: CommentNode[];
 };
 
@@ -44,6 +45,7 @@ export function commentsToCommentTree(comments: Comment[]): CommentNode[] {
       myVote: p.myVote ?? null,
       isSaved: p.isSaved ?? false,
       isAcceptedAnswer: p.isAcceptedAnswer,
+      attachments: p.attachments ?? [],
       replies: [],
     });
   }

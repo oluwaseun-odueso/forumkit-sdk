@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import RichComposer from '../composer/RichComposer';
 import { buildGiphyMarkdown, type CommentNode } from '@forumkit/shared';
-import type { VoteDirection, GifResult } from '@forumkit/types';
+import type { AttachmentSummary, VoteDirection, GifResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
 import RenderedBody from '../components/RenderedBody';
 import VotePill from '../components/VotePill';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ImageLightbox from '../components/ImageLightbox';
+import InlineVideoThumb from '../components/InlineVideoThumb';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
 import { EllipsisIcon, ReportIcon, TrashIcon, CheckIcon, PencilIcon, ShareIcon } from '../components/icons';
 import CommentComposer from './CommentComposer';
@@ -111,6 +113,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
       ) : (
         <View style={styles.body}>
           <RenderedBody body={node.body} size={13.5} />
+          {node.attachments.length > 0 && <CommentAttachments attachments={node.attachments} />}
         </View>
       )}
 
@@ -198,6 +201,36 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
   );
 }
 
+const ATTACHMENT_MAX_WIDTH = 220;
+const ATTACHMENT_MAX_HEIGHT = 220;
+
+// Compact, wrapping thumbnails — unlike ThreadScreen's full-bleed MediaGallery
+// (sized to the whole screen width), a comment is already indented and narrow.
+function CommentAttachments({ attachments }: { attachments: AttachmentSummary[] }) {
+  const { tokens } = useTheme();
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  return (
+    <View style={styles.attachments}>
+      {attachments.map(a => {
+        const isVideo = a.mimeType.startsWith('video/');
+        const scale = a.width && a.height ? Math.min(1, ATTACHMENT_MAX_WIDTH / a.width, ATTACHMENT_MAX_HEIGHT / a.height) : 1;
+        const width = a.width ? Math.round(a.width * scale) : ATTACHMENT_MAX_WIDTH;
+        const height = a.height ? Math.round(a.height * scale) : ATTACHMENT_MAX_HEIGHT;
+        return (
+          <Pressable key={a.id} disabled={isVideo} onPress={() => setPreviewUri(a.downloadUrl)}>
+            {isVideo ? (
+              <InlineVideoThumb uri={a.downloadUrl} style={[styles.attachment, { width, height, backgroundColor: tokens['surface-2'] }]} />
+            ) : (
+              <Image source={{ uri: a.downloadUrl }} style={[styles.attachment, { width, height, backgroundColor: tokens['surface-2'] }]} resizeMode="cover" />
+            )}
+          </Pressable>
+        );
+      })}
+      {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
+    </View>
+  );
+}
+
 function Action({ label, onPress }: { label: string; onPress: () => void }) {
   const { tokens } = useTheme();
   return (
@@ -217,6 +250,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999,
   },
   body: { marginTop: 6, marginLeft: 32 },
+  attachments: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  attachment: { borderRadius: 10 },
   editInput: { borderWidth: 1, borderRadius: 10, padding: 10, fontSize: 13.5, minHeight: 60, textAlignVertical: 'top' },
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
   smallBtn: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 },

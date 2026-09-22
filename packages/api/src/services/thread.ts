@@ -109,11 +109,25 @@ export async function getThreadWithAttachments(
   if (!result.ok) return result;
 
   const { thread, comments } = result.value;
-  const threadAttachments = await attachmentRepo.listAttachmentsByThread(db, threadId);
+  const [threadAttachments, commentAttachments] = await Promise.all([
+    attachmentRepo.listAttachmentsByThread(db, threadId),
+    attachmentRepo.listAttachmentsByCommentIds(db, comments.map((c) => c.id)),
+  ]);
+
+  const attachmentsByComment = new Map<string, Attachment[]>();
+  for (const a of commentAttachments) {
+    if (!a.commentId) continue;
+    const list = attachmentsByComment.get(a.commentId) ?? [];
+    list.push(a);
+    attachmentsByComment.set(a.commentId, list);
+  }
 
   return ok({
     thread: { ...thread, attachments: toAttachmentSummaries(publicApiUrl, forumId, threadAttachments) },
-    comments,
+    comments: comments.map((c) => ({
+      ...c,
+      attachments: toAttachmentSummaries(publicApiUrl, forumId, attachmentsByComment.get(c.id) ?? []),
+    })),
   });
 }
 

@@ -81,6 +81,7 @@ export type Comment = {
   toxicityScore: number | null;      // null until moderation completes
   isAcceptedAnswer: boolean;
   reactionCounts: Partial<Record<ReactionType, number>>;
+  attachments?: AttachmentSummary[];
   voteCounts?: VoteCounts;
   myVote?: VoteDirection | null;
   isSaved?: boolean;

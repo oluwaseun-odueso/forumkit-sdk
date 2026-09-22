@@ -5,7 +5,9 @@ import { embedOne, safeModerate } from '@forumkit/ai';
 import { ok, err } from '../lib/result';
 import type { Result } from '../lib/result';
 import * as repo from '../repositories/comment';
+import * as attachmentRepo from '../repositories/attachment';
 import { attachToExistingComment } from './storage';
+import { toAttachmentSummaries } from './thread';
 import { notifyReport, notifyCommentReply } from './notification';
 
 export type CommentError = 'comment_not_found' | 'thread_not_found' | 'thread_locked' | 'forbidden';
@@ -38,6 +40,13 @@ export async function createComment(
     await attachToExistingComment(db, attachmentId, comment.id, opts.authorId);
   }
 
+  // Re-read whatever actually linked (attachToExistingComment is best-effort
+  // and may have skipped some) so the response the client appends locally
+  // reflects reality, not just what was requested.
+  const attachments = opts.attachmentIds?.length
+    ? await attachmentRepo.listAttachmentsByComment(db, comment.id)
+    : [];
+
   void embedComment(db, embedFn, comment.id, comment.body);
   void moderateComment(db, moderateFn, comment.id, opts.threadId, comment.body);
 
@@ -45,7 +54,7 @@ export async function createComment(
     void notifyParentCommentAuthor(db, thread.forumId, opts.threadId, opts.parentCommentId, opts.authorId, comment.id);
   }
 
-  return ok(comment);
+  return ok({ ...comment, attachments: toAttachmentSummaries(publicApiUrl, thread.forumId, attachments) });
 }
 
 export async function updateComment(
@@ -68,7 +77,12 @@ export async function updateComment(
 
   const comment = await repo.updateComment(db, publicApiUrl, commentId, body);
   if (!comment) return err('comment_not_found');
-  return ok(comment);
+
+  // Editing never touches attachment links — re-read them so the response
+  // the client swaps in locally doesn't drop the comment's existing media.
+  const thread = await repo.getThreadInfo(db, existing.threadId);
+  const attachments = thread ? await attachmentRepo.listAttachmentsByComment(db, commentId) : [];
+  return ok({ ...comment, attachments: thread ? toAttachmentSummaries(publicApiUrl, thread.forumId, attachments) : [] });
 }
 
 export async function deleteComment(

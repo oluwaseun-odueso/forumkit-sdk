@@ -1358,6 +1358,7 @@ function useForumStateInternal() {
       myVote: raw.myVote ?? null,
       isSaved: raw.isSaved ?? false,
       isAcceptedAnswer: raw.isAcceptedAnswer,
+      attachments: raw.attachments ?? [],
       replies: [],
     };
     dispatch({ type: 'REPLY_SUBMITTED', parentId, comment });
