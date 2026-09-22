@@ -1,6 +1,6 @@
 {
   "name": "@timpel/forumkit-sdk-react-native",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "license": "MIT",
   "main": "./index.ts",
   "types": "./dist/index.d.ts",
