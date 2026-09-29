@@ -1,4 +1,4 @@
-import type { CreateThreadBody, UpdateThreadBody, Thread, RelatedThreadForRail } from '@forumkit/types';
+import type { CreateThreadBody, UpdateThreadBody, Thread, RelatedThreadForRail, SimilarThread } from '@forumkit/types';
 import {
   listThreads as sharedListThreads,
   saveThread as sharedSaveThread,
@@ -69,6 +69,22 @@ export function shareThreadWithUsers(
   token?: string,
 ): Promise<void> {
   return sharedShareThreadWithUsers(getApiBase(), forumId, threadId, recipientUserIds, message, token);
+}
+
+export async function findDuplicateThreads(
+  forumId: string,
+  title: string,
+  body?: string,
+  token?: string,
+): Promise<SimilarThread[]> {
+  const params = new URLSearchParams({ title });
+  if (body) params.set('body', body);
+  const res = await fetch(
+    `${getApiBase()}/forums/${forumId}/threads/duplicates?${params.toString()}`,
+    { headers: authHeaders(token) },
+  );
+  if (!res.ok) return [];
+  return res.json() as Promise<SimilarThread[]>;
 }
 
 // Stays local (not part of the shared subset).
