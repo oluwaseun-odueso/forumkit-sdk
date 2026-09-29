@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createThread, createDraft, deleteAttachment, buildGiphyMarkdown } from '@forumkit/shared';
-import type { DraftContent, GifResult } from '@forumkit/types';
+import type { DraftContent, GifResult, SimilarThread } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttachment } from '../lib/upload';
 import { CloseIcon, SparkleIcon, PlusIcon, PencilIcon } from '../components/icons';
-import { callSuggestMetadata } from '../thread/api-ai';
+import { callSuggestMetadata, findDuplicateThreads } from '../thread/api-ai';
+import DuplicateThreadsPanel from '../composer/DuplicateThreadsPanel';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
@@ -63,6 +64,21 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
   const isUploading = attachments.some(a => a.status === 'uploading');
   type SuggestState = 'idle' | 'loading' | 'error' | 'no-body';
   const [suggestState, setSuggestState] = useState<SuggestState>('idle');
+  const [duplicates, setDuplicates] = useState<SimilarThread[]>([]);
+
+  useEffect(() => {
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length < 10) { setDuplicates([]); return; }
+    const trimmedBody = body.trim().slice(0, 2000) || undefined;
+    const timer = setTimeout(() => {
+      findDuplicateThreads(apiUrl, forumId, trimmedTitle, trimmedBody, token)
+        .then(items => setDuplicates(items))
+        .catch(() => setDuplicates([]));
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [title, body]);
+
+  const dismissDuplicates = useCallback(() => setDuplicates([]), []);
 
   async function handleSuggestMeta() {
     if (suggestState === 'loading' || !token) return;
@@ -228,6 +244,8 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
           {suggestState === 'error' && (
             <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>AI feature is not available</Text>
           )}
+
+          <DuplicateThreadsPanel duplicates={duplicates} onOpenThread={onPosted} onDismiss={dismissDuplicates} />
 
           <View style={[styles.tagsWrap, { backgroundColor: tokens['surface-2'] }]}>
             <PencilIcon size={12} color={tokens.muted} />

@@ -1,5 +1,6 @@
 import { summariseStreaming, suggestStreaming } from '@forumkit/shared';
 export type { SummariseStreamEvent, SuggestStreamEvent } from '@forumkit/shared';
+import type { SimilarThread } from '@forumkit/types';
 
 function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -99,4 +100,25 @@ export async function callSuggestStreaming(
   token?: string,
 ): Promise<void> {
   await suggestStreaming(apiUrl, threadId, token, onEvent);
+}
+
+export async function findDuplicateThreads(
+  apiUrl: string,
+  forumId: string,
+  title: string,
+  body?: string,
+  token?: string,
+): Promise<SimilarThread[]> {
+  try {
+    const params = new URLSearchParams({ title });
+    if (body) params.set('body', body);
+    const res = await fetch(
+      `${apiUrl}/forums/${forumId}/threads/duplicates?${params.toString()}`,
+      { headers: authHeaders(token) },
+    );
+    if (!res.ok) return [];
+    return (await res.json()) as SimilarThread[];
+  } catch {
+    return [];
+  }
 }
