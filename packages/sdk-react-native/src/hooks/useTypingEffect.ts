@@ -44,6 +44,7 @@ export function useTypingEffect(target: string | null, speed = 18): string {
     const id = setInterval(() => {
       setDisplayed(prev => {
         const full = targetRef.current;
+        if (prev.length > 0 && !full.startsWith(prev)) return '';
         if (prev.length >= full.length) return prev;
         return full.slice(0, prev.length + 1);
       });
