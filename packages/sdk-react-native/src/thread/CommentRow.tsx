@@ -121,6 +121,15 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
         <VotePill voteCounts={node.voteCounts} dir={node.myVote ?? null} onVote={dir => ctx.onVote(node.id, dir)} />
         <Action label="Reply" onPress={() => setReplyOpen(o => !o)} />
         <Action label={node.isSaved ? 'Unsave' : 'Save'} onPress={() => ctx.onSave(node.id, !node.isSaved)} />
+        {depth === 0 && ctx.canAcceptAnswer && (
+          <Pressable
+            onPress={() => ctx.onAccept(node.id, !node.isAcceptedAnswer)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.acceptBtn, node.isAcceptedAnswer && { borderColor: tokens.success }, pressed && { opacity: 0.65 }]}
+          >
+            <CheckIcon size={15} color={node.isAcceptedAnswer ? tokens.success : tokens.muted} />
+          </Pressable>
+        )}
         <Pressable
           ref={ellipsisRef}
           onPress={() => measure(() => setMenuOpen(true))}
@@ -256,5 +265,6 @@ const styles = StyleSheet.create({
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
   smallBtn: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 },
   actions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14, rowGap: 8, marginTop: 8, marginLeft: 32 },
+  acceptBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
   ellipsisBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' },
 });
