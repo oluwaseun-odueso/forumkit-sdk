@@ -190,11 +190,11 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
       <View style={[styles.overlay, { bottom: 94 + insets.bottom, backgroundColor: tokens.bg }]}>
       <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA }}>
         <View style={styles.header}>
-          <Pressable onPress={handleCancel} hitSlop={8}>
+          <Pressable onPress={handleCancel} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.65 }}>
             <CloseIcon size={18} color={tokens.text} />
           </Pressable>
           <Text style={[styles.heading, { color: tokens.text }]}>Create post</Text>
-          <Pressable onPress={onOpenDrafts} hitSlop={8}>
+          <Pressable onPress={onOpenDrafts} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.65 }}>
             <Text style={{ color: tokens.accent, fontSize: 14, fontWeight: '600' }}>Drafts</Text>
           </Pressable>
         </View>
@@ -211,7 +211,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
 
           <Pressable
             onPress={() => void handleSuggestMeta()}
-            style={styles.suggestRow}
+            style={({ pressed }) => [styles.suggestRow, pressed && { opacity: 0.65 }]}
             hitSlop={6}
             disabled={suggestState === 'loading'}
           >
@@ -257,7 +257,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
 
           {tab === 'images' && (
             attachments.length === 0 ? (
-              <Pressable onPress={addMedia} style={[styles.dropzone, { borderColor: tokens['border-strong'] }]}>
+              <Pressable onPress={addMedia} style={({ pressed }) => [styles.dropzone, { borderColor: tokens['border-strong'] }, pressed && { opacity: 0.65 }]}>
                 <Text style={{ color: tokens.muted, fontSize: 14 }}>Tap to upload image or video</Text>
               </Pressable>
             ) : (
@@ -292,14 +292,14 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
                         <View style={styles.mediaCellOverlay}><ActivityIndicator color="#fff" /></View>
                       )}
                     </Pressable>
-                    <Pressable onPress={() => removeMedia(a.localId)} style={styles.mediaCellDelete} hitSlop={6}>
+                    <Pressable onPress={() => removeMedia(a.localId)} style={({ pressed }) => [styles.mediaCellDelete, pressed && { opacity: 0.65 }]} hitSlop={6}>
                       <CloseIcon size={12} color="#fff" />
                     </Pressable>
                   </View>
                 ))}
                 <Pressable
                   onPress={addMedia}
-                  style={[styles.mediaCell, styles.mediaAddCell, { borderColor: tokens['border-strong'] }]}
+                  style={({ pressed }) => [styles.mediaCell, styles.mediaAddCell, { borderColor: tokens['border-strong'] }, pressed && { opacity: 0.65 }]}
                 >
                   <PlusIcon size={20} color={tokens['text-2']} />
                   <Text style={{ color: tokens['text-2'], fontSize: 11, marginTop: 4, fontWeight: '600' }}>Add</Text>
@@ -319,10 +319,10 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
           {error && <Text style={{ color: tokens.up, fontSize: 13 }}>{error}</Text>}
 
           <View style={styles.footer}>
-            <Pressable onPress={handleSaveDraft} disabled={!canSaveDraft} style={[styles.btn, { backgroundColor: tokens['surface-2'], opacity: canSaveDraft ? 1 : 0.5 }]}>
+            <Pressable onPress={handleSaveDraft} disabled={!canSaveDraft} style={({ pressed }) => [styles.btn, { backgroundColor: tokens['surface-2'], opacity: canSaveDraft ? (pressed ? 0.65 : 1) : 0.5 }]}>
               <Text style={{ color: tokens['text-2'], fontSize: 13.5, fontWeight: '700' }}>{savingDraft ? 'Saving…' : 'Save as Draft'}</Text>
             </Pressable>
-            <Pressable onPress={handlePost} disabled={!canPost} style={[styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? 1 : 0.5 }]}>
+            <Pressable onPress={handlePost} disabled={!canPost} style={({ pressed }) => [styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? (pressed ? 0.65 : 1) : 0.5 }]}>
               <Text style={{ color: tokens['accent-fg'], fontSize: 13.5, fontWeight: '700' }}>{submitting ? 'Posting…' : isUploading ? 'Uploading…' : 'Post'}</Text>
             </Pressable>
           </View>

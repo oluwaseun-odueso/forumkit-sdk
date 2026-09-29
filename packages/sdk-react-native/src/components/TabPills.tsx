@@ -21,7 +21,7 @@ export default function TabPills({ tabs, active, onSelect }: {
         {tabs.map(tab => {
           const isActive = tab === active;
           return (
-            <Pressable key={tab} onPress={() => onSelect(tab)} style={styles.tab}>
+            <Pressable key={tab} onPress={() => onSelect(tab)} style={({ pressed }) => [styles.tab, pressed && { opacity: 0.65 }]}>
               <Text style={{ color: isActive ? tokens.text : tokens.muted, fontSize: 15, fontWeight: isActive ? '700' : '500' }}>
                 {tab}
               </Text>

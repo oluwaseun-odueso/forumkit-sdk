@@ -70,7 +70,7 @@ export function DropdownMenuItem({ label, active, icon, labelColor, onPress }: {
 }) {
   const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} style={[styles.item, active ? { backgroundColor: tokens['hover-2'] } : null]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.item, (active || pressed) ? { backgroundColor: tokens['hover-2'] } : null]}>
       {icon}
       <Text style={{ color: labelColor ?? tokens.text, fontSize: 13.5, fontWeight: active ? '600' : '400' }}>{label}</Text>
     </Pressable>

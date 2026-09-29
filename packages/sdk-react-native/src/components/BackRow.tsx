@@ -10,7 +10,7 @@ export default function BackRow({ onPress, label = 'Back' }: { onPress: () => vo
   const BackIcon = Platform.OS === 'ios' ? ChevronLeftIcon : MaterialBackIcon;
   return (
     <View style={styles.wrap}>
-      <Pressable onPress={onPress} hitSlop={6} style={[styles.pill, { backgroundColor: tokens['surface-2'] }]}>
+      <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.pill, { backgroundColor: tokens['surface-2'] }, pressed && { opacity: 0.65 }]}>
         <BackIcon size={16} color={tokens['text-2']} />
         <Text style={[styles.label, { color: tokens['text-2'] }]}>{label}</Text>
       </Pressable>

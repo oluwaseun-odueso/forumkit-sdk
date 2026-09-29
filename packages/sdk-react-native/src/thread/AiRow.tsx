@@ -130,7 +130,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
       <GradientBorderPill height={36} borderWidth={1.3} style={styles.sparklePill}>
         <Pressable
           onPress={handleSparkle}
-          style={styles.sparkleBtn}
+          style={({ pressed }) => [styles.sparkleBtn, pressed && { opacity: 0.65 }]}
           disabled={rowState === 'checking'}
           hitSlop={4}
         >
@@ -148,7 +148,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
             <SparkleIcon size={16} />
             <Text style={[styles.panelTitle, { color: tokens.text }]}>AI Features</Text>
             <View style={{ flex: 1 }} />
-            <Pressable onPress={() => setRowState('closed')} hitSlop={8}>
+            <Pressable onPress={() => setRowState('closed')} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.65 }}>
               <CloseIcon size={16} color={tokens.muted} />
             </Pressable>
           </View>
@@ -174,7 +174,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
                   {summaryOpen ? 'Thread summary' : 'Suggested reply'}
                 </Text>
                 <View style={{ flex: 1 }} />
-                <Pressable onPress={() => { setSummaryOpen(false); setSuggestOpen(false); }} hitSlop={8}>
+                <Pressable onPress={() => { setSummaryOpen(false); setSuggestOpen(false); }} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.65 }}>
                   <CloseIcon size={16} color={tokens.muted} />
                 </Pressable>
               </View>
@@ -204,7 +204,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
                     <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>{suggestText}</Text>
                     {suggestState === 'done' && (
                       <Pressable
-                        style={[styles.copyBtn, { borderColor: suggestCopied ? tokens.accent : tokens.border, backgroundColor: tokens.surface }]}
+                        style={({ pressed }) => [styles.copyBtn, { borderColor: suggestCopied ? tokens.accent : tokens.border, backgroundColor: tokens.surface }, pressed && { opacity: 0.65 }]}
                         onPress={() => {
                           void Clipboard.setStringAsync(suggestText);
                           setSuggestCopied(true);
@@ -237,7 +237,7 @@ function AiButton({ label, onPress, active }: { label: string; onPress: () => vo
     <GradientBorderPill height={34} borderWidth={1.3} filled={active} style={{ flex: 1 }}>
       <Pressable
         onPress={onPress}
-        style={styles.aiBtn}
+        style={({ pressed }) => [styles.aiBtn, pressed && { opacity: 0.65 }]}
       >
         <SparkleIcon size={14} />
         <Text style={[styles.aiBtnLabel, { color: tokens.text }]}>{label}</Text>

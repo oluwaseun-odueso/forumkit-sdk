@@ -17,11 +17,11 @@ export default function VotePill({ voteCounts, dir, onVote }: {
 
   return (
     <View style={[styles.pill, { backgroundColor: tokens['surface-2'] }]}>
-      <Pressable onPress={() => onVote(1)} hitSlop={8} style={styles.unit}>
+      <Pressable onPress={() => onVote(1)} hitSlop={8} style={({ pressed }) => [styles.unit, pressed && { opacity: 0.65 }]}>
         <UpvoteIcon size={17} color={dir === 1 ? tokens.up : tokens.muted} filled={dir === 1} />
         <Text style={[styles.count, { color: dir === 1 ? tokens.up : tokens['text-2'] }]}>{voteCounts.up}</Text>
       </Pressable>
-      <Pressable onPress={() => onVote(-1)} hitSlop={8} style={styles.unit}>
+      <Pressable onPress={() => onVote(-1)} hitSlop={8} style={({ pressed }) => [styles.unit, pressed && { opacity: 0.65 }]}>
         <DownvoteIcon size={17} color={dir === -1 ? tokens.down : tokens.muted} filled={dir === -1} />
         <Text style={[styles.count, { color: dir === -1 ? tokens.down : tokens['text-2'] }]}>{voteCounts.down}</Text>
       </Pressable>

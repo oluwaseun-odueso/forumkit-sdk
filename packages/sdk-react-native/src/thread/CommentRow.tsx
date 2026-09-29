@@ -64,7 +64,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
       ]}
     >
       <Pressable
-        style={styles.head}
+        style={({ pressed }) => [styles.head, pressed && { opacity: 0.65 }]}
         onPress={ctx.onPressAuthor && node.authorId ? () => ctx.onPressAuthor!(node.authorId!) : undefined}
         disabled={!ctx.onPressAuthor || !node.authorId}
       >
@@ -94,7 +94,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
             allowMedia={false}
           />
           <View style={styles.editActions}>
-            <Pressable onPress={() => { setEditOpen(false); setEditBody(node.body); setEditGifs([]); }} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}>
+            <Pressable onPress={() => { setEditOpen(false); setEditBody(node.body); setEditGifs([]); }} style={({ pressed }) => [styles.smallBtn, { backgroundColor: tokens['surface-2'] }, pressed && { opacity: 0.65 }]}>
               <Text style={{ color: tokens['text-2'], fontWeight: '700', fontSize: 12 }}>Cancel</Text>
             </Pressable>
             <Pressable
@@ -104,7 +104,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
                 setEditOpen(false);
                 setEditGifs([]);
               }}
-              style={[styles.smallBtn, { backgroundColor: tokens.accent }]}
+              style={({ pressed }) => [styles.smallBtn, { backgroundColor: tokens.accent }, pressed && { opacity: 0.65 }]}
             >
               <Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 12 }}>Save</Text>
             </Pressable>
@@ -125,7 +125,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
           ref={ellipsisRef}
           onPress={() => measure(() => setMenuOpen(true))}
           hitSlop={6}
-          style={[styles.ellipsisBtn, { backgroundColor: menuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
+          style={({ pressed }) => [styles.ellipsisBtn, { backgroundColor: menuOpen || pressed ? tokens['hover-2'] : tokens['surface-2'] }]}
         >
           <EllipsisIcon size={17} color={tokens['text-2']} />
         </Pressable>
@@ -234,7 +234,7 @@ function CommentAttachments({ attachments }: { attachments: AttachmentSummary[] 
 function Action({ label, onPress }: { label: string; onPress: () => void }) {
   const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} hitSlop={6}>
+    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => pressed && { opacity: 0.65 }}>
       <Text style={{ color: tokens.muted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );

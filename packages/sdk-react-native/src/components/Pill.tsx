@@ -95,5 +95,5 @@ export function Pill({
   ];
 
   if (!onPress) return <View style={pillStyle}>{children}</View>;
-  return <Pressable onPress={onPress} style={pillStyle}>{children}</Pressable>;
+  return <Pressable onPress={onPress} style={({ pressed }) => [...pillStyle, pressed && { opacity: 0.65 }]}>{children}</Pressable>;
 }
