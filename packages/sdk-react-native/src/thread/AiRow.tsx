@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useTypingEffect } from '../hooks/useTypingEffect';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../theme/ThemeContext';
@@ -122,6 +123,10 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
     if (suggestState === 'idle' || suggestState === 'done') void fetchSuggest();
   };
 
+  const displayedSuggest = useTypingEffect(suggestOpen ? suggestText || null : null);
+  const lastSummaryPoint = summaryPoints.at(-1) ?? null;
+  const displayedLastPoint = useTypingEffect(summaryOpen ? lastSummaryPoint : null);
+
   const panelOpen = summaryOpen || suggestOpen;
 
   return (
@@ -186,12 +191,15 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
                   <Text style={[styles.panelBody, { color: tokens.muted }]}>AI service unavailable</Text>
                 ) : (
                   <View style={{ gap: 6 }}>
-                    {summaryPoints.map((pt, i) => (
-                      <View key={i} style={styles.bulletRow}>
-                        <Text style={[styles.bullet, { color: tokens['text-2'] }]}>•</Text>
-                        <Text style={[styles.panelBody, { color: tokens['text-2'], flex: 1 }]}>{pt}</Text>
-                      </View>
-                    ))}
+                    {summaryPoints.map((pt, i) => {
+                      const isLast = i === summaryPoints.length - 1;
+                      return (
+                        <View key={i} style={styles.bulletRow}>
+                          <Text style={[styles.bullet, { color: tokens['text-2'] }]}>•</Text>
+                          <Text style={[styles.panelBody, { color: tokens['text-2'], flex: 1 }]}>{isLast ? displayedLastPoint : pt}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 )
               )}
@@ -201,7 +209,7 @@ const AiRow = forwardRef<AiRowHandle, AiRowProps>(function AiRow({ threadId, for
                   <Text style={[styles.panelBody, { color: tokens.muted }]}>AI service unavailable</Text>
                 ) : suggestText ? (
                   <View>
-                    <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>{suggestText}</Text>
+                    <Text style={[styles.panelBody, { color: tokens['text-2'] }]}>{displayedSuggest}</Text>
                     {suggestState === 'done' && (
                       <Pressable
                         style={({ pressed }) => [styles.copyBtn, { borderColor: suggestCopied ? tokens.accent : tokens.border, backgroundColor: tokens.surface }, pressed && { opacity: 0.65 }]}
