@@ -56,4 +56,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # and exit before the server starts - the long-running server process below
 # never receives that connection string, only DATABASE_POOL_URL. See
 # packages/db/src/bin/migrate.ts.
-CMD ["sh", "-c", "node --import tsx/esm packages/db/src/bin/migrate.ts && node --import tsx/esm packages/api/src/server.ts"]
+#
+# Migration step uses the tsx CLI, not --import tsx/esm - node-pg-migrate
+# require()s each migration file at runtime, which --import tsx/esm (ESM
+# loader only) doesn't transform; the CLI's CJS hook does.
+CMD ["sh", "-c", "npx tsx packages/db/src/bin/migrate.ts && node --import tsx/esm packages/api/src/server.ts"]
