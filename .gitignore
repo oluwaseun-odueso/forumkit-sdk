@@ -25,7 +25,6 @@ Thumbs.db
 !packages/sdk-web/public/*.jpg
 !packages/sdk-web/public/*.jpeg
 CHECKLIST.md
-CLAUDE.md
 gen-tokens.mjs
 gen-tokens-native.mjs
 docs/backend-test-plan.md
