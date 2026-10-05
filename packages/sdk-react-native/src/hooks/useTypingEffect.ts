@@ -8,11 +8,10 @@ export function useSequentialTyping(items: string[], speed = 18): string[] {
   itemsRef.current = items;
 
   useEffect(() => {
-    const intervalId = { current: 0 as ReturnType<typeof setInterval> };
-    intervalId.current = setInterval(() => {
+    const intervalId = setInterval(() => {
       const idx = activeIdxRef.current;
       const targets = itemsRef.current;
-      if (idx >= targets.length) { clearInterval(intervalId.current); return; }
+      if (idx >= targets.length) { clearInterval(intervalId); return; }
       setDisplayed(prev => {
         const currentShown = prev[idx] ?? '';
         const target = targets[idx] ?? '';
@@ -25,8 +24,7 @@ export function useSequentialTyping(items: string[], speed = 18): string[] {
         return next;
       });
     }, speed);
-    return () => clearInterval(intervalId.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return (): void => clearInterval(intervalId);
   }, []);
 
   return displayed;
@@ -50,8 +48,7 @@ export function useTypingEffect(target: string | null, speed = 18): string {
       });
     }, speed);
 
-    return () => clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return (): void => clearInterval(id);
   }, [!!target, speed]);
 
   return displayed;
