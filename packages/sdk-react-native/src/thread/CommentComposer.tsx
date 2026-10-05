@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { buildGiphyMarkdown } from '@forumkit/shared';
+import type { GifResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import RichComposer from '../composer/RichComposer';
 import type { ComposerAttachment } from '../lib/upload';
@@ -21,22 +23,28 @@ export default function CommentComposer({
   const { tokens } = useTheme();
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [gifs, setGifs] = useState<GifResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   // Block submit while a media upload is still in flight, so a comment never
   // ships before its attachment finishes confirming.
-  const canSubmit = (body.trim().length > 0 || attachments.length > 0) && !submitting && !uploading;
+  const canSubmit = (body.trim().length > 0 || attachments.length > 0 || gifs.length > 0) && !submitting && !uploading;
 
   async function submit() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
+      // GIF markdown gets appended here, not spliced into the text buffer as
+      // the user types — RichComposer shows the selection as a thumbnail
+      // instead, same pattern ComposerOverlay.tsx uses for its link field.
+      const withGif = gifs[0] ? `${body.trim()}\n${buildGiphyMarkdown(gifs[0])}`.trim() : body.trim();
       // Backend requires a non-empty body always — an image-only comment
       // (no typed text) would otherwise send '' and 400. See the identical
       // fix/comment in navigation/ComposerOverlay.tsx.
-      await onSubmit(body.trim() || ' ', attachments.filter(a => a.attachmentId).map(a => a.attachmentId as string));
+      await onSubmit(withGif || ' ', attachments.filter(a => a.attachmentId).map(a => a.attachmentId as string));
       setBody('');
       setAttachments([]);
+      setGifs([]);
     } finally {
       setSubmitting(false);
     }
@@ -52,6 +60,8 @@ export default function CommentComposer({
         onChangeText={setBody}
         attachments={attachments}
         onAttachmentsChange={setAttachments}
+        gifs={gifs}
+        onGifsChange={setGifs}
         onUploadingChange={setUploading}
         placeholder={placeholder}
         minHeight={64}

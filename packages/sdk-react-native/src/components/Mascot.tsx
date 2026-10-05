@@ -8,6 +8,7 @@ import Svg, { Path, Circle, Defs, LinearGradient, RadialGradient, Stop } from 'r
 import { mascotAnimationTiming } from '@forumkit/shared';
 import { roundedBlobPath } from './mascot-path';
 import { linearGradientEndpoints, nextGradientId } from '../lib/svg-gradient';
+import { useTheme } from '../theme/ThemeContext';
 
 // The Forum Kit mascot — a pure-CSS chat-bubble character (nested divs with
 // layered gradients + three head/shoulders figures + a badge), NOT an image,
@@ -89,6 +90,17 @@ function startSynced(progress: SharedValue<number>, durationMs: number, delayMs:
 }
 
 export default function Mascot({ size = 24, animated = true, badge = true }: MascotProps) {
+  // A host-supplied mascot replaces the default everywhere this component
+  // is used — the brand row in Drawer and every loading state that
+  // otherwise renders the SVG below. Read from context rather than
+  // requiring every one of this component's ~14 call sites to be
+  // refactored individually — mirrors sdk-web's MascotIcon.tsx. Checked at
+  // the very end (see final return), not here: every hook below still has
+  // to run unconditionally on every render regardless of the override, or
+  // this would violate React's Rules of Hooks the moment `mascot` ever
+  // differs between renders of the same mounted instance.
+  const { mascot: MascotOverride } = useTheme();
+
   const idsRef = useRef({
     tail: nextGradientId(TAIL_GRADIENT_ID),
     bubble: nextGradientId(BUBBLE_GRADIENT_ID),
@@ -172,6 +184,8 @@ export default function Mascot({ size = 24, animated = true, badge = true }: Mas
 
   const tailPath = roundedBlobPath(tailSize, tailSize, TAIL_RADII, TAIL_RADII);
   const bubblePath = roundedBlobPath(bubbleSize, bubbleSize, BUBBLE_H_RADII, BUBBLE_V_RADII);
+
+  if (MascotOverride) return <MascotOverride size={size} />;
 
   return (
     // Android wasn't clipping the badge and the iOS-only fixes below didn't

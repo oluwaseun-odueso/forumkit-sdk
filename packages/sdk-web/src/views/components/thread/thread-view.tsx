@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
+import { useTypingEffect } from '../../hooks/use-typing-effect';
 import { filterComments } from '@forumkit/shared';
 import type { useForum } from '../../hooks/use-forum-state';
 import { authorAvatar } from '../../lib/author-avatar';
@@ -38,6 +39,9 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
   const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false);
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [suggestCopied, setSuggestCopied] = useState(false);
+  const displayedSuggest = useTypingEffect(aiPanel === 'reply' ? (state.asst.suggestedText ?? null) : null);
+  const lastSummaryPoint = state.asst.summary?.points.at(-1) ?? null;
+  const displayedLastPoint = useTypingEffect(aiPanel === 'summary' ? lastSummaryPoint : null);
 
   const [postEditOpen, setPostEditOpen] = useState(false);
   const [postEditTitle, setPostEditTitle] = useState('');
@@ -255,12 +259,15 @@ export default function ThreadView({ forum, onBack }: ThreadViewProps) {
               ? state.asst.summarizing
                 ? 'Summarising…'
                 : state.asst.summary
-                  ? state.asst.summary.points.map((p, i) => <p key={i}>{p}</p>)
+                  ? state.asst.summary.points.map((p, i) => {
+                      const isLast = i === state.asst.summary!.points.length - 1;
+                      return <p key={i}>{isLast ? displayedLastPoint : p}</p>;
+                    })
                   : 'No summary yet.'
               : state.asst.suggestedText
                 ? (
                   <div className="fk-ai-suggest-block">
-                    <p className="fk-ai-suggest-text">{state.asst.suggestedText}</p>
+                    <p className="fk-ai-suggest-text">{displayedSuggest}</p>
                     <button
                       type="button"
                       className={`fk-ai-copy-btn${suggestCopied ? ' fk-ai-copy-btn--copied' : ''}`}

@@ -1,5 +1,6 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Linking, Text, View, Image, StyleSheet } from 'react-native';
+import { resolveGiphyUrl, parseGiphyDimensions, fitGifDimensions } from '@forumkit/shared';
 import { useTheme } from '../theme/ThemeContext';
 
 // Renders a post/comment body as Markdown — the mobile counterpart to sdk-web's
@@ -150,6 +151,29 @@ function renderInline(text: string, keyPrefix: string, linkColor: string, codeBg
   });
 }
 
+// Reddit-sized preview box, matching sdk-web's rendered-body.tsx.
+const GIF_MAX_WIDTH = 280;
+const GIF_MAX_HEIGHT = 280;
+
+// Legacy placeholders without a width/height suffix fall back to a square
+// box; self-correct once onLoad reports the real size.
+function GifImage({ url, bg }: { url: string; bg: string }) {
+  const [dims, setDims] = useState(() => parseGiphyDimensions(url));
+  const { width, height } = fitGifDimensions(dims, GIF_MAX_WIDTH, GIF_MAX_HEIGHT);
+  return (
+    <Image
+      source={{ uri: resolveGiphyUrl(url) }}
+      style={[styles.gif, { backgroundColor: bg, width, height }]}
+      resizeMode="contain"
+      onLoad={e => {
+        if (dims) return;
+        const { width: w, height: h } = e.nativeEvent.source;
+        if (w > 0 && h > 0) setDims({ width: w, height: h });
+      }}
+    />
+  );
+}
+
 export default function RenderedBody({ body, size = 14.5 }: { body: string; size?: number }) {
   const { tokens } = useTheme();
   const blocks = useMemo(() => parseBlocks(body), [body]);
@@ -197,6 +221,14 @@ export default function RenderedBody({ body, size = 14.5 }: { body: string; size
           case 'hr':
             return <View key={key} style={[styles.hr, { backgroundColor: tokens.border }]} />;
           case 'image':
+            if (b.alt === 'gif') {
+              return (
+                <View key={key} style={styles.gifWrap}>
+                  <GifImage url={b.url} bg={tokens['surface-2']} />
+                  <Text style={{ color: tokens.muted, fontSize: 11, marginTop: 4 }}>via GIPHY</Text>
+                </View>
+              );
+            }
             return <Image key={key} source={{ uri: b.url }} style={[styles.image, { backgroundColor: tokens['surface-2'] }]} resizeMode="cover" />;
           case 'paragraph':
           default:
@@ -218,4 +250,6 @@ const styles = StyleSheet.create({
   codeBlock: { borderRadius: 8, padding: 12, marginBottom: 10 },
   hr: { height: 1, marginVertical: 10 },
   image: { width: '100%', aspectRatio: 4 / 5, borderRadius: 12, marginVertical: 8 },
+  gifWrap: { marginVertical: 8, alignItems: 'flex-start' },
+  gif: { borderRadius: 8 },
 });

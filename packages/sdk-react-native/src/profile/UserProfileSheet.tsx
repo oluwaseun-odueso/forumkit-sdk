@@ -207,7 +207,7 @@ export default function UserProfileSheet({ userId, onClose }: {
   const copy = profileEmptyCopy(activeTab);
 
   return (
-    <Modal transparent visible animationType="none" onRequestClose={handleClose}>
+    <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={handleClose}>
       {/* Scrim: visual only */}
       <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]} pointerEvents="none" />
 

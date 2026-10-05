@@ -3,14 +3,23 @@ import ComposerModal from '../components/composer/composer-modal';
 import PillButton from '../components/shared/pill-button';
 import { ChevronLeftIcon } from '../components/shared/icons';
 import { useForum } from '../hooks/use-forum-state';
+import { useDuplicateDetection } from '../hooks/use-duplicate-detection';
 import './compose.css';
 
 export function Compose() {
   const {
     state, forumId, sessionToken, closeComposer, setComposerTab, setComposerField,
     addFiles, removeFile, updateAttachmentMeta, addInlineAttachment, suggestComposeMeta, submitComposer,
-    saveDraft, openDraftsList, goBack,
+    saveDraft, openDraftsList, goBack, openThread,
   } = useForum();
+
+  const { duplicates, dismiss: dismissDuplicates } = useDuplicateDetection(
+    state.composer.title,
+    state.composer.body,
+    forumId,
+    sessionToken,
+    state.composer.open,
+  );
 
   return (
     <Shell mainAlign="start">
@@ -33,6 +42,9 @@ export function Compose() {
           onSubmit={submitComposer}
           onSaveDraft={() => saveDraft()}
           onOpenDraftsList={openDraftsList}
+          duplicates={duplicates}
+          onOpenThread={openThread}
+          onDismissDuplicates={dismissDuplicates}
         />
       </div>
     </Shell>

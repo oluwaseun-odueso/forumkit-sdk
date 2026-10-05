@@ -25,6 +25,14 @@ jest.unstable_mockModule('../../src/services/storage', () => ({
   attachToExistingComment: jest.fn(),
 }));
 
+jest.unstable_mockModule('../../src/services/thread', () => ({
+  toAttachmentSummaries: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../src/repositories/attachment', () => ({
+  listAttachmentsByComment: jest.fn(),
+}));
+
 jest.unstable_mockModule('@forumkit/ai', () => ({
   embedOne: jest.fn(),
   safeEmbed: jest.fn(),

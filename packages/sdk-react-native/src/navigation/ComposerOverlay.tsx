@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, TextInput, ScrollView, Image, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createThread, createDraft, deleteAttachment } from '@forumkit/shared';
-import type { DraftContent } from '@forumkit/types';
+import { createThread, createDraft, deleteAttachment, buildGiphyMarkdown } from '@forumkit/shared';
+import type { DraftContent, GifResult, SimilarThread } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import { useSession } from '../session/SessionContext';
 import { pickMedia, uploadPickedAssets, makeLocalAttachment, type ComposerAttachment } from '../lib/upload';
 import { CloseIcon, SparkleIcon, PlusIcon, PencilIcon } from '../components/icons';
-import { callSuggestMetadata } from '../thread/api-ai';
+import { callSuggestMetadata, findDuplicateThreads } from '../thread/api-ai';
+import DuplicateThreadsPanel from '../composer/DuplicateThreadsPanel';
 import TabBar from '../composer/TabBar';
 import Field from '../composer/Field';
 import RichComposer from '../composer/RichComposer';
@@ -55,6 +56,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
   const [body, setBody] = useState(initialDraft?.content.body ?? '');
   const [linkUrl, setLinkUrl] = useState(initialDraft?.content.linkUrl ?? '');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const [gifs, setGifs] = useState<GifResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,21 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
   const isUploading = attachments.some(a => a.status === 'uploading');
   type SuggestState = 'idle' | 'loading' | 'error' | 'no-body';
   const [suggestState, setSuggestState] = useState<SuggestState>('idle');
+  const [duplicates, setDuplicates] = useState<SimilarThread[]>([]);
+
+  useEffect(() => {
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length < 10) { setDuplicates([]); return; }
+    const trimmedBody = body.trim().slice(0, 2000) || undefined;
+    const timer = setTimeout(() => {
+      findDuplicateThreads(apiUrl, forumId, trimmedTitle, trimmedBody, token)
+        .then(items => setDuplicates(items))
+        .catch(() => setDuplicates([]));
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [title, body]);
+
+  const dismissDuplicates = useCallback(() => setDuplicates([]), []);
 
   async function handleSuggestMeta() {
     if (suggestState === 'loading' || !token) return;
@@ -127,7 +144,20 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
     if (!token || !canPost) return;
     setSubmitting(true);
     setError(null);
-    const rawBody = tab === 'link' ? (body.trim() ? `${body.trim()}\n${linkUrl.trim()}` : linkUrl.trim()) : body;
+    // Gated on whether a link was actually typed, not on tab === 'link' -
+    // linkUrl is its own persistent state, independent of which tab happens
+    // to be active when Post is pressed (e.g. fill in the link, switch back
+    // to Text to review, then post - tab is 'text' at that point, but the
+    // link the user typed shouldn't just be silently dropped). Wrapped as
+    // markdown link syntax, not just the bare URL - RenderedBody only
+    // recognises [label](url), so a plain URL would render as inert,
+    // unstyled text with nothing marking it as the link that was added.
+    const hasLink = linkTrimmed.length > 0 && isValidUrl(linkTrimmed);
+    const linkMarkdown = hasLink ? `[${linkTrimmed}](${linkTrimmed})` : '';
+    const withLink = hasLink ? (body.trim() ? `${body.trim()}\n${linkMarkdown}` : linkMarkdown) : body;
+    // Same reasoning as the link above - RichComposer shows the selected
+    // GIF as a thumbnail, not spliced into `body` as text.
+    const rawBody = gifs[0] ? `${withLink.trim()}\n${buildGiphyMarkdown(gifs[0])}`.trim() : withLink;
     // The backend requires a non-empty body always (title + media alone
     // aren't enough) — web never hits this because its rich-text editor
     // serializes an "empty" doc as non-empty markup (e.g. `<p></p>`), but
@@ -176,11 +206,11 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
       <View style={[styles.overlay, { bottom: 94 + insets.bottom, backgroundColor: tokens.bg }]}>
       <View style={{ paddingTop: insets.top + ANDROID_TOP_EXTRA }}>
         <View style={styles.header}>
-          <Pressable onPress={handleCancel} hitSlop={8}>
+          <Pressable onPress={handleCancel} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.65 }}>
             <CloseIcon size={18} color={tokens.text} />
           </Pressable>
           <Text style={[styles.heading, { color: tokens.text }]}>Create post</Text>
-          <Pressable onPress={onOpenDrafts} hitSlop={8}>
+          <Pressable onPress={onOpenDrafts} hitSlop={8} style={({ pressed }) => pressed && { opacity: 0.65 }}>
             <Text style={{ color: tokens.accent, fontSize: 14, fontWeight: '600' }}>Drafts</Text>
           </Pressable>
         </View>
@@ -197,7 +227,7 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
 
           <Pressable
             onPress={() => void handleSuggestMeta()}
-            style={styles.suggestRow}
+            style={({ pressed }) => [styles.suggestRow, pressed && { opacity: 0.65 }]}
             hitSlop={6}
             disabled={suggestState === 'loading'}
           >
@@ -214,6 +244,8 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
           {suggestState === 'error' && (
             <Text style={{ color: tokens.muted, fontSize: 12, marginTop: -6 }}>AI feature is not available</Text>
           )}
+
+          <DuplicateThreadsPanel duplicates={duplicates} onOpenThread={onPosted} onDismiss={dismissDuplicates} />
 
           <View style={[styles.tagsWrap, { backgroundColor: tokens['surface-2'] }]}>
             <PencilIcon size={12} color={tokens.muted} />
@@ -235,13 +267,15 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
               onChangeText={setBody}
               attachments={attachments}
               onAttachmentsChange={setAttachments}
+              gifs={gifs}
+              onGifsChange={setGifs}
               allowMedia={false}
             />
           )}
 
           {tab === 'images' && (
             attachments.length === 0 ? (
-              <Pressable onPress={addMedia} style={[styles.dropzone, { borderColor: tokens['border-strong'] }]}>
+              <Pressable onPress={addMedia} style={({ pressed }) => [styles.dropzone, { borderColor: tokens['border-strong'] }, pressed && { opacity: 0.65 }]}>
                 <Text style={{ color: tokens.muted, fontSize: 14 }}>Tap to upload image or video</Text>
               </Pressable>
             ) : (
@@ -276,14 +310,14 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
                         <View style={styles.mediaCellOverlay}><ActivityIndicator color="#fff" /></View>
                       )}
                     </Pressable>
-                    <Pressable onPress={() => removeMedia(a.localId)} style={styles.mediaCellDelete} hitSlop={6}>
+                    <Pressable onPress={() => removeMedia(a.localId)} style={({ pressed }) => [styles.mediaCellDelete, pressed && { opacity: 0.65 }]} hitSlop={6}>
                       <CloseIcon size={12} color="#fff" />
                     </Pressable>
                   </View>
                 ))}
                 <Pressable
                   onPress={addMedia}
-                  style={[styles.mediaCell, styles.mediaAddCell, { borderColor: tokens['border-strong'] }]}
+                  style={({ pressed }) => [styles.mediaCell, styles.mediaAddCell, { borderColor: tokens['border-strong'] }, pressed && { opacity: 0.65 }]}
                 >
                   <PlusIcon size={20} color={tokens['text-2']} />
                   <Text style={{ color: tokens['text-2'], fontSize: 11, marginTop: 4, fontWeight: '600' }}>Add</Text>
@@ -303,10 +337,10 @@ export default function ComposerOverlay({ onClose, onOpenDrafts, onPosted, initi
           {error && <Text style={{ color: tokens.up, fontSize: 13 }}>{error}</Text>}
 
           <View style={styles.footer}>
-            <Pressable onPress={handleSaveDraft} disabled={!canSaveDraft} style={[styles.btn, { backgroundColor: tokens['surface-2'], opacity: canSaveDraft ? 1 : 0.5 }]}>
+            <Pressable onPress={handleSaveDraft} disabled={!canSaveDraft} style={({ pressed }) => [styles.btn, { backgroundColor: tokens['surface-2'], opacity: canSaveDraft ? (pressed ? 0.65 : 1) : 0.5 }]}>
               <Text style={{ color: tokens['text-2'], fontSize: 13.5, fontWeight: '700' }}>{savingDraft ? 'Saving…' : 'Save as Draft'}</Text>
             </Pressable>
-            <Pressable onPress={handlePost} disabled={!canPost} style={[styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? 1 : 0.5 }]}>
+            <Pressable onPress={handlePost} disabled={!canPost} style={({ pressed }) => [styles.btn, { backgroundColor: tokens.accent, opacity: canPost ? (pressed ? 0.65 : 1) : 0.5 }]}>
               <Text style={{ color: tokens['accent-fg'], fontSize: 13.5, fontWeight: '700' }}>{submitting ? 'Posting…' : isUploading ? 'Uploading…' : 'Post'}</Text>
             </Pressable>
           </View>

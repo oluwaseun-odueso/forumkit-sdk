@@ -13,7 +13,8 @@
 
 :host,
 .fk-root {
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--fk-font-family, Inter, system-ui, sans-serif);
+  font-size: var(--fk-font-size-base, inherit);
   --bg: #0b0e12;
   --surface: #14171c;
   --surface-2: #1a1e25;

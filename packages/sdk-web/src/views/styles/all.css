@@ -3,11 +3,20 @@
  * Shadow roots don't see document-level <style>/<link> tags that bundlers normally
  * inject for `import './x.css'` side effects, so this file is inlined as text
  * (via a `?inline` import) and adopted directly into the shadow root instead.
- * Every component-scoped stylesheet added under views/ must be @imported here too.
+ * Every component-scoped stylesheet added under views/ must be @imported here too -
+ * as must any third-party component library's own required CSS (e.g.
+ * react-easy-crop below), since it's equally invisible to the shadow root
+ * otherwise. The react-easy-crop path reaches up to the monorepo root's
+ * hoisted node_modules (this package has none of its own) - a plain
+ * `@import 'react-easy-crop/react-easy-crop.css'` bare specifier would
+ * resolve fine under Vite's dev server, but the tsup build's custom ?inline
+ * plugin (tsup.config.ts) only does relative-path resolution, not full
+ * Node module resolution.
  */
 
 @import '../index.css';
 @import './tokens.css';
+@import '../../../../../node_modules/react-easy-crop/react-easy-crop.css';
 
 @import '../components/shared/dropdown-menu.css';
 @import '../components/shared/icon-button.css';
@@ -15,6 +24,14 @@
 @import '../components/shared/vote-pill.css';
 @import '../components/shared/avatar.css';
 @import '../components/shared/thumbnail.css';
+@import '../components/shared/carousel.css';
+@import '../components/shared/confirm-dialog.css';
+@import '../components/shared/lightbox.css';
+@import '../components/shared/modal.css';
+@import '../components/shared/notification-settings-modal.css';
+@import '../components/shared/rendered-body.css';
+@import '../components/shared/report-modal.css';
+@import '../components/shared/share-modal.css';
 
 @import '../components/layout/mascot-icon.css';
 @import '../components/layout/account-menu.css';
@@ -22,24 +39,36 @@
 @import '../components/layout/sidebar.css';
 @import '../components/layout/right-rail.css';
 @import '../components/layout/shell.css';
+@import '../components/layout/search-results-dropdown.css';
 
 @import '../components/feed/feed-controls.css';
 @import '../components/feed/post-card.css';
+@import '../components/feed/feed-empty-state.css';
 
 @import '../components/composer/rich-text-toolbar.css';
 @import '../components/composer/attachment-list.css';
 @import '../components/composer/composer-modal.css';
+@import '../components/composer/drafts-list-modal.css';
+@import '../components/composer/media-gallery.css';
+@import '../components/composer/rich-text-editor.css';
 
 @import '../components/thread/comment.css';
 @import '../components/thread/comment-sort.css';
 @import '../components/thread/assistant-panel.css';
 @import '../components/thread/thread-view.css';
+@import '../components/thread/comment-composer.css';
 
 @import '../components/profile/profile-header.css';
 @import '../components/profile/profile-tabs.css';
 @import '../components/profile/profile-empty-state.css';
 @import '../components/profile/profile-right-rail.css';
+@import '../components/profile/edit-profile-modal.css';
+@import '../components/profile/image-editor-modal.css';
+@import '../components/profile/profile-comment-card.css';
 
 @import '../routes/feed.css';
 @import '../routes/profile.css';
 @import '../routes/ask-result.css';
+@import '../routes/compose.css';
+@import '../routes/moderation.css';
+@import '../routes/notifications.css';

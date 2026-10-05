@@ -1,4 +1,5 @@
 import { Suspense, lazy, useState } from 'react';
+import type { SimilarThread } from '@forumkit/types';
 
 function isValidUrl(s: string): boolean {
   try {
@@ -10,6 +11,7 @@ import type { ComposerTab } from '../../hooks/use-forum-state';
 import type { useForum } from '../../hooks/use-forum-state';
 import PillButton from '../shared/pill-button';
 import { CloseIcon, SparkleIcon, PencilIcon } from '../shared/icons';
+import DuplicateThreadsPanel from './duplicate-threads-panel';
 import MediaGallery from './media-gallery';
 import './composer-modal.css';
 
@@ -36,11 +38,15 @@ type ComposerModalProps = {
   onSubmit: () => void;
   onSaveDraft: () => void;
   onOpenDraftsList: () => void;
+  duplicates: SimilarThread[];
+  onOpenThread: (id: string) => void;
+  onDismissDuplicates: () => void;
 };
 
 export default function ComposerModal({
   composer, forumId, sessionToken, onClose, onSetTab, onSetField,
   onAddFiles, onRemoveFile, onUpdateMeta, onInlineUpload, onSuggestMeta, onSubmit, onSaveDraft, onOpenDraftsList,
+  duplicates, onOpenThread, onDismissDuplicates,
 }: ComposerModalProps) {
   const [suggestBodyHint, setSuggestBodyHint] = useState(false);
 
@@ -113,6 +119,8 @@ export default function ComposerModal({
         )}
         <span className="fk-composer-counter">{composer.title.length}/300</span>
       </div>
+
+      <DuplicateThreadsPanel duplicates={duplicates} onOpenThread={onOpenThread} onDismiss={onDismissDuplicates} />
 
       <div className="fk-composer-tags-wrap">
         <PencilIcon size={12} />

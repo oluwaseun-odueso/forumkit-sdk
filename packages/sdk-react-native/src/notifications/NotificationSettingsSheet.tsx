@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { NOTIFICATION_PREF_ROWS, getMyProfile, updateNotificationPrefs } from '@forumkit/shared';
 import type { NotificationPrefs } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Toggle from '../components/Toggle';
 import { useSheetLayout } from '../lib/sheet-layout';
+import BottomSheetShell from '../components/BottomSheetShell';
 
 // Notification settings (bottom sheet) — mirrors sdk-web's
 // notification-settings-modal: the four preference toggles (mod-only rows hidden
@@ -41,31 +42,28 @@ export default function NotificationSettingsSheet({ apiUrl, forumId, token, onCl
   const rows = NOTIFICATION_PREF_ROWS.filter(r => !r.modOnly || isMod);
 
   return (
-    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]} onPress={() => {}}>
-          <Text style={[styles.title, { color: tokens.text }]}>Notification settings</Text>
-          {loading || !prefs ? (
-            <ActivityIndicator color={tokens.accent} style={{ padding: 16 }} />
-          ) : (
-            rows.map((row, i) => (
-              <View key={row.key} style={[styles.row, i < rows.length - 1 && { marginBottom: 22 }]}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={[styles.label, { color: tokens.text }]}>{row.label}</Text>
-                  <Text style={[styles.sub, { color: tokens.muted }]}>{row.sub}</Text>
-                </View>
-                <Toggle value={prefs[row.key]} onValueChange={() => toggle(row.key)} />
+    <BottomSheetShell visible onClose={onClose}>
+      <View style={[styles.sheet, { backgroundColor: tokens.elev, borderColor: tokens.border, maxHeight, paddingBottom }]}>
+        <Text style={[styles.title, { color: tokens.text }]}>Notification settings</Text>
+        {loading || !prefs ? (
+          <ActivityIndicator color={tokens.accent} style={{ padding: 16 }} />
+        ) : (
+          rows.map((row, i) => (
+            <View key={row.key} style={[styles.row, i < rows.length - 1 && { marginBottom: 22 }]}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={[styles.label, { color: tokens.text }]}>{row.label}</Text>
+                <Text style={[styles.sub, { color: tokens.muted }]}>{row.sub}</Text>
               </View>
-            ))
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+              <Toggle value={prefs[row.key]} onValueChange={() => toggle(row.key)} />
+            </View>
+          ))
+        )}
+      </View>
+    </BottomSheetShell>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingHorizontal: 16, paddingTop: 16 },
   title: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center' },

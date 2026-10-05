@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { ChevronDownIcon } from './icons';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from './DropdownMenu';
@@ -30,7 +30,7 @@ export function SelectPill<T extends string>({
       <Pressable
         ref={ref}
         onPress={() => measure(() => setOpen(true))}
-        style={[styles.pill, { backgroundColor: tokens['surface-2'] }]}
+        style={({ pressed }) => [styles.pill, { backgroundColor: pressed ? tokens['hover-2'] : tokens['surface-2'] }]}
       >
         {leadingIcon}
         {label != null && <Text style={[styles.label, { color: tokens.text }]}>{label}</Text>}

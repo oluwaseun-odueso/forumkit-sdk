@@ -4,7 +4,11 @@ import remarkGfm from 'remark-gfm';
 import remarkSupersub from 'remark-supersub';
 import type { Components } from 'react-markdown';
 import { remarkSpoiler } from './remark-spoiler';
+import { resolveGiphyUrl, parseGiphyDimensions, fitGifDimensions } from '@forumkit/shared';
 import './rendered-body.css';
+
+const GIF_MAX_WIDTH = 280;
+const GIF_MAX_HEIGHT = 280;
 
 function SpoilerSpan({ children }: { children?: React.ReactNode }) {
   const [revealed, setRevealed] = useState(false);
@@ -26,6 +30,22 @@ const components: Components = {
     if (alt === 'video' && typeof src === 'string') {
       // eslint-disable-next-line jsx-a11y/media-has-caption
       return <video src={src} controls className="fk-rendered-media" />;
+    }
+    if (alt === 'gif' && typeof src === 'string') {
+      // Unknown dims (legacy content, no width/height in the src): let the
+      // browser size the img to its own intrinsic dimensions, capped by
+      // max-width/max-height — forcing a mismatched box here is what
+      // letterboxes non-square GIFs inside it.
+      const dims = parseGiphyDimensions(src);
+      const sizeStyle = dims
+        ? fitGifDimensions(dims, GIF_MAX_WIDTH, GIF_MAX_HEIGHT)
+        : { maxWidth: GIF_MAX_WIDTH, maxHeight: GIF_MAX_HEIGHT };
+      return (
+        <span className="fk-gif-wrap">
+          <img src={resolveGiphyUrl(src)} alt="" className="fk-rendered-media" style={sizeStyle} />
+          <span className="fk-gif-caption">via GIPHY</span>
+        </span>
+      );
     }
     return <img src={typeof src === 'string' ? src : undefined} alt={alt} className="fk-rendered-media" />;
   },

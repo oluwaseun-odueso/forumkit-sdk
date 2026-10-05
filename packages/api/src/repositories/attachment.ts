@@ -120,6 +120,18 @@ export async function listAttachmentsByComment(db: DB, commentId: string): Promi
   return rows.map(toAttachment);
 }
 
+// Batch variant for a thread's full comment list — one query for every
+// comment on the page rather than one query per comment.
+export async function listAttachmentsByCommentIds(db: DB, commentIds: string[]): Promise<Attachment[]> {
+  if (commentIds.length === 0) return [];
+  const rows = await db<AttachmentRow[]>`
+    SELECT ${db.unsafe(SELECT_COLUMNS)}
+    FROM attachments
+    WHERE comment_id = ANY(${commentIds}::uuid[]) AND status = 'confirmed'
+  `;
+  return rows.map(toAttachment);
+}
+
 export async function listAttachmentsByThread(db: DB, threadId: string): Promise<Attachment[]> {
   const rows = await db<AttachmentRow[]>`
     SELECT ${db.unsafe(SELECT_COLUMNS)}

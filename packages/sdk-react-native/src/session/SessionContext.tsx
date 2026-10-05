@@ -55,11 +55,25 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
     function scheduleRefresh(expiresIn: number) {
       if (cancelled) return;
       expiresAtRef.current = Date.now() + expiresIn * 1000;
-      refreshTimer = setTimeout(() => { void refresh(); }, expiresIn * 1000 * 0.8);
+      refreshTimer = setTimeout(() => { void refresh(true); }, expiresIn * 1000 * 0.8);
     }
 
-    function refresh(): Promise<void> {
-      return createSession(apiUrl, config.token)
+    // isRenewal is false only for the very first call, made right after
+    // mount — `config.token` is already fresh there (the host just minted
+    // it for this render), so calling getToken() again would just be a
+    // redundant extra fetch. Every later call (the 80%-of-TTL timer, a
+    // failed-refresh retry, or the AppState foreground check below) is a
+    // genuine renewal, and needs getToken() when the host provides one:
+    // a properly short-lived host token will already be expired by the
+    // time this session token needs renewing, so re-presenting the same
+    // original token to the exchange endpoint is guaranteed to 401 past
+    // that point. Falls back to the static token when the host hasn't
+    // implemented getToken (previous behaviour — renewal just stops once
+    // that token expires).
+    function refresh(isRenewal = false): Promise<void> {
+      const tokenPromise = isRenewal && config.getToken ? config.getToken() : Promise.resolve(config.token);
+      return tokenPromise
+        .then(hostToken => createSession(apiUrl, hostToken))
         .then(result => {
           if (cancelled) return;
           setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, userId: result.userId, role: result.role, error: null });
@@ -72,7 +86,7 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
           // A transient failure (network blip, momentary server error)
           // shouldn't end the session for good — keep trying rather than
           // leaving the app permanently stuck on a dead token.
-          retryTimer = setTimeout(() => { void refresh(); }, RETRY_DELAY_MS);
+          retryTimer = setTimeout(() => { void refresh(true); }, RETRY_DELAY_MS);
         });
     }
 
@@ -81,9 +95,9 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
       const msRemaining = expiresAtRef.current - Date.now();
       if (refreshTimer) clearTimeout(refreshTimer);
       if (msRemaining <= 0) {
-        void refresh();
+        void refresh(true);
       } else {
-        refreshTimer = setTimeout(() => { void refresh(); }, msRemaining * 0.8);
+        refreshTimer = setTimeout(() => { void refresh(true); }, msRemaining * 0.8);
       }
     });
 

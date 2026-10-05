@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import RichComposer from '../composer/RichComposer';
-import type { CommentNode } from '@forumkit/shared';
-import type { VoteDirection } from '@forumkit/types';
+import { buildGiphyMarkdown, type CommentNode } from '@forumkit/shared';
+import type { AttachmentSummary, VoteDirection, GifResult } from '@forumkit/types';
 import { useTheme } from '../theme/ThemeContext';
 import Avatar from '../components/Avatar';
 import RenderedBody from '../components/RenderedBody';
 import VotePill from '../components/VotePill';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ImageLightbox from '../components/ImageLightbox';
+import InlineVideoThumb from '../components/InlineVideoThumb';
 import { DropdownMenu, DropdownMenuItem, useAnchor } from '../components/DropdownMenu';
 import { EllipsisIcon, ReportIcon, TrashIcon, CheckIcon, PencilIcon, ShareIcon } from '../components/icons';
 import CommentComposer from './CommentComposer';
@@ -40,6 +42,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
   const [replyOpen, setReplyOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editBody, setEditBody] = useState(node.body);
+  const [editGifs, setEditGifs] = useState<GifResult[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { ref: ellipsisRef, anchor, measure } = useAnchor();
@@ -61,7 +64,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
       ]}
     >
       <Pressable
-        style={styles.head}
+        style={({ pressed }) => [styles.head, pressed && { opacity: 0.65 }]}
         onPress={ctx.onPressAuthor && node.authorId ? () => ctx.onPressAuthor!(node.authorId!) : undefined}
         disabled={!ctx.onPressAuthor || !node.authorId}
       >
@@ -86,15 +89,22 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
             onChangeText={setEditBody}
             attachments={[]}
             onAttachmentsChange={() => {}}
+            gifs={editGifs}
+            onGifsChange={setEditGifs}
             allowMedia={false}
           />
           <View style={styles.editActions}>
-            <Pressable onPress={() => { setEditOpen(false); setEditBody(node.body); }} style={[styles.smallBtn, { backgroundColor: tokens['surface-2'] }]}>
+            <Pressable onPress={() => { setEditOpen(false); setEditBody(node.body); setEditGifs([]); }} style={({ pressed }) => [styles.smallBtn, { backgroundColor: tokens['surface-2'] }, pressed && { opacity: 0.65 }]}>
               <Text style={{ color: tokens['text-2'], fontWeight: '700', fontSize: 12 }}>Cancel</Text>
             </Pressable>
             <Pressable
-              onPress={async () => { await ctx.onEdit(node.id, editBody.trim()); setEditOpen(false); }}
-              style={[styles.smallBtn, { backgroundColor: tokens.accent }]}
+              onPress={async () => {
+                const withGif = editGifs[0] ? `${editBody.trim()}\n${buildGiphyMarkdown(editGifs[0])}`.trim() : editBody.trim();
+                await ctx.onEdit(node.id, withGif);
+                setEditOpen(false);
+                setEditGifs([]);
+              }}
+              style={({ pressed }) => [styles.smallBtn, { backgroundColor: tokens.accent }, pressed && { opacity: 0.65 }]}
             >
               <Text style={{ color: tokens['accent-fg'], fontWeight: '700', fontSize: 12 }}>Save</Text>
             </Pressable>
@@ -103,6 +113,7 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
       ) : (
         <View style={styles.body}>
           <RenderedBody body={node.body} size={13.5} />
+          {node.attachments.length > 0 && <CommentAttachments attachments={node.attachments} />}
         </View>
       )}
 
@@ -110,11 +121,20 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
         <VotePill voteCounts={node.voteCounts} dir={node.myVote ?? null} onVote={dir => ctx.onVote(node.id, dir)} />
         <Action label="Reply" onPress={() => setReplyOpen(o => !o)} />
         <Action label={node.isSaved ? 'Unsave' : 'Save'} onPress={() => ctx.onSave(node.id, !node.isSaved)} />
+        {depth === 0 && ctx.canAcceptAnswer && (
+          <Pressable
+            onPress={() => ctx.onAccept(node.id, !node.isAcceptedAnswer)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.acceptBtn, node.isAcceptedAnswer && { borderColor: tokens.success }, pressed && { opacity: 0.65 }]}
+          >
+            <CheckIcon size={15} color={node.isAcceptedAnswer ? tokens.success : tokens.muted} />
+          </Pressable>
+        )}
         <Pressable
           ref={ellipsisRef}
           onPress={() => measure(() => setMenuOpen(true))}
           hitSlop={6}
-          style={[styles.ellipsisBtn, { backgroundColor: menuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
+          style={({ pressed }) => [styles.ellipsisBtn, { backgroundColor: menuOpen || pressed ? tokens['hover-2'] : tokens['surface-2'] }]}
         >
           <EllipsisIcon size={17} color={tokens['text-2']} />
         </Pressable>
@@ -190,10 +210,40 @@ export default function CommentRow({ node, depth = 0, ctx }: { node: CommentNode
   );
 }
 
+const ATTACHMENT_MAX_WIDTH = 220;
+const ATTACHMENT_MAX_HEIGHT = 220;
+
+// Compact, wrapping thumbnails — unlike ThreadScreen's full-bleed MediaGallery
+// (sized to the whole screen width), a comment is already indented and narrow.
+function CommentAttachments({ attachments }: { attachments: AttachmentSummary[] }) {
+  const { tokens } = useTheme();
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+  return (
+    <View style={styles.attachments}>
+      {attachments.map(a => {
+        const isVideo = a.mimeType.startsWith('video/');
+        const scale = a.width && a.height ? Math.min(1, ATTACHMENT_MAX_WIDTH / a.width, ATTACHMENT_MAX_HEIGHT / a.height) : 1;
+        const width = a.width ? Math.round(a.width * scale) : ATTACHMENT_MAX_WIDTH;
+        const height = a.height ? Math.round(a.height * scale) : ATTACHMENT_MAX_HEIGHT;
+        return (
+          <Pressable key={a.id} disabled={isVideo} onPress={() => setPreviewUri(a.downloadUrl)}>
+            {isVideo ? (
+              <InlineVideoThumb uri={a.downloadUrl} style={[styles.attachment, { width, height, backgroundColor: tokens['surface-2'] }]} />
+            ) : (
+              <Image source={{ uri: a.downloadUrl }} style={[styles.attachment, { width, height, backgroundColor: tokens['surface-2'] }]} resizeMode="cover" />
+            )}
+          </Pressable>
+        );
+      })}
+      {previewUri && <ImageLightbox uri={previewUri} onClose={() => setPreviewUri(null)} />}
+    </View>
+  );
+}
+
 function Action({ label, onPress }: { label: string; onPress: () => void }) {
   const { tokens } = useTheme();
   return (
-    <Pressable onPress={onPress} hitSlop={6}>
+    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => pressed && { opacity: 0.65 }}>
       <Text style={{ color: tokens.muted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
@@ -209,9 +259,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999,
   },
   body: { marginTop: 6, marginLeft: 32 },
+  attachments: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  attachment: { borderRadius: 10 },
   editInput: { borderWidth: 1, borderRadius: 10, padding: 10, fontSize: 13.5, minHeight: 60, textAlignVertical: 'top' },
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
   smallBtn: { borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 },
   actions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14, rowGap: 8, marginTop: 8, marginLeft: 32 },
+  acceptBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
   ellipsisBtn: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginLeft: 'auto' },
 });

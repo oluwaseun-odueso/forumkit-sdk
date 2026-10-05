@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTypingEffect, useSequentialTyping } from '../hooks/use-typing-effect';
 import type { SearchResult } from '@forumkit/types';
 import Shell from '../components/layout/shell';
 import Modal from '../components/shared/modal';
@@ -63,6 +64,39 @@ function SourcesModal({ sources, onClose, onOpenThread }: {
   );
 }
 
+function AnimatedText({ text }: { text: string }) {
+  const displayed = useTypingEffect(text || null);
+  return <>{displayed}</>;
+}
+
+function CategoryBullets({ bullets, sources, onOpenThread }: {
+  bullets: AskBullet[];
+  sources: SearchResult[];
+  onOpenThread: (id: string) => void;
+}) {
+  const displayedFacts = useSequentialTyping(bullets.map(b => b.fact));
+  return (
+    <>
+      {bullets.map((b, j) => (
+        <div key={j} className="fk-ask-bullet">
+          <div className="fk-ask-bullet-fact">{displayedFacts[j] ?? ''}</div>
+          <div className="fk-ask-bullet-quote">"{b.quote}"</div>
+          {sources[b.sourceIndex] && (
+            
+            <button
+              type="button"
+              className="fk-ask-attr-chip"
+              onClick={() => onOpenThread(sources[b.sourceIndex]!.threadId)}
+            >
+              [{b.sourceIndex + 1}] {sources[b.sourceIndex]!.title.slice(0, 40)}{sources[b.sourceIndex]!.title.length > 40 ? '…' : ''}
+            </button>
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
 function TurnView({ turn, onOpenThread, onOpenSources, onSuggest, isLast }: {
   turn: Turn;
   onOpenThread: (id: string) => void;
@@ -106,27 +140,13 @@ function TurnView({ turn, onOpenThread, onOpenSources, onSuggest, isLast }: {
       )}
 
       {turn.answer?.intro && (
-        <div className="fk-ask-intro">{turn.answer.intro}</div>
+        <div className="fk-ask-intro"><AnimatedText text={turn.answer.intro} /></div>
       )}
 
       {turn.answer?.categories.map((cat, i) => (
         <div key={i} className="fk-ask-category">
           <div className="fk-ask-category-title">{cat.title}</div>
-          {cat.bullets.map((b, j) => (
-            <div key={j} className="fk-ask-bullet">
-              <div className="fk-ask-bullet-fact">{b.fact}</div>
-              <div className="fk-ask-bullet-quote">"{b.quote}"</div>
-              {turn.sources[b.sourceIndex] && (
-                <button
-                  type="button"
-                  className="fk-ask-attr-chip"
-                  onClick={() => onOpenThread(turn.sources[b.sourceIndex]!.threadId)}
-                >
-                  [{b.sourceIndex + 1}] {turn.sources[b.sourceIndex]!.title.slice(0, 40)}{turn.sources[b.sourceIndex]!.title.length > 40 ? '…' : ''}
-                </button>
-              )}
-            </div>
-          ))}
+          <CategoryBullets bullets={cat.bullets} sources={turn.sources} onOpenThread={onOpenThread} />
         </div>
       ))}
 

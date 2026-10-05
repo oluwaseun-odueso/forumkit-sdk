@@ -81,6 +81,7 @@ export type Comment = {
   toxicityScore: number | null;      // null until moderation completes
   isAcceptedAnswer: boolean;
   reactionCounts: Partial<Record<ReactionType, number>>;
+  attachments?: AttachmentSummary[];
   voteCounts?: VoteCounts;
   myVote?: VoteDirection | null;
   isSaved?: boolean;
@@ -558,6 +559,15 @@ export type ThemeTokens = {
 export type ForumKitConfig = {
   forumId: string;
   token: string;                     // signed JWT from host application
+  // Called to fetch a fresh host JWT whenever the SDK needs to refresh its
+  // session (`token` above is only used for the very first exchange). A host
+  // JWT is meant to be short-lived (security property, not an implementation
+  // detail), so without this the SDK has no way to renew past however long
+  // that first token was valid for — it can only keep re-presenting the same
+  // one, which the backend correctly rejects once it's expired. Omitted
+  // entirely, the session just stops renewing once `token` expires, same as
+  // before this field existed.
+  getToken?: () => Promise<string>;
   theme?: ThemeTokens;
   apiUrl?: string;                   // defaults to same origin
   onLogout?: () => void;             // host owns the real sign-out flow; if provided, the
@@ -569,4 +579,31 @@ export type ForumKitConfig = {
   // Declared explicitly by the host, not auto-detected — there's no
   // reliable runtime signal for "am I inside a native app" today.
   platform?: 'web' | 'native';       // defaults to 'web'
+  // Replaces the "FORUM KIT" wordmark. Capped at 15 characters — throws in
+  // development if exceeded (so a host catches it while building), truncates
+  // defensively in production (so a bad value never overflows the nav bar
+  // live). Falls back to "FORUM KIT" when unset or empty.
+  brandName?: string;
+  // The wordmark's own font, independent of theme.fontFamily (a host is
+  // likely to want a distinct display typeface for their name specifically,
+  // separate from whatever they set as the general body font). Falls back
+  // to Michroma when unset. On React Native this must be a font-family key
+  // the host has already registered via their own useFonts() call before
+  // mounting ForumKit — not an arbitrary string, the way it can be on web.
+  brandNameFontFamily?: string;
+  // The wordmark's own font size, independent of theme.fontSize — same
+  // reasoning as brandNameFontFamily above (a host wanting a distinct
+  // display typeface for their name likely wants to size it independently
+  // too). A CSS-string size (e.g. "18px"), matching theme.fontSize's own
+  // convention. Falls back to the default wordmark size (15px) when unset.
+  brandNameFontSize?: string;
+  // A host-supplied component that replaces the ForumKit mascot everywhere
+  // it appears — the brand mark beside the wordmark and every loading state
+  // that otherwise shows the default mascot. `unknown` here deliberately:
+  // this package has no React/React Native dependency, and each SDK narrows
+  // it locally to the real component type it actually expects (a plain
+  // JS-property assignment on the custom element for web, matching how
+  // onLogout/getToken are already handled — not JSON-serialized through the
+  // theme attribute, since a component reference can't be).
+  mascot?: unknown;
 };

@@ -11,39 +11,41 @@ import {
   type CreateReplyBody,
 } from '@forumkit/shared';
 
-const API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
+function getApiBase(): string {
+  return typeof window !== 'undefined'
+    ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+    : '';
+}
 
 // All comment endpoints delegate to the shared client (signatures unchanged).
 export function createReply(threadId: string, body: CreateReplyBody, token?: string): Promise<Comment> {
-  return sharedCreateReply(API_BASE, threadId, body, token);
+  return sharedCreateReply(getApiBase(), threadId, body, token);
 }
 
 export function saveComment(threadId: string, commentId: string, token?: string): Promise<void> {
-  return sharedSaveComment(API_BASE, threadId, commentId, token);
+  return sharedSaveComment(getApiBase(), threadId, commentId, token);
 }
 
 export function unsaveComment(threadId: string, commentId: string, token?: string): Promise<void> {
-  return sharedUnsaveComment(API_BASE, threadId, commentId, token);
+  return sharedUnsaveComment(getApiBase(), threadId, commentId, token);
 }
 
 export function reportComment(threadId: string, commentId: string, reason: string, token?: string): Promise<void> {
-  return sharedReportComment(API_BASE, threadId, commentId, reason, token);
+  return sharedReportComment(getApiBase(), threadId, commentId, reason, token);
 }
 
 export function updateReply(threadId: string, commentId: string, body: string, token?: string): Promise<Comment> {
-  return sharedUpdateReply(API_BASE, threadId, commentId, body, token);
+  return sharedUpdateReply(getApiBase(), threadId, commentId, body, token);
 }
 
 export function deleteComment(threadId: string, commentId: string, token?: string): Promise<void> {
-  return sharedDeleteComment(API_BASE, threadId, commentId, token);
+  return sharedDeleteComment(getApiBase(), threadId, commentId, token);
 }
 
 export function acceptAnswer(threadId: string, commentId: string, token?: string): Promise<Comment> {
-  return sharedAcceptAnswer(API_BASE, threadId, commentId, token);
+  return sharedAcceptAnswer(getApiBase(), threadId, commentId, token);
 }
 
 export function unacceptAnswer(threadId: string, commentId: string, token?: string): Promise<Comment> {
-  return sharedUnacceptAnswer(API_BASE, threadId, commentId, token);
+  return sharedUnacceptAnswer(getApiBase(), threadId, commentId, token);
 }

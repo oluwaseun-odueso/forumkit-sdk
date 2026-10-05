@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import type { SearchResult } from '@forumkit/types';
 import type { RailItem } from '../../hooks/use-forum-state';
 import MascotIcon from './mascot-icon';
@@ -7,7 +7,7 @@ import SearchResultsDropdown, { saveSearchHistory, loadSearchHistory } from './s
 import IconButton from '../shared/icon-button';
 import Avatar from '../shared/avatar';
 import { SearchIcon, SparkleIcon, SunIcon, MoonIcon, PlusIcon, BellIcon, CloseIcon } from '../shared/icons';
-import type { Theme } from '../../hooks/use-theme';
+import { ThemeHostContext, type Theme } from '../../hooks/use-theme';
 import { authorAvatar } from '../../lib/author-avatar';
 import './top-nav.css';
 
@@ -47,6 +47,7 @@ export default function TopNav({
   latestPosts, featuredPosts, onOpenPost,
 }: TopNavProps) {
   const { gradient, letter } = authorAvatar(displayName || undefined, displayName || 'You');
+  const { brandName } = useContext(ThemeHostContext);
   const [menuOpen, setMenuOpen] = useState(false);
   const [tagActive, setTagActive] = useState(true);
   const [history, setHistory] = useState<string[]>(() => loadSearchHistory());
@@ -64,7 +65,7 @@ export default function TopNav({
     <header className="fk-topnav">
       <button type="button" className="fk-topnav-brand" onClick={onHome}>
         <MascotIcon size={34} />
-        <span className="fk-topnav-wordmark">FORUM KIT</span>
+        <span className="fk-topnav-wordmark">{brandName || 'FORUM KIT'}</span>
       </button>
 
       <div className="fk-topnav-search-wrap">

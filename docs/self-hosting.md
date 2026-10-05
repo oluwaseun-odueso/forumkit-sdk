@@ -22,9 +22,59 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ## Option A: Docker Compose (recommended for self-hosting)
 
-This starts a PostgreSQL 16 + pgvector database and the ForumKit API together.
+### A1. Quick start — pull the published image (no clone needed)
 
-### 1. Clone and configure
+Every tagged release is published to GitHub Container Registry. This is
+the fastest path to a running backend — just these two files, nothing to
+clone or build:
+
+`docker-compose.yml`:
+```yaml
+services:
+  api:
+    image: ghcr.io/oluwaseun-odueso/forumkit-api:latest
+    ports:
+      - "3000:3000"
+    env_file: .env
+```
+
+`.env` (pointing at Postgres 16+ with pgvector and an S3-compatible bucket
+you already have — a managed instance, Supabase, RDS, whatever you run):
+
+```bash
+DATABASE_URL=postgresql://user:pass@your-postgres-host:5432/forumkit
+DATABASE_POOL_URL=postgresql://user:pass@your-postgres-host:6543/forumkit
+FORUM_SECRET_KEY=your-generated-secret-here
+STORAGE_S3_BUCKET=your-bucket
+STORAGE_S3_REGION=your-region
+STORAGE_S3_ACCESS_KEY_ID=...
+STORAGE_S3_SECRET_ACCESS_KEY=...
+```
+
+```bash
+docker compose up -d
+```
+
+Migrations run automatically as part of the container starting — a
+short-lived step applies anything pending against `DATABASE_URL`, then
+exits before the server itself starts.
+
+Verify:
+```bash
+curl http://localhost:3000/health
+# {"status":"ok","timestamp":"..."}
+```
+
+Pin a specific version instead of `latest` by using that release's tag,
+e.g. `ghcr.io/oluwaseun-odueso/forumkit-api:v0.1.0` — see
+[Upgrading](#upgrading) below for how versions are cut.
+
+### A2. Build from source
+
+For contributing, customizing the image, or running entirely offline
+without pulling from GHCR. This bundles a local PostgreSQL 16 + pgvector
+database and local S3-compatible storage alongside the API, so there's
+nothing external to provide.
 
 ```bash
 git clone https://github.com/oluwaseun-odueso/forumkit-sdk.git
@@ -40,38 +90,29 @@ DATABASE_POOL_URL=postgresql://forumkit:forumkit@db:5432/forumkit
 FORUM_SECRET_KEY=your-generated-secret-here
 ```
 
-### 2. Start the stack
-
 ```bash
-docker compose --env-file .env -f deploy/docker-compose.dev.yml up -d
+docker compose --env-file .env -f deploy/docker-compose.dev.yml up -d --build
 ```
 
 `--env-file .env` matters here — without it, Compose looks for `.env` next to the compose
 file (`deploy/.env`) rather than the one you just created at the project root, and your
 edits above would be silently ignored in favour of the file's local-dev defaults.
+`--build` builds the image from this checkout instead of pulling one, so local changes
+to `packages/api`/`packages/db` are actually reflected.
 
 This starts:
 - `db` — PostgreSQL 16 + pgvector on port 5433 (host-mapped to avoid conflicts)
 - `minio` — local S3-compatible storage, standing in for a real bucket (see Storage below)
 - `api` — ForumKit API on port 3000
 
-### 3. Run migrations
-
-```bash
-npm run db:migrate
-```
-
-### 4. (Optional) Seed development data
-
+Optionally seed development data:
 ```bash
 npm run db:seed
 ```
 
-### 5. Verify
-
+Verify the same way as A1:
 ```bash
 curl http://localhost:3000/health
-# {"status":"ok","timestamp":"..."}
 ```
 
 ---
@@ -108,11 +149,17 @@ DATABASE_POOL_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.s
 FORUM_SECRET_KEY=your-generated-secret-here
 ```
 
-### 5. Run migrations
+### 5. Start the server
 
 ```bash
-npm run db:migrate
+npm start
 ```
+
+Applies any pending migrations against `DATABASE_URL` first (exiting before
+continuing if that fails), then starts the API server — the same two-step
+sequence the Docker image runs internally. `npm run db:migrate` remains
+available separately if you want to apply migrations without starting the
+server.
 
 ---
 
@@ -181,6 +228,7 @@ being a listed value below for forward-compatibility.
 | `NODE_ENV` | `development` | Set to `production` in production. Disables pretty-print logging. |
 | `SESSION_TTL_MINUTES` | `15` | How long ForumKit session tokens are valid before the SDK re-exchanges. |
 | `MAX_POST_LENGTH` | `10000` | Maximum character length of a post body. |
+| `PUBLIC_API_URL` | `http://localhost:$PORT` | The public URL this API is reachable at — used to build download links for uploaded attachments (avatars, post/comment images). **Set this to your real public domain in production** (e.g. `https://forum.yourapp.com`); the `localhost` default only resolves for clients on the same machine as the API. |
 
 ---
 
@@ -198,15 +246,30 @@ being a listed value below for forward-compatibility.
 
 ## Upgrading
 
-ForumKit uses sequential numbered migrations. To upgrade:
+ForumKit uses sequential numbered migrations — they run automatically as
+part of starting either way, no separate migration step needed. The
+runner applies only unapplied migrations, in order, and refuses to start
+the server if a migration fails.
+
+**If you're on A1 (the published image)**: bump the tag in your
+`docker-compose.yml` to the release you want (see each release's notes on
+GitHub for what changed), then:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+No git, no npm, no build — just a new image.
+
+**If you're on A2 (built from source)**:
 
 ```bash
 git pull
-npm install
-npm run db:migrate
+docker compose --env-file .env -f deploy/docker-compose.dev.yml up -d --build
 ```
 
-The migration runner applies only unapplied migrations in order. Rollback with:
+Either way, roll back a migration with:
 
 ```bash
 npm run db:migrate:down

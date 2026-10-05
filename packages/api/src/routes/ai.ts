@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authenticate } from '../middleware/auth';
 import { tryConsumeAiLimit } from '../lib/ai-rate-limit';
 import { getCachedAsk, setCachedAsk } from '../lib/ask-cache';
@@ -6,6 +6,26 @@ import * as aiService from '../services/ai';
 import * as searchService from '../services/search';
 import { askSearchQuestion, askSearchQuestionStream } from '@forumkit/ai';
 import type { AICommandError } from '../services/ai';
+
+// SSE routes write directly to reply.raw (writeHead/write/end) to stream
+// incrementally, which bypasses Fastify's onSend hook — the same hook
+// @fastify/cors uses to attach CORS headers on every other route. Without
+// this, a browser's fetch() against these routes gets a 200 with a real
+// body but no Access-Control-Allow-Origin, and silently fails to read it.
+function sseHeaders(request: FastifyRequest): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  };
+  const origin = request.headers.origin;
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers['Access-Control-Allow-Credentials'] = 'true';
+    headers['Vary'] = 'Origin';
+  }
+  return headers;
+}
 
 export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -152,11 +172,7 @@ export async function composeAiRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'invalid_query', message: 'q must be 1–500 characters', statusCode: 400 });
     }
 
-    reply.raw.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    });
+    reply.raw.writeHead(200, sseHeaders(request));
 
     const sendSSE = (data: object): void => {
       reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -424,11 +440,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(503).send({ error: 'ai_not_configured', message: 'No AI provider is configured for this deployment', statusCode: 503 });
       }
 
-      reply.raw.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      });
+      reply.raw.writeHead(200, sseHeaders(request));
       const sendSSE = (data: object): void => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
 
       const result = await aiService.summariseStream(
@@ -474,11 +486,7 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(503).send({ error: 'ai_not_configured', message: 'No AI provider is configured for this deployment', statusCode: 503 });
       }
 
-      reply.raw.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      });
+      reply.raw.writeHead(200, sseHeaders(request));
       const sendSSE = (data: object): void => { reply.raw.write(`data: ${JSON.stringify(data)}\n\n`); };
 
       const result = await aiService.suggestStream(

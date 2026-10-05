@@ -16,9 +16,11 @@ import {
 // here so existing `../api/profile` import sites keep working unchanged.
 export type { MyProfile, ProfileActivityResult };
 
-const API_BASE = typeof window !== 'undefined'
-  ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
-  : '';
+function getApiBase(): string {
+  return typeof window !== 'undefined'
+    ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
+    : '';
+}
 
 function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -26,11 +28,11 @@ function authHeaders(token?: string): Record<string, string> {
 
 // Delegated to the shared client (signature unchanged).
 export function getMyProfile(forumId: string, token?: string): Promise<MyProfile | null> {
-  return sharedGetMyProfile(API_BASE, forumId, token);
+  return sharedGetMyProfile(getApiBase(), forumId, token);
 }
 
 export function updateMyProfile(forumId: string, body: UpdateProfileBody, token?: string): Promise<UserProfile> {
-  return sharedUpdateMyProfile(API_BASE, forumId, body, token);
+  return sharedUpdateMyProfile(getApiBase(), forumId, body, token);
 }
 
 export async function updateThemePreference(
@@ -38,7 +40,7 @@ export async function updateThemePreference(
   themePreference: 'light' | 'dark' | null,
   token?: string,
 ): Promise<void> {
-  await fetch(`${API_BASE}/forums/${forumId}/me/theme`, {
+  await fetch(`${getApiBase()}/forums/${forumId}/me/theme`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ themePreference }),
@@ -46,7 +48,7 @@ export async function updateThemePreference(
 }
 
 export function updateNotificationPrefs(forumId: string, prefs: NotificationPrefs, token?: string): Promise<void> {
-  return sharedUpdateNotificationPrefs(API_BASE, forumId, prefs, token);
+  return sharedUpdateNotificationPrefs(getApiBase(), forumId, prefs, token);
 }
 
 export function getProfileActivity(
@@ -58,7 +60,7 @@ export function getProfileActivity(
   contentType: ProfileActivityContentType,
   token?: string,
 ): Promise<ProfileActivityResult> {
-  return sharedGetProfileActivity(API_BASE, forumId, scope, page, limit, sort, contentType, token);
+  return sharedGetProfileActivity(getApiBase(), forumId, scope, page, limit, sort, contentType, token);
 }
 
 // Public-profile counterparts to getMyProfile/getProfileActivity above, for
@@ -68,7 +70,7 @@ export function getProfileActivity(
 // here; the backend's publicActivityQuerySchema would 400 it anyway.
 export async function getUserProfile(forumId: string, userId: string, token?: string): Promise<UserProfile | null> {
   try {
-    const res = await fetch(`${API_BASE}/forums/${forumId}/users/${userId}`, {
+    const res = await fetch(`${getApiBase()}/forums/${forumId}/users/${userId}`, {
       headers: authHeaders(token),
     });
     if (!res.ok) return null;
@@ -89,7 +91,7 @@ export async function getUserActivity(
   token?: string,
 ): Promise<ProfileActivityResult> {
   const qs = new URLSearchParams({ scope, page: String(page), limit: String(limit), sort, contentType });
-  const res = await fetch(`${API_BASE}/forums/${forumId}/users/${userId}/activity?${qs.toString()}`, {
+  const res = await fetch(`${getApiBase()}/forums/${forumId}/users/${userId}/activity?${qs.toString()}`, {
     headers: authHeaders(token),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -4,7 +4,7 @@ import type { GifResult } from '@forumkit/types';
 import { createEditorExtensions } from '../composer/editor/extensions';
 import {
   ToolbarButton, LinkIcon, BulletListIcon, NumberedListIcon, SpoilerIcon, CodeBlockIcon, TableIcon,
-  ImageIcon, VideoIcon, GifIcon,
+  ImageIcon, VideoIcon,
 } from '../composer/editor/toolbar-buttons';
 import { uploadInline } from '../composer/editor/upload-inline';
 import { deleteAttachment as apiDeleteAttachment } from '../../api/attachments';
@@ -58,10 +58,9 @@ export default function CommentComposer({
   useEffect(() => {
     if (!gifPanelOpen || gifNotConfigured) return;
     const q = gifQuery.trim();
-    if (!q) { setGifResults([]); return; }
     setGifLoading(true);
     const timer = window.setTimeout(() => {
-      searchGifs(forumId, q, sessionToken)
+      searchGifs(forumId, q || 'trending', sessionToken)
         .then(setGifResults)
         .catch(err => {
           if (err instanceof GifSearchNotConfiguredError) setGifNotConfigured(true);
@@ -91,7 +90,10 @@ export default function CommentComposer({
   }
 
   function handleSelectGif(gif: GifResult) {
-    run(e => e.chain().focus().setImage({ src: gif.url }).run());
+    // Inserting an atom node leaves it selected as a NodeSelection — moving
+    // to 'end' afterward stops the *next* insertion (image, video, another
+    // GIF) from replacing it instead of adding alongside it.
+    run(e => e.chain().focus().setGif({ id: gif.id, width: gif.width, height: gif.height }).focus('end').run());
     setGifPanelOpen(false);
     setGifQuery('');
     setGifResults([]);
@@ -102,8 +104,8 @@ export default function CommentComposer({
     try {
       const { url, attachmentId } = await uploadInline(forumId, sessionToken, file);
       attachmentIdsRef.current.push(attachmentId);
-      if (kind === 'image') run(e => e.chain().focus().setImage({ src: url }).run());
-      else run(e => e.chain().focus().setVideo({ src: url }).run());
+      if (kind === 'image') run(e => e.chain().focus().setImage({ src: url }).focus('end').run());
+      else run(e => e.chain().focus().setVideo({ src: url }).focus('end').run());
     } catch {
       setError('Upload failed. Please try again.');
     }
@@ -223,7 +225,8 @@ export default function CommentComposer({
         <div className="fk-comment-composer-icons">
           <ToolbarButton label="Image" onClick={() => imageInputRef.current?.click()}><ImageIcon /></ToolbarButton>
           <ToolbarButton label="Video" onClick={() => videoInputRef.current?.click()}><VideoIcon /></ToolbarButton>
-          <ToolbarButton label="GIF" active={gifPanelOpen} onClick={() => setGifPanelOpen(o => !o)}><GifIcon /></ToolbarButton>
+          <ToolbarButton label="GIF" active={gifPanelOpen} style={{ fontWeight: 800, fontSize: 11 }}
+            onClick={() => setGifPanelOpen(o => !o)}>GIF</ToolbarButton>
           <ToolbarButton label="Show formatting options" active={formattingOpen} style={{ fontWeight: 700, fontSize: 13 }}
             onClick={() => setFormattingOpen(o => !o)}>Aa</ToolbarButton>
         </div>

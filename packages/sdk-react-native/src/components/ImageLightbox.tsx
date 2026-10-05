@@ -8,7 +8,7 @@ import { CloseIcon } from './icons';
 export default function ImageLightbox({ uri, onClose }: { uri: string; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Image source={{ uri }} style={styles.image} resizeMode="contain" />
         <Pressable onPress={onClose} hitSlop={10} style={[styles.close, { top: insets.top + 12 }]}>

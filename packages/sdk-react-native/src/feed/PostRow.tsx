@@ -39,9 +39,9 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
   const extraMediaCount = Math.max(0, row.mediaCount - 1);
 
   return (
-    <Pressable onPress={onOpen} style={[styles.row, { borderBottomColor: tokens.border }]}>
+    <Pressable onPress={onOpen} style={({ pressed }) => [styles.row, { borderBottomColor: tokens.border }, pressed && { opacity: 0.85 }]}>
       <Pressable
-        style={styles.head}
+        style={({ pressed }) => [styles.head, pressed && { opacity: 0.65 }]}
         onPress={onPressAuthor ? () => onPressAuthor(row.authorId) : undefined}
         disabled={!onPressAuthor}
       >
@@ -102,13 +102,13 @@ export default function PostRow({ row, view, onOpen, onVote, onSave, onReport, o
         <VotePill voteCounts={row.voteCounts} dir={row.myVote} onVote={onVote} />
         <CommentPill count={row.commentCount} />
         <View style={{ flex: 1 }} />
-        <Pressable onPress={onShare} style={[styles.circle, { backgroundColor: tokens['surface-2'] }]}>
+        <Pressable onPress={onShare} style={({ pressed }) => [styles.circle, { backgroundColor: pressed ? tokens['hover-2'] : tokens['surface-2'] }]}>
           <ShareIcon size={17} color={tokens['text-2']} />
         </Pressable>
         <Pressable
           ref={ellipsisRef}
           onPress={() => measure(() => setMenuOpen(true))}
-          style={[styles.circle, { backgroundColor: menuOpen ? tokens['hover-2'] : tokens['surface-2'] }]}
+          style={({ pressed }) => [styles.circle, { backgroundColor: menuOpen || pressed ? tokens['hover-2'] : tokens['surface-2'] }]}
         >
           <EllipsisIcon size={17} color={tokens['text-2']} />
         </Pressable>
