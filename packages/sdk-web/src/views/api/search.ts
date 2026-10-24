@@ -2,6 +2,7 @@ import type { SearchResponse, SearchResult, CommentSearchResult, UserSearchResul
 import {
   searchThreads as sharedSearchThreads,
   searchUsers as sharedSearchUsers,
+  authedFetch,
   type SearchOpts,
 } from '@forumkit/shared';
 
@@ -12,10 +13,6 @@ function getApiBase(): string {
   return typeof window !== 'undefined'
     ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
     : '';
-}
-
-function authHeaders(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function buildQuery(q: string, opts?: SearchOpts): string {
@@ -51,9 +48,7 @@ export async function searchComments(
   opts?: SearchOpts,
   token?: string,
 ): Promise<SearchResponse<CommentSearchResult>> {
-  const res = await fetch(`${getApiBase()}/forums/${forumId}/search/comments?${buildQuery(q, opts)}`, {
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${getApiBase()}/forums/${forumId}/search/comments?${buildQuery(q, opts)}`, {}, token);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as SearchResponse<CommentSearchResult>;
 }

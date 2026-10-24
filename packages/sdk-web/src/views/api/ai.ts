@@ -1,5 +1,5 @@
 import type { AISuggestion, SimilarThread } from '@forumkit/types';
-import { askQuestionStreaming, summariseStreaming, suggestStreaming } from '@forumkit/shared';
+import { askQuestionStreaming, summariseStreaming, suggestStreaming, authedFetch } from '@forumkit/shared';
 export type { AskStreamEvent, SummariseStreamEvent, SuggestStreamEvent } from '@forumkit/shared';
 
 function getApiBase(): string {
@@ -8,16 +8,9 @@ function getApiBase(): string {
     : '';
 }
 
-function authHeaders(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export async function callSummarise(threadId: string, token?: string): Promise<string[]> {
   try {
-    const res = await fetch(`${getApiBase()}/threads/${threadId}/ai/summarise`, {
-      method: 'POST',
-      headers: authHeaders(token),
-    });
+    const res = await authedFetch(`${getApiBase()}/threads/${threadId}/ai/summarise`, { method: 'POST' }, token);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { summary?: { keyPoints?: string[] } };
     const points = data.summary?.keyPoints;
@@ -30,10 +23,7 @@ export async function callSummarise(threadId: string, token?: string): Promise<s
 
 export async function callSuggest(threadId: string, token?: string): Promise<string> {
   try {
-    const res = await fetch(`${getApiBase()}/threads/${threadId}/ai/suggest`, {
-      method: 'POST',
-      headers: authHeaders(token),
-    });
+    const res = await authedFetch(`${getApiBase()}/threads/${threadId}/ai/suggest`, { method: 'POST' }, token);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { suggestion?: AISuggestion };
     if (data.suggestion?.suggestion) return data.suggestion.suggestion;
@@ -45,10 +35,7 @@ export async function callSuggest(threadId: string, token?: string): Promise<str
 
 export async function callSurfaceRelated(threadId: string, token?: string): Promise<SimilarThread[]> {
   try {
-    const res = await fetch(`${getApiBase()}/threads/${threadId}/ai/surface-related`, {
-      method: 'POST',
-      headers: authHeaders(token),
-    });
+    const res = await authedFetch(`${getApiBase()}/threads/${threadId}/ai/surface-related`, { method: 'POST' }, token);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as { related?: SimilarThread[] };
     if (Array.isArray(data.related)) return data.related;
@@ -94,11 +81,11 @@ export async function callSuggestMetadata(
   token?: string,
 ): Promise<SuggestMetadataResult> {
   try {
-    const res = await fetch(`${getApiBase()}/forums/${forumId}/ai/suggest-metadata`, {
+    const res = await authedFetch(`${getApiBase()}/forums/${forumId}/ai/suggest-metadata`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, body, existingTags }),
-    });
+    }, token);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as SuggestMetadataResult;
     return { title: data.title ?? null, tags: Array.isArray(data.tags) ? data.tags : [] };

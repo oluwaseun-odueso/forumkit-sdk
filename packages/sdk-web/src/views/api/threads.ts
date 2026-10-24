@@ -9,6 +9,7 @@ import {
   updateThread as sharedUpdateThread,
   deleteThread as sharedDeleteThread,
   shareThreadWithUsers as sharedShareThreadWithUsers,
+  authedFetch,
   type ListThreadsParams,
   type ListThreadsResult,
   type GetThreadResult,
@@ -22,10 +23,6 @@ function getApiBase(): string {
   return typeof window !== 'undefined'
     ? (window as Window & { FK_API_URL?: string }).FK_API_URL ?? ''
     : '';
-}
-
-function authHeaders(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 // Delegated to the shared client; web signatures unchanged.
@@ -79,10 +76,7 @@ export async function findDuplicateThreads(
 ): Promise<SimilarThread[]> {
   const params = new URLSearchParams({ title });
   if (body) params.set('body', body);
-  const res = await fetch(
-    `${getApiBase()}/forums/${forumId}/threads/duplicates?${params.toString()}`,
-    { headers: authHeaders(token) },
-  );
+  const res = await authedFetch(`${getApiBase()}/forums/${forumId}/threads/duplicates?${params.toString()}`, {}, token);
   if (!res.ok) return [];
   return res.json() as Promise<SimilarThread[]>;
 }
@@ -94,10 +88,10 @@ export async function getSimilarThreads(
   token?: string,
   limit = 5,
 ): Promise<{ threads: RelatedThreadForRail[] }> {
-  const res = await fetch(`${getApiBase()}/forums/${forumId}/threads/${threadId}/similar?limit=${limit}`, {
+  const res = await authedFetch(`${getApiBase()}/forums/${forumId}/threads/${threadId}/similar?limit=${limit}`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as { threads: RelatedThreadForRail[] };
 }

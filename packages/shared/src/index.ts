@@ -19,6 +19,8 @@ export { NOTIFICATION_PREF_ROWS } from './notification-prefs';
 export type { NotificationPrefRow } from './notification-prefs';
 export {
   authHeaders,
+  setTokenRefresher,
+  authedFetch,
   createSession,
   listThreads,
   saveThread,

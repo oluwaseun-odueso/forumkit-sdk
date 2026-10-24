@@ -18,6 +18,27 @@ export function authHeaders(token?: string): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Registered once by the active SessionProvider (web or native — one forum
+// instance per page) so every call below can recover from an expired token
+// without each call site needing its own refresh logic.
+let tokenRefresher: (() => Promise<string | null>) | null = null;
+
+export function setTokenRefresher(fn: (() => Promise<string | null>) | null): void {
+  tokenRefresher = fn;
+}
+
+// Retries a 401 exactly once with a freshly refreshed token — closes the gap
+// before the next proactive refresh (backgrounding, network blips, a request
+// in flight right at the refresh boundary) without every call below needing
+// its own retry logic.
+export async function authedFetch(url: string, init: RequestInit, token?: string): Promise<Response> {
+  const res = await fetch(url, { ...init, headers: { ...init.headers, ...authHeaders(token) } });
+  if (res.status !== 401 || !tokenRefresher) return res;
+  const freshToken = await tokenRefresher();
+  if (!freshToken || freshToken === token) return res;
+  return fetch(url, { ...init, headers: { ...init.headers, ...authHeaders(freshToken) } });
+}
+
 async function okJson<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as T;
@@ -62,6 +83,10 @@ export type CreateSessionResult = {
   expiresIn: number;
 };
 
+// Not routed through authedFetch/tokenRefresher: this is the exchange that
+// *produces* a fresh token, so retrying it on 401 with "a fresh token" would
+// be circular — a rejected host token is a real auth failure, not a transient
+// one to recover from.
 export async function createSession(apiUrl: string, hostToken: string, forumId?: string): Promise<CreateSessionResult> {
   const res = await fetch(`${apiUrl}/auth/session`, {
     method: 'POST',
@@ -100,26 +125,20 @@ export async function listThreads(
     limit: params?.limit,
     page: params?.page,
   });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads${suffix}`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads${suffix}`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
   return okJson<ListThreadsResult>(res);
 }
 
 export async function saveThread(apiUrl: string, forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/save`, {
-    method: 'POST',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/save`, { method: 'POST' }, token);
   return okVoid(res);
 }
 
 export async function unsaveThread(apiUrl: string, forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/save`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/save`, { method: 'DELETE' }, token);
   return okVoid(res);
 }
 
@@ -130,11 +149,11 @@ export async function reportThread(
   reason: string,
   token?: string,
 ): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/report`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/report`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
-  });
+  }, token);
   return okVoid(res);
 }
 
@@ -149,11 +168,11 @@ export async function voteOnThread(
   direction: VoteDirection,
   token?: string,
 ): Promise<VoteResult> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/vote`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/vote`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ direction }),
-  });
+  }, token);
   return okJson<VoteResult>(res);
 }
 
@@ -163,10 +182,7 @@ export async function removeVoteFromThread(
   threadId: string,
   token?: string,
 ): Promise<VoteResult> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/vote`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/vote`, { method: 'DELETE' }, token);
   return okJson<VoteResult>(res);
 }
 
@@ -180,10 +196,10 @@ export async function getThread(
   threadId: string,
   token?: string,
 ): Promise<GetThreadResult> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
   return okJson<GetThreadResult>(res);
 }
 
@@ -193,11 +209,11 @@ export async function createThread(
   body: CreateThreadBody,
   token?: string,
 ): Promise<Thread> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, token);
   return unwrapJson<Thread>(res);
 }
 
@@ -211,27 +227,21 @@ export async function createReply(
   body: CreateReplyBody,
   token?: string,
 ): Promise<Comment> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments`, {
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, token);
   return unwrapJson<Comment>(res);
 }
 
 export async function saveComment(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/save`, {
-    method: 'POST',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/save`, { method: 'POST' }, token);
   return okVoid(res);
 }
 
 export async function unsaveComment(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/save`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/save`, { method: 'DELETE' }, token);
   return okVoid(res);
 }
 
@@ -242,11 +252,11 @@ export async function reportComment(
   reason: string,
   token?: string,
 ): Promise<void> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/report`, {
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/report`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
-  });
+  }, token);
   return okVoid(res);
 }
 
@@ -257,11 +267,11 @@ export async function voteOnComment(
   direction: VoteDirection,
   token?: string,
 ): Promise<VoteResult> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/vote`, {
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/vote`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ direction }),
-  });
+  }, token);
   return okJson<VoteResult>(res);
 }
 
@@ -271,10 +281,7 @@ export async function removeVoteFromComment(
   commentId: string,
   token?: string,
 ): Promise<VoteResult> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/vote`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/vote`, { method: 'DELETE' }, token);
   return okJson<VoteResult>(res);
 }
 
@@ -289,33 +296,22 @@ export async function listNotifications(
   token?: string,
 ): Promise<NotificationListResponse> {
   const suffix = buildQuery({ page: opts?.page, limit: opts?.limit });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications${suffix}`, {
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/notifications${suffix}`, {}, token);
   return okJson<NotificationListResponse>(res);
 }
 
 export async function markNotificationRead(apiUrl: string, forumId: string, id: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications/${id}/read`, {
-    method: 'PATCH',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/notifications/${id}/read`, { method: 'PATCH' }, token);
   return okVoid(res);
 }
 
 export async function markAllNotificationsRead(apiUrl: string, forumId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications/read-all`, {
-    method: 'PATCH',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/notifications/read-all`, { method: 'PATCH' }, token);
   return okVoid(res);
 }
 
 export async function deleteNotification(apiUrl: string, forumId: string, id: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/notifications/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/notifications/${id}`, { method: 'DELETE' }, token);
   return okVoid(res);
 }
 
@@ -328,11 +324,11 @@ export async function createDraft(
   content: DraftContent,
   token?: string,
 ): Promise<Draft> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/drafts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title, content }),
-  });
+  }, token);
   return unwrapJson<Draft>(res);
 }
 
@@ -344,7 +340,7 @@ export type MyProfile = UserProfile & { notificationPrefs: NotificationPrefs; ro
 
 export async function getMyProfile(apiUrl: string, forumId: string, token?: string): Promise<MyProfile | null> {
   try {
-    const res = await fetch(`${apiUrl}/forums/${forumId}/me`, { headers: authHeaders(token) });
+    const res = await authedFetch(`${apiUrl}/forums/${forumId}/me`, {}, token);
     if (!res.ok) return null;
     return (await res.json()) as MyProfile;
   } catch {
@@ -358,11 +354,11 @@ export async function updateMyProfile(
   body: UpdateProfileBody,
   token?: string,
 ): Promise<UserProfile> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/me`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/me`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, token);
   return unwrapJson<UserProfile>(res);
 }
 
@@ -372,11 +368,11 @@ export async function updateNotificationPrefs(
   prefs: NotificationPrefs,
   token?: string,
 ): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/me/notification-prefs`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/me/notification-prefs`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(prefs),
-  });
+  }, token);
   return okVoid(res);
 }
 
@@ -393,7 +389,7 @@ export async function getProfileActivity(
   token?: string,
 ): Promise<ProfileActivityResult> {
   const suffix = buildQuery({ scope, page, limit, sort, contentType });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/me/activity${suffix}`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/me/activity${suffix}`, {}, token);
   return okJson<ProfileActivityResult>(res);
 }
 
@@ -404,7 +400,7 @@ export async function getUserProfile(
   token?: string,
 ): Promise<UserProfile | null> {
   try {
-    const res = await fetch(`${apiUrl}/forums/${forumId}/users/${userId}`, { headers: authHeaders(token) });
+    const res = await authedFetch(`${apiUrl}/forums/${forumId}/users/${userId}`, {}, token);
     if (!res.ok) return null;
     return (await res.json()) as UserProfile;
   } catch {
@@ -424,42 +420,33 @@ export async function getProfileActivityForUser(
   token?: string,
 ): Promise<ProfileActivityResult> {
   const suffix = buildQuery({ scope, page, limit, sort, contentType });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/users/${userId}/activity${suffix}`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/users/${userId}/activity${suffix}`, {}, token);
   return okJson<ProfileActivityResult>(res);
 }
 
 // ── Comments (edit / delete / accept) ──────────────────────────────
 
 export async function updateReply(apiUrl: string, threadId: string, commentId: string, body: string, token?: string): Promise<Comment> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}`, {
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ body }),
-  });
+  }, token);
   return unwrapJson<Comment>(res);
 }
 
 export async function deleteComment(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}`, { method: 'DELETE' }, token);
   return okVoid(res);
 }
 
 export async function acceptAnswer(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<Comment> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/accept`, {
-    method: 'POST',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/accept`, { method: 'POST' }, token);
   return unwrapJson<Comment>(res);
 }
 
 export async function unacceptAnswer(apiUrl: string, threadId: string, commentId: string, token?: string): Promise<Comment> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/accept`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/comments/${commentId}/accept`, { method: 'DELETE' }, token);
   return unwrapJson<Comment>(res);
 }
 
@@ -472,19 +459,16 @@ export async function updateThread(
   body: UpdateThreadBody,
   token?: string,
 ): Promise<Thread> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, token);
   return unwrapJson<Thread>(res);
 }
 
 export async function deleteThread(apiUrl: string, forumId: string, threadId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}`, { method: 'DELETE' }, token);
   return okVoid(res);
 }
 
@@ -496,11 +480,11 @@ export async function shareThreadWithUsers(
   message: string | undefined,
   token?: string,
 ): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/share`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/${threadId}/share`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipientUserIds, message }),
-  });
+  }, token);
   return okVoid(res);
 }
 
@@ -512,11 +496,11 @@ export async function requestUploadUrl(
   opts: { filename: string; mimeType: string; byteSize: number; purpose: AttachmentPurpose },
   token?: string,
 ): Promise<UploadUrlResponse> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/attachments/upload-url`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/attachments/upload-url`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(opts),
-  });
+  }, token);
   return okJson<UploadUrlResponse>(res);
 }
 
@@ -527,19 +511,16 @@ export async function confirmUpload(
   dimensions: { width: number | null; height: number | null },
   token?: string,
 ): Promise<Attachment & { downloadUrl: string }> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/attachments/${attachmentId}/confirm`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/attachments/${attachmentId}/confirm`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dimensions),
-  });
+  }, token);
   return okJson<Attachment & { downloadUrl: string }>(res);
 }
 
 export async function deleteAttachment(apiUrl: string, forumId: string, attachmentId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/attachments/${attachmentId}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/attachments/${attachmentId}`, { method: 'DELETE' }, token);
   return okVoid(res);
 }
 
@@ -551,10 +532,10 @@ export class GifSearchNotConfiguredError extends Error {}
 
 export async function searchGifs(apiUrl: string, forumId: string, query: string, token?: string, limit = 24): Promise<GifResult[]> {
   const suffix = buildQuery({ q: query, limit });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/gifs/search${suffix}`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/gifs/search${suffix}`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
   if (res.status === 503) throw new GifSearchNotConfiguredError('GIF search is not configured for this forum yet.');
   const body = await okJson<{ results: GifResult[] }>(res);
   return body.results;
@@ -572,7 +553,7 @@ export async function searchThreads(
   token?: string,
 ): Promise<SearchResponse<SearchResult>> {
   const suffix = buildQuery({ q, page: opts?.page, limit: opts?.limit });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/search${suffix}`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/search${suffix}`, {}, token);
   return okJson<SearchResponse<SearchResult>>(res);
 }
 
@@ -594,7 +575,7 @@ export async function searchComments(
   token?: string,
 ): Promise<CommentSearchListResult> {
   const suffix = buildQuery({ q, page: opts?.page, limit: opts?.limit });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/search/comments${suffix}`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/search/comments${suffix}`, {}, token);
   return okJson<CommentSearchListResult>(res);
 }
 
@@ -606,20 +587,20 @@ export async function searchUsers(
   token?: string,
 ): Promise<UserSearchListResult> {
   const suffix = buildQuery({ q, page: opts?.page, limit: opts?.limit });
-  const res = await fetch(`${apiUrl}/forums/${forumId}/search/users${suffix}`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/search/users${suffix}`, {}, token);
   return okJson<UserSearchListResult>(res);
 }
 
 // ── Drafts (list / get / delete / update; createDraft is above) ────
 
 export async function listDrafts(apiUrl: string, forumId: string, token?: string): Promise<Draft[]> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/drafts`, {}, token);
   const data = await okJson<{ drafts: Draft[] }>(res);
   return data.drafts;
 }
 
 export async function getDraft(apiUrl: string, forumId: string, draftId: string, token?: string): Promise<Draft> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, {}, token);
   return okJson<Draft>(res);
 }
 
@@ -630,19 +611,16 @@ export async function updateDraft(
   fields: { title?: string; content?: DraftContent },
   token?: string,
 ): Promise<Draft> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(fields),
-  });
+  }, token);
   return unwrapJson<Draft>(res);
 }
 
 export async function deleteDraft(apiUrl: string, forumId: string, draftId: string, token?: string): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/drafts/${draftId}`, { method: 'DELETE' }, token);
   return okVoid(res);
 }
 
@@ -666,11 +644,11 @@ export async function askQuestion(
   q: string,
   token: string,
 ): Promise<AskQuestionResult> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/ai/ask`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/ai/ask`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ q }),
-  });
+  }, token);
   return unwrapJson<AskQuestionResult>(res);
 }
 
@@ -681,11 +659,11 @@ export async function askQuestionStreaming(
   token: string,
   onEvent: (event: AskStreamEvent) => void,
 ): Promise<void> {
-  const res = await fetch(`${apiUrl}/forums/${forumId}/ai/ask/stream`, {
+  const res = await authedFetch(`${apiUrl}/forums/${forumId}/ai/ask/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ q }),
-  });
+  }, token);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: 'AI request failed' })) as { message?: string };
     throw new Error(err.message ?? 'AI request failed');
@@ -746,10 +724,7 @@ export async function summariseStreaming(
   token: string | undefined,
   onEvent: (event: SummariseStreamEvent) => void,
 ): Promise<void> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/ai/summarise/stream`, {
-    method: 'POST',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/ai/summarise/stream`, { method: 'POST' }, token);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   await readSSEStream(res, onEvent);
 }
@@ -760,10 +735,7 @@ export async function suggestStreaming(
   token: string | undefined,
   onEvent: (event: SuggestStreamEvent) => void,
 ): Promise<void> {
-  const res = await fetch(`${apiUrl}/threads/${threadId}/ai/suggest/stream`, {
-    method: 'POST',
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${apiUrl}/threads/${threadId}/ai/suggest/stream`, { method: 'POST' }, token);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   await readSSEStream(res, onEvent);
 }
@@ -779,7 +751,7 @@ export async function getModerationQueue(
   token?: string,
 ): Promise<ModerationQueueResult> {
   const suffix = buildQuery({ page: params?.page, limit: params?.limit });
-  const res = await fetch(`${apiUrl}/moderation/queue${suffix}`, { headers: authHeaders(token) });
+  const res = await authedFetch(`${apiUrl}/moderation/queue${suffix}`, {}, token);
   return unwrapJson<ModerationQueueResult>(res);
 }
 
@@ -789,10 +761,10 @@ export async function resolveModerationItem(
   action: 'approved' | 'removed',
   token?: string,
 ): Promise<ModerationQueueItem> {
-  const res = await fetch(`${apiUrl}/moderation/queue/${itemId}`, {
+  const res = await authedFetch(`${apiUrl}/moderation/queue/${itemId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action }),
-  });
+  }, token);
   return unwrapJson<ModerationQueueItem>(res);
 }
