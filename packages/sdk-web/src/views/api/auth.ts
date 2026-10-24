@@ -16,6 +16,6 @@ function getApiBase(): string {
 // Thin wrapper over the shared client — keeps the web signature (apiUrl passed
 // explicitly here too, since createSession has always taken it), while the
 // fetch logic lives once in @forumkit/shared.
-export async function createSession(apiUrl: string, hostToken: string): Promise<CreateSessionResult> {
-  return sharedCreateSession(apiUrl || getApiBase(), hostToken);
+export async function createSession(apiUrl: string, hostToken: string, forumId?: string): Promise<CreateSessionResult> {
+  return sharedCreateSession(apiUrl || getApiBase(), hostToken, forumId);
 }

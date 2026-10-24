@@ -62,11 +62,11 @@ export type CreateSessionResult = {
   expiresIn: number;
 };
 
-export async function createSession(apiUrl: string, hostToken: string): Promise<CreateSessionResult> {
+export async function createSession(apiUrl: string, hostToken: string, forumId?: string): Promise<CreateSessionResult> {
   const res = await fetch(`${apiUrl}/auth/session`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${hostToken}` },
-    body: JSON.stringify({ token: hostToken }),
+    body: JSON.stringify({ token: hostToken, ...(forumId ? { forumId } : {}) }),
   });
   return okJson<CreateSessionResult>(res);
 }

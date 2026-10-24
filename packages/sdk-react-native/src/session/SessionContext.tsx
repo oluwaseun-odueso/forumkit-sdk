@@ -73,7 +73,7 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
     function refresh(isRenewal = false): Promise<void> {
       const tokenPromise = isRenewal && config.getToken ? config.getToken() : Promise.resolve(config.token);
       return tokenPromise
-        .then(hostToken => createSession(apiUrl, hostToken))
+        .then(hostToken => createSession(apiUrl, hostToken, config.forumId))
         .then(result => {
           if (cancelled) return;
           setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, userId: result.userId, role: result.role, error: null });
