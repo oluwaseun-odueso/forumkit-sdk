@@ -568,6 +568,11 @@ export type ForumKitConfig = {
   // entirely, the session just stops renewing once `token` expires, same as
   // before this field existed.
   getToken?: () => Promise<string>;
+  // When true, skip exchanging `token` for a ForumKit session token —
+  // keep re-presenting the current host token itself on every request.
+  // For hosts who don't want a second, ForumKit-issued token anywhere in
+  // their code. Defaults to false.
+  useHostTokenDirectly?: boolean;
   theme?: ThemeTokens;
   apiUrl?: string;                   // defaults to same origin
   onLogout?: () => void;             // host owns the real sign-out flow; if provided, the
