@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
-import { createSession, getMyProfile } from '@forumkit/shared';
+import { createSession, getMyProfile, setTokenRefresher } from '@forumkit/shared';
 import type { ForumKitConfig } from '@forumkit/types';
 
 // Ported from sdk-web's hooks/use-session.tsx — same short-lived session token
@@ -34,8 +34,21 @@ type SessionContextValue = SessionState & {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+// Decodes a JWT's exp claim without verifying it — the token was either
+// just handed to us by the host or already accepted by the backend, not
+// something we need to re-check here, just read a field from.
+function decodeExp(token: string): number | null {
+  try {
+    const payload = token.split('.')[1];
+    return payload ? (JSON.parse(atob(payload)).exp ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function SessionProvider({ config, children }: { config: ForumKitConfig; children: ReactNode }) {
   const apiUrl = config.apiUrl ?? '';
+  const direct = config.useHostTokenDirectly ?? false;
   const [state, setState] = useState<SessionState>({
     status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, userId: null, role: null, error: null,
   });
@@ -70,24 +83,45 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
     // that point. Falls back to the static token when the host hasn't
     // implemented getToken (previous behaviour — renewal just stops once
     // that token expires).
-    function refresh(isRenewal = false): Promise<void> {
+    let refreshPromise: Promise<string | null> | null = null;
+
+    // Collapses concurrent callers (the 80%-TTL timer, the AppState resume
+    // check, and any number of simultaneously-401ing API calls retrying
+    // through authedFetch below) into one network round trip instead of one
+    // each. Returns the new token so authedFetch's retry-once-on-401 can use
+    // it directly.
+    function refresh(isRenewal = false): Promise<string | null> {
+      if (refreshPromise) return refreshPromise;
       const tokenPromise = isRenewal && config.getToken ? config.getToken() : Promise.resolve(config.token);
-      return tokenPromise
-        .then(hostToken => createSession(apiUrl, hostToken))
-        .then(result => {
-          if (cancelled) return;
-          setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken: result.sessionToken, userId: result.userId, role: result.role, error: null });
-          scheduleRefresh(result.expiresIn);
+      refreshPromise = tokenPromise
+        .then(async hostToken => {
+          const result = await createSession(apiUrl, hostToken, config.forumId);
+          return { hostToken, result };
+        })
+        .then(({ hostToken, result }) => {
+          if (cancelled) return null;
+          // direct mode: re-present the host token itself on every request
+          // instead of ForumKit's own session token; scheduleRefresh then
+          // needs the host token's own exp, not ForumKit's session TTL.
+          const sessionToken = direct ? hostToken : result.sessionToken;
+          const hostExp = direct ? decodeExp(hostToken) : null;
+          const expiresIn = hostExp !== null ? hostExp - Date.now() / 1000 : result.expiresIn;
+          setState({ status: 'ready', forumId: config.forumId, apiUrl, sessionToken, userId: result.userId, role: result.role, error: null });
+          scheduleRefresh(expiresIn);
+          return sessionToken;
         })
         .catch((err: unknown) => {
-          if (cancelled) return;
+          if (cancelled) return null;
           const message = err instanceof Error ? err.message : 'Failed to create session';
           setState({ status: 'error', forumId: config.forumId, apiUrl, sessionToken: null, userId: null, role: null, error: message });
           // A transient failure (network blip, momentary server error)
           // shouldn't end the session for good — keep trying rather than
           // leaving the app permanently stuck on a dead token.
           retryTimer = setTimeout(() => { void refresh(true); }, RETRY_DELAY_MS);
-        });
+          return null;
+        })
+        .finally(() => { refreshPromise = null; });
+      return refreshPromise;
     }
 
     const appStateSub = AppState.addEventListener('change', next => {
@@ -101,11 +135,13 @@ export function SessionProvider({ config, children }: { config: ForumKitConfig; 
       }
     });
 
+    setTokenRefresher(() => refresh(true));
     setState({ status: 'loading', forumId: config.forumId, apiUrl, sessionToken: null, userId: null, role: null, error: null });
     void refresh();
 
     return () => {
       cancelled = true;
+      setTokenRefresher(null);
       if (refreshTimer) clearTimeout(refreshTimer);
       if (retryTimer) clearTimeout(retryTimer);
       appStateSub.remove();

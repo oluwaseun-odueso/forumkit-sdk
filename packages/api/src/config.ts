@@ -48,6 +48,8 @@ export type Config = {
   storageMaxFileSizeBytes: number;
   storageAllowedMimeTypes: string[];
   giphyApiKey: string | null;
+  cognitoUserPoolId: string | null;
+  cognitoClientId: string | null;
 };
 
 export function loadConfig(): Config {
@@ -82,5 +84,7 @@ export function loadConfig(): Config {
       'image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm',
     ).split(','),
     giphyApiKey: process.env['GIPHY_API_KEY'] ?? null,
+    cognitoUserPoolId: process.env['COGNITO_USER_POOL_ID'] ?? null,
+    cognitoClientId: process.env['COGNITO_CLIENT_ID'] ?? null,
   };
 }

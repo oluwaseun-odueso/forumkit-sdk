@@ -1,10 +1,6 @@
-import { summariseStreaming, suggestStreaming } from '@forumkit/shared';
+import { summariseStreaming, suggestStreaming, authedFetch } from '@forumkit/shared';
 export type { SummariseStreamEvent, SuggestStreamEvent } from '@forumkit/shared';
 import type { SimilarThread } from '@forumkit/types';
-
-function authHeaders(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 export async function callSummarise(
   apiUrl: string,
@@ -12,10 +8,7 @@ export async function callSummarise(
   token?: string,
 ): Promise<string[] | null> {
   try {
-    const res = await fetch(`${apiUrl}/threads/${threadId}/ai/summarise`, {
-      method: 'POST',
-      headers: authHeaders(token),
-    });
+    const res = await authedFetch(`${apiUrl}/threads/${threadId}/ai/summarise`, { method: 'POST' }, token);
     if (!res.ok) return null;
     const data = (await res.json()) as { summary?: { keyPoints?: string[] } };
     const points = data.summary?.keyPoints;
@@ -31,9 +24,7 @@ export async function checkAiAvailable(
   token?: string,
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${apiUrl}/forums/${forumId}/ai/available`, {
-      headers: authHeaders(token),
-    });
+    const res = await authedFetch(`${apiUrl}/forums/${forumId}/ai/available`, {}, token);
     if (!res.ok) return false;
     const data = (await res.json()) as { available?: boolean };
     return data.available === true;
@@ -53,11 +44,11 @@ export async function callSuggestMetadata(
   token?: string,
 ): Promise<SuggestMetadataResult | null> {
   try {
-    const res = await fetch(`${apiUrl}/forums/${forumId}/ai/suggest-metadata`, {
+    const res = await authedFetch(`${apiUrl}/forums/${forumId}/ai/suggest-metadata`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, body, existingTags }),
-    });
+    }, token);
     if (!res.ok) return null;
     const data = (await res.json()) as SuggestMetadataResult;
     return { title: data.title ?? null, tags: Array.isArray(data.tags) ? data.tags : [] };
@@ -72,10 +63,7 @@ export async function callSuggest(
   token?: string,
 ): Promise<string | null> {
   try {
-    const res = await fetch(`${apiUrl}/threads/${threadId}/ai/suggest`, {
-      method: 'POST',
-      headers: authHeaders(token),
-    });
+    const res = await authedFetch(`${apiUrl}/threads/${threadId}/ai/suggest`, { method: 'POST' }, token);
     if (!res.ok) return null;
     const data = (await res.json()) as { suggestion?: { suggestion?: string } };
     return data.suggestion?.suggestion ?? null;
@@ -112,10 +100,7 @@ export async function findDuplicateThreads(
   try {
     const params = new URLSearchParams({ title });
     if (body) params.set('body', body);
-    const res = await fetch(
-      `${apiUrl}/forums/${forumId}/threads/duplicates?${params.toString()}`,
-      { headers: authHeaders(token) },
-    );
+    const res = await authedFetch(`${apiUrl}/forums/${forumId}/threads/duplicates?${params.toString()}`, {}, token);
     if (!res.ok) return [];
     return (await res.json()) as SimilarThread[];
   } catch {

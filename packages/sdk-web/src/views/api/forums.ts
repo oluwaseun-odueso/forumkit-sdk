@@ -1,4 +1,5 @@
 import type { Forum } from '@forumkit/types';
+import { authedFetch } from '@forumkit/shared';
 
 function getApiBase(): string {
   return typeof window !== 'undefined'
@@ -6,15 +7,11 @@ function getApiBase(): string {
     : '';
 }
 
-function authHeaders(token?: string): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export async function getForum(forumId: string, token?: string): Promise<Forum> {
-  const res = await fetch(`${getApiBase()}/forums/${forumId}`, {
+  const res = await authedFetch(`${getApiBase()}/forums/${forumId}`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
-  });
+    headers: { 'Content-Type': 'application/json' },
+  }, token);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as Forum;
 }

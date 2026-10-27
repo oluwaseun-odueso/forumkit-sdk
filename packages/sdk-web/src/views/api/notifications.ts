@@ -4,7 +4,7 @@ import {
   markNotificationRead as sharedMarkNotificationRead,
   markAllNotificationsRead as sharedMarkAllNotificationsRead,
   deleteNotification as sharedDeleteNotification,
-  authHeaders,
+  authedFetch,
   type NotificationsOpts,
 } from '@forumkit/shared';
 
@@ -36,9 +36,7 @@ export function markAllNotificationsRead(forumId: string, token?: string): Promi
 // The rest stay local (not part of the migrated subset).
 // GET /forums/:forumId/notifications/unread-count
 export async function getUnreadCount(forumId: string, token?: string): Promise<number> {
-  const res = await fetch(`${getApiBase()}/forums/${forumId}/notifications/unread-count`, {
-    headers: authHeaders(token),
-  });
+  const res = await authedFetch(`${getApiBase()}/forums/${forumId}/notifications/unread-count`, {}, token);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = (await res.json()) as { count: number };
   return body.count;
