@@ -56,6 +56,7 @@ function makeRequest(opts: {
       db,
     },
     jwtPayload: undefined as unknown,
+    log: { warn: () => {} },
   };
   return req as unknown as FastifyRequest & { jwtPayload: unknown; body: unknown };
 }
