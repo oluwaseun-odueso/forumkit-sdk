@@ -21,6 +21,7 @@ function makeRequest(token?: string) {
     headers: token ? { authorization: `Bearer ${token}` } : {},
     server: { config: { forumSecretKey: SECRET } },
     jwtPayload: undefined as unknown,
+    log: { warn: () => {} },
   };
   return req as unknown as FastifyRequest & { jwtPayload: unknown };
 }

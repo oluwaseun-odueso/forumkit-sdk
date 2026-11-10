@@ -158,7 +158,8 @@ export async function authenticate(
   } else if (cognito && iss?.startsWith('https://cognito-idp.')) {
     try {
       request.jwtPayload = await authenticateViaCognito(token, cognito, request);
-    } catch {
+    } catch (err) {
+      request.log.warn({ err }, 'Cognito token rejected');
       return reply.status(401).send({
         error: 'invalid_token',
         message: 'Token is invalid or has expired',
@@ -169,7 +170,8 @@ export async function authenticate(
     try {
       const payload = verifyHostJWT(token, forumSecretKey);
       request.jwtPayload = payload;
-    } catch {
+    } catch (err) {
+      request.log.warn({ err }, 'Host JWT rejected');
       return reply.status(401).send({
         error: 'invalid_token',
         message: 'Token is invalid or has expired',
@@ -212,14 +214,16 @@ export async function optionalAuthenticate(
   } else if (cognito && iss?.startsWith('https://cognito-idp.')) {
     try {
       request.jwtPayload = await authenticateViaCognito(token, cognito, request);
-    } catch {
+    } catch (err) {
+      request.log.warn({ err }, 'Cognito token rejected');
       return reply.status(401).send({ error: 'invalid_token', message: 'Token is invalid or has expired', statusCode: 401 });
     }
   } else {
     try {
       const payload = verifyHostJWT(token, forumSecretKey);
       request.jwtPayload = payload;
-    } catch {
+    } catch (err) {
+      request.log.warn({ err }, 'Host JWT rejected');
       return reply.status(401).send({ error: 'invalid_token', message: 'Token is invalid or has expired', statusCode: 401 });
     }
   }
