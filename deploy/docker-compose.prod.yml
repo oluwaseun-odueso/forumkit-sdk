@@ -1,0 +1,44 @@
+# Production stack: the published API image behind Caddy for TLS.
+#
+# Lives in /opt/forumkit on the host alongside two env files deploy.sh reads:
+#   .env          - FORUMKIT_TAG, FORUM_SITE, PUBLIC_API_URL, ACME_EMAIL (non-secret, this file's own config)
+#   forumkit.env  - everything else (DATABASE_URL, FORUM_SECRET_KEY, storage/Cognito/AI keys, ...)
+#
+# Never run `docker compose down -v` here - the caddy_data volume holds the
+# TLS certificates; removing it forces re-issuance (and Let's Encrypt
+# rate-limits repeated issuance for the same domain).
+services:
+  api:
+    image: ghcr.io/oluwaseun-odueso/forumkit-api:${FORUMKIT_TAG:?}
+    restart: unless-stopped
+    env_file: forumkit.env
+    environment:          # overrides anything of the same name in forumkit.env
+      NODE_ENV: production
+      PORT: "3000"
+      PUBLIC_API_URL: ${PUBLIC_API_URL:?}
+      TRUST_PROXY: "1"    # exactly one hop in front of the api: the caddy container
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      retries: 3
+      start_period: 90s
+    stop_grace_period: 20s
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      FORUM_SITE: ${FORUM_SITE:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
