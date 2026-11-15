@@ -28,6 +28,7 @@ export async function buildApp(config: Config, db: DB): Promise<ReturnType<typeo
       config.nodeEnv === 'development'
         ? { level: config.logLevel, transport: { target: require.resolve('pino-pretty'), options: { colorize: true } } }
         : { level: config.logLevel },
+    trustProxy: config.trustProxy,
   });
 
   // ── Plugins ──────────────────────────────────────────────────────
