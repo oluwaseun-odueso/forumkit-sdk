@@ -31,3 +31,98 @@ jobs:
           tags: |
             ghcr.io/oluwaseun-odueso/forumkit-api:${{ github.ref_name }}
             ghcr.io/oluwaseun-odueso/forumkit-api:latest
+
+  deploy:
+    name: Deploy to EC2
+    needs: publish
+    # A pre-release tag (anything with a '-', e.g. v0.0.1-test) never
+    # auto-deploys. DEPLOY_ENABLED is the kill switch for the whole job -
+    # unset or false, deploys stay fully manual.
+    if: ${{ !contains(github.ref_name, '-') && vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    # No `environment:` here - that would change the OIDC `sub` claim the
+    # deploy role's trust policy is pinned to (repo:.../ref:refs/tags/v*).
+    permissions:
+      id-token: write   # required for the AWS OIDC role assumption below
+      contents: read
+    concurrency:
+      # Never run two deploys at once, and never cancel one mid-flight -
+      # an interrupted deploy.sh can leave .env's FORUMKIT_TAG and the
+      # running container disagreeing about which version is live.
+      group: forumkit-production-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need full history to check the tag is on main, below
+
+      - name: Refuse to deploy a tag that was never merged to main
+        run: |
+          set -euo pipefail
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME ($GITHUB_SHA) is not an ancestor of main - refusing to deploy it."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Send deploy/ to the instance and run deploy.sh
+        id: ssm
+        env:
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Only these three files - never the whole deploy/ directory
+          # (which also has Dockerfile and docker-compose.dev.yml, neither
+          # needed on the host), and never .env/forumkit.env, which live
+          # only on the host and aren't in this repo at all.
+          TARBALL_B64="$(tar -C deploy -czf - docker-compose.prod.yml Caddyfile deploy.sh | base64 -w0)"
+
+          jq -n \
+            --arg instance_id "$INSTANCE_ID" \
+            --arg tag "$TAG" \
+            --arg tarball "$TARBALL_B64" \
+            '{
+              DocumentName: "AWS-RunShellScript",
+              InstanceIds: [$instance_id],
+              Comment: ("forumkit deploy " + $tag),
+              Parameters: {
+                commands: [
+                  "set -euo pipefail",
+                  "mkdir -p /opt/forumkit",
+                  ("printf %s " + ($tarball|@sh) + " | base64 -d | tar -xzf - -C /opt/forumkit"),
+                  ("cd /opt/forumkit && bash deploy.sh " + ($tag|@sh))
+                ]
+              }
+            }' > ssm-params.json
+
+          COMMAND_ID="$(aws ssm send-command --cli-input-json file://ssm-params.json \
+            --query 'Command.CommandId' --output text)"
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for deploy.sh and print its output
+        env:
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          COMMAND_ID: ${{ steps.ssm.outputs.command_id }}
+        run: |
+          set +e
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
+          WAIT_STATUS=$?
+          set -e
+
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" > invocation.json
+          echo "--- deploy.sh stdout ---"
+          jq -r '.StandardOutputContent' invocation.json
+          echo "--- deploy.sh stderr ---"
+          jq -r '.StandardErrorContent' invocation.json >&2
+          STATUS="$(jq -r '.Status' invocation.json)"
+          echo "SSM command status: $STATUS"
+          if [ "$WAIT_STATUS" -ne 0 ] || [ "$STATUS" != "Success" ]; then
+            echo "::error::Deploy failed (SSM status: $STATUS) - see output above"
+            exit 1
+          fi

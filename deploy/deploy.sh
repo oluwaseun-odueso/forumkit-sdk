@@ -7,9 +7,8 @@
 #   forumkit.env          - DATABASE_URL, FORUM_SECRET_KEY, storage/Cognito/AI keys, ...
 #   docker-compose.prod.yml, Caddyfile
 #
-# Only the api service is recreated - caddy is untouched, so no TLS
-# renegotiation and no dropped TLS sessions on a deploy. Only bash, curl and
-# docker compose are assumed on the host; nothing here is distro-specific.
+# Only bash, curl and docker compose are assumed on the host; nothing here
+# is distro-specific.
 set -euo pipefail
 
 IMAGE_REPO="ghcr.io/oluwaseun-odueso/forumkit-api"
@@ -23,7 +22,10 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-read_var() { grep -E "^$1=" "$ENV_FILE" | tail -n1 | cut -d= -f2-; }
+# The `|| true` matters: under `set -e`, grep's exit 1 on no match (the
+# very first deploy, before FORUMKIT_TAG is ever written) would otherwise
+# kill the script before PREVIOUS_TAG is even assigned.
+read_var() { { grep -E "^$1=" "$ENV_FILE" || true; } | tail -n1 | cut -d= -f2-; }
 
 set_tag() {
   grep -v '^FORUMKIT_TAG=' "$ENV_FILE" > "$ENV_FILE.tmp" || true
@@ -41,24 +43,30 @@ FORUMKIT_TAG="$NEW_TAG" docker compose pull api
 
 set_tag "$NEW_TAG"
 echo "Starting $NEW_TAG (previous: ${PREVIOUS_TAG:-none}) ..."
-docker compose up -d api
+# `up -d` (not `up -d api`): compose only recreates services whose config
+# actually changed, so caddy is left alone on a normal deploy - but this
+# still creates it on the very first-ever deploy (nothing to recreate yet),
+# and still picks up a later FORUM_SITE change (IP -> domain) without a
+# separate manual step.
+docker compose up -d
 
 rollback() {
   echo "Deploy of $NEW_TAG failed - rolling back." >&2
   docker compose logs --tail=200 api >&2 || true
   if [ -n "$PREVIOUS_TAG" ]; then
     set_tag "$PREVIOUS_TAG"
-    docker compose up -d api
+    docker compose up -d
   else
     echo "No previous tag recorded - nothing to roll back to." >&2
   fi
   exit 1
 }
 
-# Wait for the container's own HEALTHCHECK (up to 120s - matches the
-# compose file's start_period plus a few retries).
+# Wait for the container's own HEALTHCHECK (up to 180s - the api runs
+# migrations then a tsx-started server on a 1 GiB t3.micro, so a cold first
+# start can be slow; matches the compose file's start_period plus margin).
 healthy=0
-for _ in $(seq 1 24); do
+for _ in $(seq 1 36); do
   cid="$(docker compose ps -q api)"
   status="$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo unknown)"
   if [ "$status" = "healthy" ]; then

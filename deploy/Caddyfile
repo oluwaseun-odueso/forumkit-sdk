@@ -13,9 +13,11 @@
 
 {$FORUM_SITE} {
 	# Compress JSON API responses only - SSE (/ask/stream) and WebSocket
-	# upgrades must never be buffered or encoded.
-	encode {
-		zstd gzip
+	# upgrades must never be buffered or encoded. Formats go on the
+	# directive line itself: `zstd gzip` *inside* the block would parse
+	# gzip as zstd's optional compression-level argument instead of a
+	# second format.
+	encode zstd gzip {
 		match {
 			header Content-Type application/json*
 		}

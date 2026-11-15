@@ -21,7 +21,10 @@ services:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 15s
       retries: 3
-      start_period: 90s
+      # Migrations + a tsx-started server on a 1 GiB t3.micro can be slow
+      # on a cold first start - generous grace period before Docker's own
+      # retry count even starts counting against the container.
+      start_period: 120s
     stop_grace_period: 20s
 
   caddy:
