@@ -83,6 +83,9 @@ jobs:
           # only on the host and aren't in this repo at all.
           TARBALL_B64="$(tar -C deploy -czf - docker-compose.prod.yml Caddyfile deploy.sh | base64 -w0)"
 
+          # Runs under the host's plain `sh` (dash on Ubuntu, which doesn't
+          # support `pipefail`) - `set -eu` only here. deploy.sh itself runs
+          # under `bash` (invoked explicitly below) and keeps `-o pipefail`.
           jq -n \
             --arg instance_id "$INSTANCE_ID" \
             --arg tag "$TAG" \
@@ -93,11 +96,12 @@ jobs:
               Comment: ("forumkit deploy " + $tag),
               Parameters: {
                 commands: [
-                  "set -euo pipefail",
+                  "set -eu",
                   "mkdir -p /opt/forumkit",
                   ("printf %s " + ($tarball|@sh) + " | base64 -d | tar -xzf - -C /opt/forumkit"),
                   ("cd /opt/forumkit && bash deploy.sh " + ($tag|@sh))
-                ]
+                ],
+                executionTimeout: ["900"]
               }
             }' > ssm-params.json
 
@@ -110,19 +114,40 @@ jobs:
           INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
           COMMAND_ID: ${{ steps.ssm.outputs.command_id }}
         run: |
-          set +e
-          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
-          WAIT_STATUS=$?
-          set -e
+          set -euo pipefail
 
-          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" > invocation.json
+          # `aws ssm wait command-executed` gives up after ~100s, which is
+          # shorter than a cold first deploy (pull, migrations, up to 180s
+          # of deploy.sh's own health wait) can take - poll by hand instead,
+          # for up to ~12 minutes (the executionTimeout set above is 900s).
+          MAX_WAIT_SECONDS=720
+          POLL_INTERVAL_SECONDS=10
+          elapsed=0
+          status="Pending"
+          invocation=""
+
+          while [ "$elapsed" -lt "$MAX_WAIT_SECONDS" ]; do
+            if invocation="$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" 2>&1)"; then
+              status="$(printf '%s' "$invocation" | jq -r '.Status')"
+            else
+              # e.g. InvocationDoesNotExist right after send-command, before
+              # SSM has registered it yet - still pending, not a failure.
+              status="Pending"
+            fi
+            case "$status" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+            esac
+            sleep "$POLL_INTERVAL_SECONDS"
+            elapsed=$((elapsed + POLL_INTERVAL_SECONDS))
+          done
+
           echo "--- deploy.sh stdout ---"
-          jq -r '.StandardOutputContent' invocation.json
+          printf '%s' "$invocation" | jq -r '.StandardOutputContent // ""' 2>/dev/null || true
           echo "--- deploy.sh stderr ---"
-          jq -r '.StandardErrorContent' invocation.json >&2
-          STATUS="$(jq -r '.Status' invocation.json)"
-          echo "SSM command status: $STATUS"
-          if [ "$WAIT_STATUS" -ne 0 ] || [ "$STATUS" != "Success" ]; then
-            echo "::error::Deploy failed (SSM status: $STATUS) - see output above"
+          printf '%s' "$invocation" | jq -r '.StandardErrorContent // ""' 2>/dev/null >&2 || true
+          echo "Final SSM command status: $status"
+
+          if [ "$status" != "Success" ]; then
+            echo "::error::Deploy failed or timed out waiting for it (status: $status) - see output above"
             exit 1
           fi
