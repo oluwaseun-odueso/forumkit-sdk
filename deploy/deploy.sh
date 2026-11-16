@@ -57,7 +57,12 @@ rollback() {
     set_tag "$PREVIOUS_TAG"
     docker compose up -d
   else
-    echo "No previous tag recorded - nothing to roll back to." >&2
+    # With `restart: unless-stopped`, leaving a failed first-ever deploy
+    # running would crash-loop api forever against whatever made it fail
+    # (e.g. a bad DATABASE_URL) - stop it rather than let that spin
+    # indefinitely. caddy is left running.
+    echo "No previous tag recorded - stopping the failed api container (caddy left running)." >&2
+    docker compose stop api
   fi
   exit 1
 }
