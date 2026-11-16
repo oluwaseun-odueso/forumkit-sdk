@@ -128,11 +128,19 @@ jobs:
 
           while [ "$elapsed" -lt "$MAX_WAIT_SECONDS" ]; do
             if invocation="$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" 2>&1)"; then
-              status="$(printf '%s' "$invocation" | jq -r '.Status')"
-            else
-              # e.g. InvocationDoesNotExist right after send-command, before
-              # SSM has registered it yet - still pending, not a failure.
+              status="$(printf '%s' "$invocation" | jq -r '.Status' 2>/dev/null || echo Unparseable)"
+            elif printf '%s' "$invocation" | grep -q InvocationDoesNotExist; then
+              # Only the first seconds after send-command, before SSM has
+              # registered the invocation yet - genuinely still pending.
               status="Pending"
+            else
+              # Any other failure (AccessDenied from a mis-scoped OIDC role,
+              # expired credentials, wrong instance id, ...) is real and
+              # must fail loudly now, not loop silently for 12 minutes and
+              # report nothing but "status: Pending" at the end.
+              echo "::error::aws ssm get-command-invocation failed:"
+              printf '%s\n' "$invocation" >&2
+              exit 1
             fi
             case "$status" in
               Success|Failed|Cancelled|TimedOut) break ;;
@@ -149,5 +157,13 @@ jobs:
 
           if [ "$status" != "Success" ]; then
             echo "::error::Deploy failed or timed out waiting for it (status: $status) - see output above"
+            # Stdout/stderr above come from jq parsing $invocation - if that
+            # parse failed, or the loop exhausted its 12 minutes without
+            # ever reaching a terminal status, those would print nothing
+            # useful. Dump the raw response too so the cause is visible.
+            if [ "$status" = "Unparseable" ] || [ "$status" = "Pending" ]; then
+              echo "Raw get-command-invocation response:" >&2
+              printf '%s\n' "$invocation" >&2
+            fi
             exit 1
           fi
