@@ -1,0 +1,31 @@
+# Production reverse proxy for ForumKit's API container.
+#
+# FORUM_SITE is the Caddy site address, separate from PUBLIC_API_URL (the
+# API's own config for building attachment links) so the proxy can run on a
+# bare IP over plain HTTP before DNS exists, then switch to a real domain
+# with automatic HTTPS later with no file changes - only the two env values
+# in .env change:
+#   Interim (no domain yet): FORUM_SITE=:80            (plain HTTP, no cert requested)
+#   With DNS:                FORUM_SITE=forum.example.com (automatic Let's Encrypt HTTPS)
+{
+	email {$ACME_EMAIL}
+}
+
+{$FORUM_SITE} {
+	# Compress JSON API responses only - SSE (/ask/stream) and WebSocket
+	# upgrades must never be buffered or encoded. Formats go on the
+	# directive line itself: `zstd gzip` *inside* the block would parse
+	# gzip as zstd's optional compression-level argument instead of a
+	# second format.
+	encode zstd gzip {
+		match {
+			header Content-Type application/json*
+		}
+	}
+
+	reverse_proxy api:3000 {
+		flush_interval -1    # stream SSE/WS writes immediately, no buffering
+		lb_try_duration 30s  # hold requests while the api container restarts during a deploy
+		lb_try_interval 500ms
+	}
+}

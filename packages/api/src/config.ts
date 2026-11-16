@@ -50,6 +50,7 @@ export type Config = {
   giphyApiKey: string | null;
   cognitoUserPoolId: string | null;
   cognitoClientId: string | null;
+  trustProxy: number | false;
 };
 
 export function loadConfig(): Config {
@@ -86,5 +87,18 @@ export function loadConfig(): Config {
     giphyApiKey: process.env['GIPHY_API_KEY'] ?? null,
     cognitoUserPoolId: process.env['COGNITO_USER_POOL_ID'] ?? null,
     cognitoClientId: process.env['COGNITO_CLIENT_ID'] ?? null,
+    // Hop count of reverse proxies (e.g. Caddy) in front of this server, so
+    // Fastify/the rate limiter read the real client IP from X-Forwarded-For
+    // instead of the proxy's. Off by default — a deployment with no reverse
+    // proxy must not trust a client-supplied header at all.
+    trustProxy: (() => {
+      const raw = process.env['TRUST_PROXY'];
+      if (!raw) return false;
+      const parsed = parseInt(raw, 10);
+      if (isNaN(parsed) || parsed < 1) {
+        throw new Error('TRUST_PROXY must be a positive integer (number of trusted proxy hops)');
+      }
+      return parsed;
+    })(),
   };
 }

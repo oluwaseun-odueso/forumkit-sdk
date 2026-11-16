@@ -115,6 +115,57 @@ Verify the same way as A1:
 curl http://localhost:3000/health
 ```
 
+### A3. Production: behind Caddy with automatic HTTPS
+
+`deploy/docker-compose.prod.yml` runs the published image alongside a `caddy:2`
+container that terminates TLS automatically — the setup used for ForumKit's own
+EC2 deployments. It reads two files from its own directory (`/opt/forumkit` in
+that setup) instead of one:
+
+- **`.env`** — this stack's own config: `FORUMKIT_TAG` (image tag to run),
+  `FORUM_SITE` (Caddy's site address), `PUBLIC_API_URL`, `ACME_EMAIL`,
+  `COMPOSE_FILE=docker-compose.prod.yml`.
+- **`forumkit.env`** — everything else: `DATABASE_URL`, `FORUM_SECRET_KEY`, storage
+  keys, etc. — the same variables as everywhere else in this guide.
+
+`FORUM_SITE` and `PUBLIC_API_URL` are kept separate on purpose, so you can run on a
+bare IP before you have a domain and switch later with no file changes:
+
+```bash
+# Before DNS exists — plain HTTP on the instance's IP, no certificate requested
+FORUM_SITE=:80
+PUBLIC_API_URL=http://203.0.113.10
+
+# Once a domain points at the instance — automatic Let's Encrypt HTTPS
+FORUM_SITE=forum.yourapp.com
+PUBLIC_API_URL=https://forum.yourapp.com
+```
+
+Switching from the first to the second is just editing `.env` and redeploying — the
+A record has to already resolve to the instance before Caddy starts in domain mode,
+or certificate issuance fails (and gets rate-limited on repeated failures).
+
+Set `TRUST_PROXY=1` in `forumkit.env` whenever the API runs behind this (or any)
+reverse proxy — see [Environment variables](#environment-variables) below. The
+compose file sets this for you already.
+
+```bash
+cd /opt/forumkit
+docker compose pull
+docker compose up -d
+```
+
+Deploying a new version is `deploy/deploy.sh <tag>` — see the script's own comments
+for exactly what it does; in short, it pulls first, only switches `FORUMKIT_TAG`
+once the pull succeeds, health-checks the new container through Caddy, and rolls
+back to the previous tag automatically if that check fails.
+
+A `Caddyfile` edit shipped by a later tag is bind-mounted into the container as a
+file, so it won't actually reach the running Caddy on its own — changing
+`FORUM_SITE` or `ACME_EMAIL` (real env vars) does trigger a recreate automatically,
+but a `Caddyfile` *content* change needs `docker compose up -d --force-recreate caddy`
+to take effect.
+
 ---
 
 ## Option B: Supabase (managed PostgreSQL)
@@ -135,17 +186,27 @@ In the Supabase dashboard: **Database > Extensions > vector** — enable it.
 
 From **Project Settings > Database**:
 
-- **Direct connection** (port 5432) — use for `DATABASE_URL` (migrations only)
-- **Session pooler** (port 5432) — use for `DATABASE_POOL_URL` (application runtime)
+- **Direct connection** (port 5432) — use for `DATABASE_URL` if your project exposes it.
+  Many projects don't (IPv6-only, or no IPv4 add-on) — if yours doesn't, use the
+  **session pooler** (also port 5432) for `DATABASE_URL` instead; it supports the
+  prepared statements migrations need.
+- **Transaction pooler** (port 6543) — use for `DATABASE_POOL_URL` (application
+  runtime). ForumKit's db client already sets `prepare: false` for this connection
+  specifically because the transaction pooler can route successive queries to
+  different backend connections, where a statement prepared on one wouldn't exist on
+  another — so this is supported, not a workaround to avoid.
 
-> Supabase's transaction pooler (port 6543) does not support prepared statements and
-> will cause errors with the `postgres` npm package. Use the session pooler instead.
+Whichever host you use for `DATABASE_URL`, remember it has to stay reachable from
+wherever the API container actually runs in production, not just from your own
+machine: migrations run automatically on every container start (see [Upgrading](#upgrading)),
+in the same process as the server, so `DATABASE_URL` is live network traffic at
+runtime, not a one-time local step.
 
 ### 4. Configure `.env`
 
 ```bash
 DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
-DATABASE_POOL_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+DATABASE_POOL_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
 FORUM_SECRET_KEY=your-generated-secret-here
 ```
 
@@ -160,6 +221,31 @@ continuing if that fails), then starts the API server — the same two-step
 sequence the Docker image runs internally. `npm run db:migrate` remains
 available separately if you want to apply migrations without starting the
 server.
+
+### 6. Optional: use Supabase Storage for file uploads too
+
+ForumKit's storage adapter talks to any S3-compatible bucket (see
+[Storage](#storage-required--no-local-disk-fallback) below), and Supabase Storage is
+one — no separate adapter or dependency, just these `STORAGE_S3_*` values instead
+of AWS's:
+
+1. In the Supabase dashboard: **Storage > Settings**, enable the S3 connection, and
+   create a bucket (private, since ForumKit resolves download URLs itself rather
+   than relying on public bucket access).
+2. Still in **Storage > Settings**, create an S3 access key — this gives you the
+   access key ID/secret pair below (distinct from your Supabase API keys).
+3. Configure:
+
+```bash
+STORAGE_S3_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
+STORAGE_S3_BUCKET=your-bucket-name
+STORAGE_S3_REGION=<your project's region, e.g. eu-west-1>
+STORAGE_S3_ACCESS_KEY_ID=...
+STORAGE_S3_SECRET_ACCESS_KEY=...
+```
+
+These keys are project-wide and bypass row-level security — treat them as server
+secrets the same way as your database password, never in the app or in git.
 
 ---
 
@@ -215,7 +301,7 @@ being a listed value below for forward-compatibility.
 | `AI_MODEL` | — | Summarise/Suggest model; provider-specific default if unset. |
 | `AI_ASK_MODEL` | — | A cheaper/faster model just for Ask AI; defaults to a smaller model than `AI_MODEL` if unset. |
 | `EMBEDDING_PROVIDER` | `local` | `local` is currently a no-op (no model behind it) — search falls back to keyword-only. `openai` uses text-embedding-3-small (1536 dims) for real semantic search. |
-| `EMBEDDING_DIMENSION` | `1536` | Must match the provider: 384 if you restore a local model, 1536 for OpenAI. **Set this before running migrations** — changing it on an existing database requires recreating the embedding columns. |
+| `EMBEDDING_DIMENSION` | `384` | Must match the provider: 384 (the default, matching `EMBEDDING_PROVIDER=local`) if you restore a local model, 1536 for OpenAI. **Set this before running migrations** — changing it on an existing database requires recreating the embedding columns. |
 | `MODERATION_PROVIDER` | `local` | `local` is currently a no-op — every post publishes with `toxicity_score: 0` and no flags. `perspective` uses Google's real Perspective API. |
 | `PERSPECTIVE_API_KEY` | — | Required when `MODERATION_PROVIDER=perspective`. |
 
@@ -229,6 +315,7 @@ being a listed value below for forward-compatibility.
 | `SESSION_TTL_MINUTES` | `15` | How long ForumKit session tokens are valid before the SDK re-exchanges. |
 | `MAX_POST_LENGTH` | `10000` | Maximum character length of a post body. |
 | `PUBLIC_API_URL` | `http://localhost:$PORT` | The public URL this API is reachable at — used to build download links for uploaded attachments (avatars, post/comment images). **Set this to your real public domain in production** (e.g. `https://forum.yourapp.com`); the `localhost` default only resolves for clients on the same machine as the API. |
+| `TRUST_PROXY` | off | Number of reverse-proxy hops in front of this server (e.g. `1` for a single Caddy/nginx in the same compose stack). Controls Fastify's `trustProxy`, which decides where the rate limiter and anything else reading the client IP trust `X-Forwarded-For` from. Leave unset with no reverse proxy — trusting that header with nothing in front to set it correctly lets a client fake its own IP and dodge rate limits. |
 
 ---
 
@@ -238,8 +325,8 @@ being a listed value below for forward-compatibility.
 - [ ] `NODE_ENV=production`
 - [ ] `LOG_LEVEL=warn` or `error` (avoids logging PII in request bodies)
 - [ ] Database is not publicly accessible (API is the only client)
-- [ ] API is served behind a reverse proxy (nginx, Caddy) with TLS
-- [ ] `DATABASE_URL` (direct) is only used for migrations, never exposed to the application process
+- [ ] API is served behind a reverse proxy (nginx, Caddy) with TLS, with `TRUST_PROXY` set to that proxy's hop count
+- [ ] `DATABASE_URL` is used only for running migrations (never for application queries, which go through `DATABASE_POOL_URL`) — but it still needs to be reachable from wherever the container runs in production, since migrations run there on every start, not from a separate offline step
 - [ ] Rate limiting is configured at the proxy level in addition to the application-level limits
 
 ---
