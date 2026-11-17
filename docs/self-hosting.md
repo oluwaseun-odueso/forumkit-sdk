@@ -160,11 +160,11 @@ for exactly what it does; in short, it pulls first, only switches `FORUMKIT_TAG`
 once the pull succeeds, health-checks the new container through Caddy, and rolls
 back to the previous tag automatically if that check fails.
 
-A `Caddyfile` edit shipped by a later tag is bind-mounted into the container as a
-file, so it won't actually reach the running Caddy on its own — changing
-`FORUM_SITE` or `ACME_EMAIL` (real env vars) does trigger a recreate automatically,
-but a `Caddyfile` *content* change needs `docker compose up -d --force-recreate caddy`
-to take effect.
+A `Caddyfile` is bind-mounted into the container as a file, so a content change
+alone wouldn't normally reach the running Caddy on its own - `deploy.sh` handles
+this itself: it keeps a checksum of the last-applied `Caddyfile` and automatically
+force-recreates `caddy` (about a second of downtime, no cert re-issuance - certs
+live in a separate volume) whenever that checksum changes.
 
 ---
 

@@ -34,6 +34,10 @@ export function s3Storage(config: S3Config): StorageAdapter {
       secretAccessKey: config.secretAccessKey,
     },
     ...(config.endpoint ? { endpoint: config.endpoint } : {}),
+    // SDK v3's default adds a checksum param to presigned URLs that some
+    // S3-compatible stores (confirmed: Supabase Storage) reject.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
 
   return {
