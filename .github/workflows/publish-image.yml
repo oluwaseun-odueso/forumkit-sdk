@@ -152,7 +152,7 @@ jobs:
           echo "--- deploy.sh stdout ---"
           printf '%s' "$invocation" | jq -r '.StandardOutputContent // ""' 2>/dev/null || true
           echo "--- deploy.sh stderr ---"
-          printf '%s' "$invocation" | jq -r '.StandardErrorContent // ""' 2>/dev/null >&2 || true
+          printf '%s' "$invocation" | jq -r '.StandardErrorContent // ""' >&2 2>/dev/null || true
           echo "Final SSM command status: $status"
 
           if [ "$status" != "Success" ]; then

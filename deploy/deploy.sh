@@ -50,6 +50,19 @@ echo "Starting $NEW_TAG (previous: ${PREVIOUS_TAG:-none}) ..."
 # separate manual step.
 docker compose up -d
 
+# Caddyfile is bind-mounted as a single file, so a changed file alone never
+# reaches the running caddy container - compose only recreates a service
+# when ITS OWN config (image, env, etc.) changes, not a file it mounts.
+# Certs live in the caddy_data volume, untouched by a recreate either way.
+CADDYFILE_CKSUM_FILE=.caddyfile.cksum
+NEW_CADDYFILE_CKSUM="$(cksum Caddyfile | cut -d' ' -f1)"
+OLD_CADDYFILE_CKSUM="$(cat "$CADDYFILE_CKSUM_FILE" 2>/dev/null || true)"
+if [ "$NEW_CADDYFILE_CKSUM" != "$OLD_CADDYFILE_CKSUM" ]; then
+  echo "Caddyfile changed - recreating caddy ..."
+  docker compose up -d --force-recreate caddy
+  echo "$NEW_CADDYFILE_CKSUM" > "$CADDYFILE_CKSUM_FILE"
+fi
+
 rollback() {
   echo "Deploy of $NEW_TAG failed - rolling back." >&2
   docker compose logs --tail=200 api >&2 || true
@@ -57,7 +70,12 @@ rollback() {
     set_tag "$PREVIOUS_TAG"
     docker compose up -d
   else
-    echo "No previous tag recorded - nothing to roll back to." >&2
+    # With `restart: unless-stopped`, leaving a failed first-ever deploy
+    # running would crash-loop api forever against whatever made it fail
+    # (e.g. a bad DATABASE_URL) - stop it rather than let that spin
+    # indefinitely. caddy is left running.
+    echo "No previous tag recorded - stopping the failed api container (caddy left running)." >&2
+    docker compose stop api
   fi
   exit 1
 }

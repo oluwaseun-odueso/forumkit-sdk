@@ -9,6 +9,10 @@
 #   With DNS:                FORUM_SITE=forum.example.com (automatic Let's Encrypt HTTPS)
 {
 	email {$ACME_EMAIL}
+	# Some Android HTTP clients complete the TLS handshake with no SNI at
+	# all. Without a default, Caddy then looks up a cert for its own
+	# container IP, finds none, and the connection fails.
+	default_sni {$FORUM_SITE}
 }
 
 {$FORUM_SITE} {
