@@ -6,7 +6,7 @@
 
 ### Prerequisites
 
-- Node.js 20 LTS
+- Node.js 22 LTS
 - npm 10+
 - Docker (for the local database)
 
