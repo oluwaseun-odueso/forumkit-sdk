@@ -15,7 +15,7 @@
     "LICENSE"
   ],
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
