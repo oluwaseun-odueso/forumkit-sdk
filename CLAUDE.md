@@ -27,7 +27,7 @@ there is no working local/offline model behind either right now, despite
 
 **Stack at a glance**
 
-- Runtime: Node.js 20 LTS
+- Runtime: Node.js 22 LTS
 - Framework: Fastify 4.x
 - Database: PostgreSQL 16 + pgvector extension
 - Real-time: WebSocket (ws)

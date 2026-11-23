@@ -9,7 +9,7 @@ Supabase (managed PostgreSQL with pgvector).
 ## Prerequisites
 
 - Docker and Docker Compose v2
-- Node.js 20 LTS and npm 10+
+- Node.js 22 LTS and npm 10+
 - A `FORUM_SECRET_KEY` — any long random string, used to sign JWTs
 
 Generate a secret:
