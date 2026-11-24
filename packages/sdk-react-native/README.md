@@ -95,23 +95,94 @@ export default function App() {
 
 ---
 
-## JWT shape
+## Authentication
 
-Your backend signs a short-lived JWT using `FORUM_SECRET_KEY` (HS256). The payload must include:
+ForumKit supports two authentication modes. Choose the one that fits your setup.
 
-```ts
-{
-  sub: string;      // your app's internal user ID
-  name: string;     // display name shown in the forum
-  email: string;    // used for notification delivery only, never displayed publicly
-  role: 'guest' | 'member' | 'moderator' | 'admin';
-  forumId: string;  // must match the forumId prop
-  iat: number;
-  exp: number;      // keep this short - 15 minutes is recommended
-}
+### Standard mode (default)
+
+Your backend mints a short-lived JWT, signs it with `FORUM_SECRET_KEY` (the same secret set in your ForumKit API's environment), and passes it to the SDK. On initialisation the SDK exchanges that JWT for its own internal session token and uses that for all subsequent requests. Your app never needs to know ForumKit's internal token exists.
+
+**1. Set `FORUM_SECRET_KEY` in your ForumKit API `.env`:**
+
+```bash
+FORUM_SECRET_KEY=a-long-random-secret-only-your-servers-know
 ```
 
-ForumKit verifies the JWT on every session handshake, creates or updates the user record, and issues its own internal session token. Your JWT is never stored.
+**2. Add an endpoint to your backend that mints the token:**
+
+```ts
+import jwt from 'jsonwebtoken';
+
+app.get('/api/forumkit-token', requireAuth, (req, res) => {
+  const token = jwt.sign(
+    {
+      sub: req.user.id,           // your app's user ID
+      name: req.user.displayName,
+      email: req.user.email,
+      role: toForumKitRole(req.user.role), // 'guest' | 'member' | 'moderator' | 'admin'
+      forumId: 'YOUR_FORUM_ID',
+    },
+    process.env.FORUM_SECRET_KEY,
+    { expiresIn: '15m', algorithm: 'HS256' }
+  );
+  res.send(token);
+});
+```
+
+**3. Pass the token to the SDK:**
+
+```tsx
+<ForumKit
+  forumId="YOUR_FORUM_ID"
+  apiUrl="https://your-api.example.com"
+  token={await fetch('https://your-api.example.com/forumkit-token').then(r => r.text())}
+  getToken={() => fetch('https://your-api.example.com/forumkit-token').then(r => r.text())}
+/>
+```
+
+`getToken` is called automatically before each session renewal. Without it the session will expire once the initial `token` does - always provide it in production.
+
+---
+
+### Direct host token mode (Cognito, Auth0, and similar)
+
+If your app already authenticates users through an identity provider and you do not want a second token in your codebase, set `useHostTokenDirectly: true`. The SDK skips its own session exchange and presents your Access Token directly on every API request.
+
+```tsx
+import { Auth } from 'aws-amplify';
+
+<ForumKit
+  forumId="YOUR_FORUM_ID"
+  apiUrl="https://your-api.example.com"
+  token={cognitoAccessToken}
+  useHostTokenDirectly={true}
+  getToken={async () => {
+    const session = await Auth.currentSession();
+    return session.getAccessToken().getJwtToken();
+  }}
+/>
+```
+
+**Important - custom claims are required.** ForumKit reads `sub`, `name`, `email`, `role`, and `forumId` from the token on every request. Your identity provider will not add these automatically - you must configure custom claims on your tokens before using this mode.
+
+For AWS Cognito, add a Pre Token Generation Lambda trigger that appends the claims:
+
+```ts
+exports.handler = async (event) => {
+  event.response.claimsOverrideDetails = {
+    claimsToAddOrOverride: {
+      name: event.request.userAttributes.name,
+      email: event.request.userAttributes.email,
+      role: lookupRole(event.userName),  // map your Cognito group to 'member' | 'moderator' | 'admin'
+      forumId: 'YOUR_FORUM_ID',
+    },
+  };
+  return event;
+};
+```
+
+The ForumKit API must also be configured to verify tokens from your identity provider. See the JWT verification settings in the [self-hosting guide](https://github.com/oluwaseun-odueso/forumkit-sdk#quick-start).
 
 ---
 
